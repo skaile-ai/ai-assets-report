@@ -2,7 +2,7 @@
   "title": "Beispiel · Inhaltsbaum",
   "lang": "de",
   "meta": ["Quelle: lokales Directus (localhost:8059)", "Stand: 2026-10-12"],
-  "stats": [["Bereiche", 1], ["Screens", 2], ["Quellen", 1]],
+  "stats": [["Bereiche", {"value": 1, "source": "directus areas"}], ["Screens", {"value": 2, "source": "directus screens"}], ["Quellen", {"value": 1, "source": "directus sources"}]],
   "badges": {
     "kind": {"label": "Entität · eckig", "shape": "square", "values": {
       "area": {"label": "AREA", "color": "purple", "desc": "Bereich"},

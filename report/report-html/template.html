@@ -37,6 +37,7 @@ code{font-size:.92em;background:var(--wash);padding:0 4px;border-radius:3px}
 .lvl{font-size:11px;font-weight:600;line-height:1.6;padding:0 5px;border:1px solid var(--ink);color:var(--ink)}
 .dw{overflow-x:auto;padding:2px 0}
 .dg{display:block;max-width:none;color:var(--ink)}.dg text{font-variant-ligatures:none;font-feature-settings:"calt" 0,"liga" 0}
+pre.mermaid{font:12px var(--mono);white-space:pre;overflow-x:auto;margin:0}pre.mermaid[data-processed] svg{max-width:100%;height:auto}
 .bx{fill:var(--paper);stroke:var(--ink);stroke-width:1;transition:fill 1.5s,stroke-width .15s}
 .bx.ext{fill:var(--wash);stroke:var(--mute)}.bx.bd{fill:var(--wash);stroke:var(--mute);stroke-dasharray:4 3}
 .bt{font:600 13px var(--mono);fill:var(--ink)}.bs{font:12px var(--mono);fill:var(--mute)}
@@ -166,6 +167,25 @@ ul.ste li.chg,ol.ste li.chg,tr.chg>td,.row.chg{background:var(--cb)}tr.chg>td:fi
 #find{flex:0 1 320px;min-width:0;font:12px var(--mono);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:4px 10px}
 #find:focus{outline:2px solid var(--acc);outline-offset:-1px}
 #findn{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+/* data tables (`data` block): simple-datatables' stylesheet loads after this one, so its overrides carry .datatable-wrapper */
+.csv{margin-left:auto;font:12px/1.4 var(--mono);padding:0 8px;border:1px solid var(--rule);background:var(--paper);border-radius:6px;cursor:pointer;color:var(--ink)}.csv:hover{background:var(--wash)}
+.datatable-wrapper{font:inherit}
+.datatable-wrapper .datatable-container{overflow-x:auto}
+.datatable-wrapper .datatable-top,.datatable-wrapper .datatable-bottom{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 14px;padding:6px 0}
+.datatable-wrapper .datatable-top::after,.datatable-wrapper .datatable-bottom::after{display:none}
+.datatable-wrapper .datatable-input,.datatable-wrapper .datatable-selector{font:12px var(--mono);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:3px 8px}
+.datatable-wrapper .datatable-input:focus{outline:2px solid var(--acc);outline-offset:-1px}
+.datatable-wrapper .datatable-info{margin:0;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.datatable-wrapper .datatable-pagination a,.datatable-wrapper .datatable-pagination button{font:12px var(--mono);color:var(--mute);padding:2px 9px;border-radius:6px;background:none}
+.datatable-wrapper .datatable-pagination a:hover,.datatable-wrapper .datatable-pagination button:hover,
+.datatable-wrapper .datatable-pagination .datatable-active a,.datatable-wrapper .datatable-pagination .datatable-active button{background:var(--wash)!important;color:var(--ink)}
+.datatable-wrapper .datatable-pagination .datatable-active a,.datatable-wrapper .datatable-pagination .datatable-active button{border-color:var(--ink)}
+.datatable-wrapper .datatable-table{border-collapse:collapse}
+.datatable-wrapper .datatable-table>thead>tr>th{padding:5px 10px 5px 0;border-bottom:1px solid var(--ink);vertical-align:baseline}
+.datatable-wrapper .datatable-table>tbody>tr>td{padding:5px 10px 5px 0;vertical-align:baseline}
+.datatable-wrapper .datatable-table .n{text-align:right}
+.datatable-wrapper .datatable-sorter{padding-right:14px;color:inherit;text-decoration:none;font:inherit;text-transform:inherit;letter-spacing:inherit}
+@media print{.csv,.datatable-top,.datatable-pagination{display:none}}
 </style>
 <script>
 /* One filter per tree. FILTER holds the toggleable categories of that tree. `drives`: figure ids of
@@ -387,6 +407,34 @@ addEventListener('DOMContentLoaded',()=>{const box=document.getElementById('find
  box.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>{FIND.q=box.value.trim().toLowerCase();
   for(const tf of window.TF||[]){tf.q=FIND.q;tf.recalc()}
   document.dispatchEvent(new CustomEvent('find',{detail:{q:FIND.q}}));findN()},120)})});
+/* Data tables (`data` block). window.DT comes from a module script in <head> (simple-datatables, only when the report has a `data`
+   block) and fires `dt-ready`; without it the plain tables stay. Each table.dt gets `el._dt` (the DataTable) and
+   `el._dtFilter(col, values|null, source='filter')`: keep only rows whose cell text in column `col` equals one of `values`
+   (exact match; null or [] removes that filter) — for a chart selection. Sources AND together; 'search' (the table's own box)
+   and 'find' (the header box) match by substring. Counts (`FIND.parts.dt`) follow every change. CSV exports every row.
+   `dt-init` fires on document once all tables are upgraded (a chart that listens to a table waits for it). */
+const DTL={de:{placeholder:'Tabelle durchsuchen…',searchTitle:'In der Tabelle suchen',pageTitle:'Seite {page}',perPage:'Zeilen pro Seite',noRows:'Keine Zeilen',info:'Zeilen {start} bis {end} von {rows}',noResults:'Keine Zeile passt zur Suche'},
+ en:{placeholder:'Search table…',searchTitle:'Search within table',pageTitle:'Page {page}',perPage:'rows per page',noRows:'No rows',info:'Showing {start} to {end} of {rows} rows',noResults:'No row matches the search'}};
+const dtAll=()=>[...document.querySelectorAll('table.dt')].filter(e=>e._dt);
+function dtCount(){const t=dtAll();if(!t.length)return;
+ FIND.parts.dt=t.reduce((s,e)=>s+(e._dt._searchQueries.length?e._dt._searchData.length:e._dt.data.data.length),0);findN()}
+function dtInit(){if(!window.DT)return;const L=DTL[document.documentElement.lang.slice(0,2)]||DTL.en;
+ const text=c=>(c.text??(typeof c.data==='string'?c.data:'')).trim();
+ document.querySelectorAll('table.dt').forEach(el=>{if(el._dt)return;const c=JSON.parse(el.dataset.dt||'{}');
+  const dt=new DT.DataTable(el,{searchable:true,perPage:c.page||25,perPageSelect:[10,25,50,100],labels:L,
+   sensitivity:'variant',ignorePunctuation:false,
+   searchMethod:(terms,cell,row,col,src)=>src==='search'||src==='find'?terms.some(t=>text(cell).toLowerCase().includes(t.toLowerCase())):terms.includes(text(cell)),
+   columns:(c.num||[]).length?[{select:c.num,type:'number'}]:[]});
+  el._dt=dt;
+  el._dtFilter=(col,values,src='filter')=>dt.multiSearch(values&&values.length?[{terms:values.map(String),columns:[col]}]:[],src);
+  dt.on('datatable.multisearch',dtCount);
+  dt.on('datatable.init',()=>{if(FIND.q)dt.multiSearch([{terms:[FIND.q]}],'find');dtCount()});
+  document.querySelectorAll(`button.csv[data-dt="${CSS.escape(el.id.slice(3))}"]`).forEach(b=>b.hidden=false)});
+ document.dispatchEvent(new Event('dt-init'))}
+addEventListener('dt-ready',dtInit);
+addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button.csv');if(!b)return;
+ const el=document.getElementById('dt-'+b.dataset.dt);if(el&&el._dt)DT.exportCSV(el._dt,{download:true,filename:b.dataset.dt})});
+document.addEventListener('find',()=>{for(const e of dtAll())e._dt.multiSearch(FIND.q?[{terms:[FIND.q]}]:[],'find');dtCount()});
 </script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
 {{HEAD}}

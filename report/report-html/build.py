@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render a report.json into one self-contained HTML file.
 
-    python3 build.py report.json out.html
+    python3 build.py [--strict] report.json out.html
 
 Schema: see SKILL.md ("report.json") and DIAGRAMS.md. Every entity gets the anchor
 `#e-<id>`, every diagram `#f-<id>`, every diagram node `#f-<id>-<node>`. `refs`,
@@ -25,8 +25,28 @@ COLORS = {"purple", "blue", "green", "gray", "orange", "pink", "teal", "yellow",
 CHANGE = {"new": "green", "changed": "orange", "removed": "red"}  # `change` value -> mark colour
 DIAGRAMS = {"flow", "lineage", "states", "map"}
 ID_FIGURES = {"mermaid", "vega", "video"}  # figures with an id and a `#f-<id>` anchor but no nodes; their renderers register below
-FIND_TYPES = {"tree"}  # block types that switch on the header find box
+FIND_TYPES = {"tree", "data"}  # block types that switch on the header find box
+PROFILES = {"explanation", "structure", "inventory", "critique", "comparison", "exploration", "change"}  # top-level `profile`
+AT_REQUIRED = {"explanation", "structure"}  # profiles in which every flow/map edge needs `at`
+LINT_PROSE_WORDS = 60  # a p/bullets/steps block longer than this needs one [[id]] link
+LINT_KIND_MIN = 5  # entities of one kind needed before a missing meta key is reported
 HEAD = {}  # block type -> HTML for <head> (CDN tags); added once when a block of that type is in the report
+HEAD["mermaid"] = (
+    '<script type="module">\n'
+    'import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";\n'
+    'mermaid.initialize({startOnLoad: false, securityLevel: "strict", theme: "neutral", '
+    'fontFamily: "JetBrains Mono, monospace", suppressErrorRendering: true});\n'
+    'await mermaid.run({querySelector: "pre.mermaid", suppressErrors: true});\n'
+    'document.querySelectorAll("pre.mermaid svg").forEach(s => s.classList.add("dg"));\n'
+    '</script>')
+HEAD["data"] = (
+    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simple-datatables@10/dist/style.css">\n'
+    '<script type="module">\n'
+    'import {DataTable, exportCSV} from "https://cdn.jsdelivr.net/npm/simple-datatables@10/dist/module.js";\n'
+    'window.DT = {DataTable, exportCSV}; dispatchEvent(new Event("dt-ready"));\n'
+    '</script>')
+DATA_TYPES = {"number", "date", "string"}  # `data` column types
+MERMAID_HREF = re.compile(r'\bclick\s+\S+\s+(?:href\s+)?"#([^"]+)"')  # in-page `click <node> href "#id"` targets
 SHAPES = {"process", "store", "external", "decision", "data", "state"}
 EDGE_KINDS = {"flow", "error", "opt"}
 PSEUDO = "[*]"  # UML initial (as source) / final (as target) pseudo-state, as in Mermaid
@@ -114,9 +134,11 @@ def diagram_nodes(b):
 
 
 class Report:
-    def __init__(self, data, out_dir=None):
+    def __init__(self, data, out_dir=None, src=None):
         self.d = data
         self.out_dir = out_dir  # directory of the output HTML; media (`video`) resolves against it
+        self.src = src  # path of report.json; the data dump (`count` stats) resolves against it
+        self.lints = []  # lint lines; printed by main() after the build
         self.cats = data.get("badges", {})
         self.ents = {e["id"]: e for e in data.get("entities", [])}
         if len(self.ents) != len(data.get("entities", [])):
@@ -147,6 +169,9 @@ class Report:
         self.under = False  # inside a `new`/`removed` part: everything below is that, so no more marks
         self.nchg = Counter()
         self.diagrams()
+        if data.get("profile") is not None and data["profile"] not in PROFILES:
+            fail(f"profile must be one of {sorted(PROFILES)}, not {data['profile']}")
+        self.require_at()
 
     # -- change document -------------------------------------------------
     def changed(self, x):
@@ -381,6 +406,85 @@ class Report:
             clsattr = f' class="{rcls.strip()}"' if rcls else ""
             rows.append(f"<tr{idattr}{clsattr}>{''.join(tds)}</tr>")
         return f'<div class="tw"><table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>'
+
+    def b_data(self, b):
+        """Interactive table: a plain `<table class="dt">` that the template upgrades with simple-datatables
+        (sort, search, pages, CSV). Without JS or CDN the plain table shows; the CSV button stays hidden."""
+        did = b.get("id")
+        if not did:
+            fail("data: needs an id")
+        cols, rows = b.get("columns") or [], b.get("rows") or []
+        if not cols:
+            fail(f"data {did}: needs `columns`")
+        keys = [c["key"] for c in cols]
+        if len(set(keys)) != len(keys):
+            fail(f"data {did}: duplicate column key")
+        for c in cols:
+            if c.get("type", "string") not in DATA_TYPES:
+                fail(f"data {did}: column {c['key']}: type must be one of {sorted(DATA_TYPES)}, not {c['type']}")
+        key = b.get("key")
+        if key is not None and key not in keys:
+            fail(f"data {did}: key {key} is not a column key")
+        for i, r in enumerate(rows, 1):
+            bad = [k for k in r if k not in keys]
+            if bad:
+                fail(f"data {did}: row {i}: unknown column key {', '.join(bad)}")
+        page = b.get("page", 25)
+        if not isinstance(page, int) or isinstance(page, bool) or page < 1:
+            fail(f"data {did}: page must be a positive integer")
+        listen = b.get("listen")
+        if listen is not None:
+            if not isinstance(listen, dict) or not all(isinstance(listen.get(k), str) for k in ("chart", "param", "field")):
+                fail(f"data {did}: listen needs chart, param and field")
+            chart = self.dg.get(listen["chart"])
+            if not chart or chart["type"] != "vega":
+                fail(f"data {did}: listen.chart must be a vega block, not {listen['chart']}")
+            if listen["field"] not in keys:
+                fail(f"data {did}: listen.field {listen['field']} is not a column key")
+
+            def params(x):
+                if isinstance(x, dict):
+                    yield from (p for p in x["params"] if isinstance(p, dict)) if isinstance(x.get("params"), list) else ()
+                    for v in x.values():
+                        yield from params(v)
+                elif isinstance(x, list):
+                    for v in x:
+                        yield from params(v)
+            p = next((p for p in params(chart.get("spec", {})) if p.get("name") == listen["param"]), None)
+            if p is None:
+                fail(f"data {did}: listen.param {listen['param']} is not a param of vega {listen['chart']}")
+            sel = p.get("select")
+            if (sel.get("type") if isinstance(sel, dict) else sel) != "point":
+                fail(f"data {did}: listen.param {listen['param']} must be a point selection (select.type \"point\"), not {sel}")
+        num = [i for i, c in enumerate(cols) if c.get("type") == "number"]
+        head = "".join(("<th class=\"n\">" if i in num else "<th>") + E(str(c.get("label", c["key"]))) + "</th>" for i, c in enumerate(cols))
+        body = []
+        for r in rows:
+            tds = []
+            for i, c in enumerate(cols):
+                v = r.get(c["key"])
+                if c["key"] == key and isinstance(v, (str, int)) and not isinstance(v, bool) and v in self.ents:
+                    inner = self.link(v)
+                elif i in num and isinstance(v, (int, float)) and not isinstance(v, bool):
+                    inner = str(v)  # no thousands space: the table script parses the cell text as a number
+                else:
+                    inner = self.cell(v)
+                cls = " ".join(x for x in ("n" if i in num else "", "zero" if i in num and v == 0 else "") if x)
+                tds.append(f'<td class="{cls}">{inner}</td>' if cls else f"<td>{inner}</td>")
+            kv = r.get(key) if key is not None else None
+            de = f' data-e="{E(str(kv))}"' if isinstance(kv, (str, int)) and not isinstance(kv, bool) and kv in self.ents else ""
+            body.append(f"<tr{de}>{''.join(tds)}</tr>")
+        cap = f'<b>{E(b["label"])}</b>' if b.get("label") else ""
+        if not rows:
+            warn(f"data {did}: no rows")
+            body = [f'<tr><td colspan="{len(cols)}">—</td></tr>']
+            return (f'<figure class="fg" id="{E(self.danchor(did))}"><figcaption>{cap}</figcaption><div class="tw"><table>'
+                    f'<thead><tr>{head}</tr></thead><tbody>{"".join(body)}</tbody></table></div></figure>')
+        cfg = {"page": page, "num": num, **({"listen": listen} if listen else {})}
+        csv = (f'<button type="button" class="csv" data-dt="{E(did)}" hidden title="{E(self.t["csv"])}">{E(self.t["csv"])}</button>')
+        return (f'<figure class="fg" id="{E(self.danchor(did))}"><figcaption>{cap}{csv}</figcaption><div class="tw">'
+                f'<table class="dt" id="dt-{E(did)}" data-dt="{E(json.dumps(cfg, ensure_ascii=False))}">'
+                f'<thead><tr>{head}</tr></thead><tbody>{"".join(body)}</tbody></table></div></figure>')
 
     # -- diagrams --------------------------------------------------------
     @staticmethod
@@ -1268,6 +1372,32 @@ class Report:
     def b_html(self, b):
         return b["html"]
 
+    def b_mermaid(self, b):
+        """Mermaid source (`report-diagram`) rendered in the browser from the CDN module in HEAD; the escaped
+        source stays readable in the <pre> when the render or the network fails. `click` hrefs are checked in render()."""
+        gid = b["id"]
+        if not isinstance(b.get("code"), str) or not b["code"].strip():
+            fail(f"mermaid {gid}: `code` is required")
+        after = self.evidence([(E(b.get("label", gid)), b["at"])]) if b.get("at") else ""
+        return self.figure(b, f'<pre class="mermaid">{E(b["code"])}</pre>', used={}, after=after)
+
+    def b_video(self, b):
+        """Explainer video (`report-video`): `src`/`poster` are paths relative to the output HTML and must exist there."""
+        gid = b["id"]
+        base = Path(self.out_dir) if self.out_dir is not None else Path(".")
+        for key in ("src", "poster"):
+            if key == "src" and not b.get(key):
+                fail(f"video {gid}: `src` is required")
+            if b.get(key) and not (base / b[key]).is_file():
+                fail(f"video {gid}: file not found {b[key]}")
+        poster = f' poster="{E(b["poster"])}"' if b.get("poster") else ""
+        el = (f'<video controls preload="metadata"{poster} src="{E(b["src"])}" '
+              f'style="width:100%;max-height:70vh"></video>')
+        after = f'<p class="mt">{self.inline(b["caption"])}</p>' if b.get("caption") else ""
+        if b.get("at"):
+            after += self.evidence([(E(b.get("label", gid)), b["at"])])
+        return self.figure(b, el, used={}, tools="", after=after)
+
     def block(self, b, where, scope=False):
         """One block; in a change document a marked block gets its mark and rule, an unmarked one next to a marked sibling dims."""
         fn = getattr(self, "b_" + b["type"], None)
@@ -1276,6 +1406,166 @@ class Report:
         k, cls, mk = self.state(b, scope)
         out = self.inside(k, fn, b)
         return f'<div class="cx{cls}">{mk}{out}</div>' if cls else out
+
+    # -- computed stats, evidence and lint ---------------------------------
+    def require_at(self):
+        """Profiles explanation and structure: every flow/map edge carries `at` (other profiles only warn, see check_evidence)."""
+        if self.d.get("profile") not in AT_REQUIRED:
+            return
+        miss = [f"{b['type']} {b['id']}: edge {e['from']}->{e['to']} without at"
+                for b in self.dg.values() if b["type"] in ("flow", "map")
+                for e in map(edge_of, b.get("edges", [])) if not e.get("at")]
+        if miss:
+            fail("\nreport.json: ".join(miss[:12]) + (f"\nreport.json: … +{len(miss) - 12} more" if len(miss) > 12 else ""))
+
+    def dump_rows(self, label, name):
+        """Rows of collection `name` from the dump: `<name>.json` (array or Directus {"data": [...]}) or `.jsonl` in
+        the folder `data_dir` (top level, relative to report.json) or, by convention, `<report stem>.data/` next to report.json."""
+        if self.src is None:
+            fail(f'stat "{label}": count needs the path of report.json')
+        base = self.src.parent
+        folder = base / self.d["data_dir"] if self.d.get("data_dir") else base / (self.src.stem + ".data")
+        for ext in (".json", ".jsonl"):
+            f = folder / (name + ext)
+            if f.is_file():
+                break
+        else:
+            fail(f'stat "{label}": unknown collection {name} (no {folder / (name + ".json")})')
+        text = f.read_text()
+        rows = [json.loads(ln) for ln in text.splitlines() if ln.strip()] if ext == ".jsonl" else json.loads(text)
+        if isinstance(rows, dict) and isinstance(rows.get("data"), list):
+            rows = rows["data"]
+        if not isinstance(rows, list):
+            fail(f'stat "{label}": {f} is not an array of rows')
+        return rows
+
+    def stat(self, label, v):
+        """Header stat value as text: `{"count": <collection>, "where"?: {field: value}}` counts dump rows, `{"rows": <table id>}`
+        counts the body rows of a `table`/`data` block, `{"value": n, "source": <file>}` is a literal that names its source
+        (lint line). A bare number fails; other text (a label such as "v2") stays as typed."""
+        if isinstance(v, dict):
+            if "count" in v:
+                def field(r, path):
+                    for k in path.split("."):
+                        r = r.get(k) if isinstance(r, dict) else None
+                    return r
+                where = v.get("where") or {}
+                rows = [r for r in self.dump_rows(label, v["count"])
+                        if all(field(r, k) == w or (isinstance(field(r, k), list) and w in field(r, k)) for k, w in where.items())]
+                return str(len(rows))
+            if "rows" in v:
+                blk = next((b for sec in self.d.get("sections", []) for b in walk(sec.get("blocks", []))
+                            if b.get("id") == v["rows"] and b.get("type") in ("table", "data")), None)
+                if blk is None:
+                    fail(f'stat "{label}": unknown table {v["rows"]}')
+                return str(len(blk.get("rows", [])))
+            if "value" in v:
+                if not v.get("source"):
+                    fail(f'stat "{label}": literal number needs source, count or rows')
+                self.lints.append(f'stat "{label}": literal, source {v["source"]}')
+                return str(v["value"])
+            fail(f'stat "{label}": give count, rows, or value with source')
+        if (isinstance(v, (int, float)) and not isinstance(v, bool)) or re.fullmatch(r"[\d.,\s]+", str(v)):
+            fail(f'stat "{label}": literal number needs source, count or rows')
+        return str(v)
+
+    def incoming(self):
+        """Entity ids that something links to: `refs`, [[id]] in any text, {ref}/{refs} cells, node `ref`, tab `entity`, bars labels.
+        A link from an entity to itself does not count; `parent` is structure, not a link."""
+        known = {str(k): k for k in self.ents}
+        inc = set()
+
+        def add(x, owner):
+            k = known.get(str(x))
+            if k is not None and k != owner:
+                inc.add(k)
+
+        def scan(x, owner):
+            if isinstance(x, str):
+                for m in re.finditer(r"\[\[([^\]|]+)", x):
+                    add(m.group(1), owner)
+            elif isinstance(x, list):
+                for v in x:
+                    scan(v, owner)
+            elif isinstance(x, dict):
+                for k, v in x.items():
+                    if k == "ref" and not isinstance(v, (dict, list)):
+                        add(v, owner)
+                    elif k == "refs" and isinstance(v, list):
+                        for r in v:
+                            add(r, owner)
+                    elif k == "entity" and "blocks" in x:
+                        add(v, owner)
+                    elif k == "items" and x.get("type") == "bars" and x.get("link", True):
+                        for it in v:
+                            add(it[0], owner)
+                    scan(v, owner)
+
+        for e in self.d.get("entities", []):
+            scan(e, e["id"])
+        scan(self.d.get("sections", []), None)
+        return inc
+
+    @staticmethod
+    def meta_key(m):
+        """Key of a `meta` line: the part before a colon, else the text without numbers and backticks."""
+        s = str(m)
+        head, colon, _ = s.partition(":")
+        if colon and "`" not in head and len(head.split()) <= 3:
+            return head.strip().lower()
+        return re.sub(r"\s+", " ", re.sub(r"[\d.,]+", " ", s.replace("`", ""))).strip().lower()
+
+    def lint(self):
+        """Lint lines for the weaknesses of the 2026-10-13 review; stat lines are already in self.lints."""
+        out, d = list(self.lints), self.d
+        secs = d.get("sections", [])
+        inc = self.incoming()
+        for e in d.get("entities", []):
+            if e.get("tree", True) is not False and e["id"] not in inc:
+                out.append(f"orphan {e['id']}: no incoming link")
+        for sec in secs:
+            for b in walk(sec.get("blocks", [])):
+                if b.get("type") in ("p", "bullets", "steps"):
+                    text = b["text"] if b["type"] == "p" else " ".join(x["text"] if isinstance(x, dict) else x for x in b["items"])
+                    if "[[" not in text:
+                        n = len(text.split())
+                        if n > LINT_PROSE_WORDS:
+                            out.append(f'prose: section "{sec["title"]}" has {n} words and 0 links')
+        for c, cat in self.cats.items():
+            have = [e for e in d.get("entities", []) if e.get("badges", {}).get(c)]
+            if len(have) < 10:
+                continue
+            for val in cat["values"]:
+                n = sum(1 for e in have if val in e["badges"][c])
+                pct = n * 100 / len(have)
+                if pct > 85 or pct < 5:
+                    out.append(f"badge {c}={val}: {n} of {len(have)} entities ({pct:.0f} %)")
+        tree = next((b for b in (b for sec in secs for b in walk(sec.get("blocks", []))) if b.get("type") == "tree"), {})
+        filt = tree.get("filter", list(self.cats))
+        kind_cat = tree.get("kind", filt[0] if filt else next(iter(self.cats), None))
+        kinds = defaultdict(list)
+        for e in d.get("entities", []):
+            if e.get("badges", {}).get(kind_cat):
+                kinds[e["badges"][kind_cat][0]].append(e)
+        for kind, es in kinds.items():
+            if len(es) < LINT_KIND_MIN:
+                continue
+            keys = [{self.meta_key(m) for m in e.get("meta", [])} - {""} for e in es]
+            for key in sorted(set().union(*keys)):
+                if sum(key in ks for ks in keys) >= 0.8 * len(es):
+                    out += [f'kind {kind}: {e["id"]} lacks meta "{key}"' for e, ks in zip(es, keys) if key not in ks]
+        pos, trees, i = {}, [], 0
+        for sec in secs:
+            for b in walk(sec.get("blocks", [])):
+                i += 1
+                if b.get("type") in DIAGRAMS | ID_FIGURES:
+                    pos[b["id"]] = i
+                elif b.get("type") == "tree" and b.get("drives"):
+                    trees.append((i, sec["title"], b["drives"]))
+        for i, title, drives in trees:
+            if any(pos.get(g, i) < i for g in drives):
+                out.append(f'section "{title}": tree after the diagram it drives')
+        return out
 
     # -- page ------------------------------------------------------------
     def render(self):
@@ -1286,7 +1576,7 @@ class Report:
                 '<span id="findn"></span></div>') if used & FIND_TYPES else ""
         parts = [f'<header><h1>{E(d["title"])}</h1><p>' + "<br>".join(E(m) for m in d.get("meta", [])) + f"</p>{find}</header>"]
         if d.get("stats"):
-            parts.append('<dl class="stats">' + "".join(f"<div><dt>{E(k)}</dt><dd>{E(str(v))}</dd></div>" for k, v in d["stats"]) + "</dl>")
+            parts.append('<dl class="stats">' + "".join(f"<div><dt>{E(k)}</dt><dd>{E(self.stat(k, v))}</dd></div>" for k, v in d["stats"]) + "</dl>")
         secs = d.get("sections", [])
         top = self.scope(secs)
         for i, sec in enumerate(secs, 1):
@@ -1311,7 +1601,9 @@ class Report:
         if twice:
             fail("anchor rendered twice: " + ", ".join(twice[:12]) + " (an entity belongs in one tree or one tab, not both)")
         ids = set(found)
-        dead = sorted({html.unescape(h) for h in re.findall(r'href="#([^"]+)"', body)} - ids)
+        mm = {h for sec in d.get("sections", []) for b in walk(sec.get("blocks", [])) if b.get("type") == "mermaid"
+              for h in MERMAID_HREF.findall(b.get("code", ""))}
+        dead = sorted(({html.unescape(h) for h in re.findall(r'href="#([^"]+)"', body)} | mm) - ids)
         if dead:
             fail("links without a target: " + ", ".join(dead[:12]) + " (an entity needs a tree row, a table `anchor` or a tab `entity`)")
         page = TEMPLATE.read_text()
@@ -1323,12 +1615,22 @@ class Report:
 
 
 def main():
-    if len(sys.argv) != 3:
+    args = [a for a in sys.argv[1:] if a != "--strict"]
+    strict = len(args) != len(sys.argv) - 1
+    if len(args) != 2:
         sys.exit(__doc__)
-    data = json.loads(Path(sys.argv[1]).read_text())
-    out = Path(sys.argv[2])
-    out.write_text(Report(data, out_dir=out.parent).render())
-    print(sys.argv[2])
+    data = json.loads(Path(args[0]).read_text())
+    out = Path(args[1])
+    rep = Report(data, out_dir=out.parent, src=Path(args[0]))
+    page = rep.render()
+    lints = rep.lint()
+    for line in lints:
+        print(f"lint: {line}", file=sys.stderr)
+    print(f"lint: {len(lints)} findings", file=sys.stderr)
+    if strict and lints:
+        sys.exit(f"report.json: --strict: {len(lints)} lint findings")
+    out.write_text(page)
+    print(args[1])
 
 
 if __name__ == "__main__":
