@@ -45,6 +45,11 @@ HEAD["data"] = (
     'import {DataTable, exportCSV} from "https://cdn.jsdelivr.net/npm/simple-datatables@10/dist/module.js";\n'
     'window.DT = {DataTable, exportCSV}; dispatchEvent(new Event("dt-ready"));\n'
     '</script>')
+HEAD["vega"] = (  # classic UMD builds; `defer` scripts run before DOMContentLoaded, where the template's vgInit() starts
+    '<script defer src="https://cdn.jsdelivr.net/npm/vega@6"></script>\n'
+    '<script defer src="https://cdn.jsdelivr.net/npm/vega-lite@6"></script>\n'
+    '<script defer src="https://cdn.jsdelivr.net/npm/vega-embed@7"></script>')
+VEGA_SCHEMA = "https://vega.github.io/schema/vega-lite/v6.json"
 DATA_TYPES = {"number", "date", "string"}  # `data` column types
 MERMAID_HREF = re.compile(r'\bclick\s+\S+\s+(?:href\s+)?"#([^"]+)"')  # in-page `click <node> href "#id"` targets
 SHAPES = {"process", "store", "external", "decision", "data", "state"}
@@ -65,7 +70,9 @@ TXT = {
            "m_hint": "Kasten klicken: ausgrauen · ⌘/Strg-Klick oder ↗: Link · Kasten ziehen: verschieben · "
                      "Hintergrund ziehen: schwenken · ⌘/Strg + Mausrad oder zwei Finger: zoomen · "
                      "Anordnung und Ausgegrautes bleiben in diesem Browser",
-           "find": "Suchen…", "csv": "CSV", "chart_cdn": "Diagramm braucht das vega-CDN"},
+           "find": "Suchen…", "csv": "CSV", "chart_cdn": "Diagramm braucht das vega-CDN",
+           "t_hint": "Klicken Sie auf ein Badge: Es schaltet den Wert ein oder aus.",
+           "t_reset": "Zurücksetzen", "t_count": "sichtbar"},
     "en": {"ev": "Evidence", "el": "Element", "at": "Evidence", "from": "From", "to": "To", "fn": "Function",
            "note": "Change", "trigger": "Trigger", "guard": "Guard", "up": "Part of",
            "process": "process", "store": "data store", "external": "external", "boundary": "neighbour from parent level",
@@ -79,7 +86,9 @@ TXT = {
            "m_hint": "click a box: grey it out · ⌘/Ctrl-click or ↗: link · drag a box: move · "
                      "drag the background: pan · ⌘/Ctrl + wheel or two fingers: zoom · "
                      "layout and greyed boxes stay in this browser",
-           "find": "Find…", "csv": "CSV", "chart_cdn": "Chart needs the vega CDN"},
+           "find": "Find…", "csv": "CSV", "chart_cdn": "Chart needs the vega CDN",
+           "t_hint": "Click a badge to switch the value on or off.",
+           "t_reset": "Reset", "t_count": "visible"},
 }
 
 
@@ -480,7 +489,7 @@ class Report:
             body = [f'<tr><td colspan="{len(cols)}">—</td></tr>']
             return (f'<figure class="fg" id="{E(self.danchor(did))}"><figcaption>{cap}</figcaption><div class="tw"><table>'
                     f'<thead><tr>{head}</tr></thead><tbody>{"".join(body)}</tbody></table></div></figure>')
-        cfg = {"page": page, "num": num, **({"listen": listen} if listen else {})}
+        cfg = {"page": page, "num": num, **({"listen": {**listen, "col": keys.index(listen["field"])}} if listen else {})}  # col: position of listen.field
         csv = (f'<button type="button" class="csv" data-dt="{E(did)}" hidden title="{E(self.t["csv"])}">{E(self.t["csv"])}</button>')
         return (f'<figure class="fg" id="{E(self.danchor(did))}"><figcaption>{cap}{csv}</figcaption><div class="tw">'
                 f'<table class="dt" id="dt-{E(did)}" data-dt="{E(json.dumps(cfg, ensure_ascii=False))}">'
@@ -913,7 +922,7 @@ class Report:
             sym = icon(f'<path d="M1 8 H22" class="ln {kc}"{ks}/>')
             out.append(f'<button type="button" class="lk" data-k="{E(k)}" aria-pressed="true" title="{E(self.t["toggle"])}">{sym}{label}</button>'
                        if len(ek) > 1 else f'<span>{sym}{label}</span>')
-        return '<div class="lg">' + "".join(out) + "</div>"
+        return '<div class="lg">' + "".join(out) + "</div>" if out else ""
 
     def kinds(self, b):
         """Edge kinds a diagram declares beside flow/error/opt: {kind: {label?, color?, dash?: dash|dot}}."""
@@ -1289,16 +1298,22 @@ class Report:
             cat = self.cats[c]
             vals = "".join(f'{self.badge(c, k, True)}<span class="lv">{E(v.get("desc", ""))}</span>' for k, v in cat["values"].items())
             legend.append(f'<dt>{E(cat.get("label", c))}</dt><dd>{vals}</dd>')
-        hint = b.get("hint", "Klicken Sie auf ein Badge: Es schaltet den Wert ein oder aus.")
-        reset = b.get("reset", "Zurücksetzen")
-        label = b.get("count_label", "sichtbar")
+        hint = b.get("hint", self.t["t_hint"])
+        reset = b.get("reset", self.t["t_reset"])
+        label = b.get("count_label", self.t["t_count"])
         # `drives`: diagrams whose nodes (by `ref`) follow this filter; a map hides them, others fade them
         tree_ids = {str(e["id"]) for e in self.d["entities"] if e.get("tree", True)}
         for gid in b.get("drives", []):
             g = self.dg.get(gid)
             if not g:
                 fail(f"tree: drives: unknown diagram {gid}")
-            if not any(str(n.get("ref")) in tree_ids for n in g.get("nodes") or g.get("types") or g.get("states") or []):
+            if g["type"] == "vega":
+                rows = self.vega_check(g)
+                if not g.get("entity"):
+                    fail(f"tree: drives {gid}: vega block needs `entity` (the row field that holds entity ids)")
+                if not {str(r[g["entity"]]) for r in rows} & tree_ids:
+                    fail(f"tree: drives {gid}: no row of it has an `{g['entity']}` that is an entity of this tree")
+            elif not any(str(n.get("ref")) in tree_ids for n in g.get("nodes") or g.get("types") or g.get("states") or []):
                 fail(f"tree: drives {gid}: no node of it has a `ref` to an entity of this tree")
         drives = [self.danchor(g) for g in b.get("drives", [])]
         return (f'<div x-data="treeFilter({E(json.dumps(cats))},{E(json.dumps(label))},{E(json.dumps(drives))})">'
@@ -1397,6 +1412,49 @@ class Report:
         if b.get("at"):
             after += self.evidence([(E(b.get("label", gid)), b["at"])])
         return self.figure(b, el, used={}, tools="", after=after)
+
+    def vega_check(self, b):
+        """Validate and normalise one `vega` block once (the spec stays inline, the dataset is named `rows` for the page script);
+        returns the inline rows. Called from b_vega and from a tree that `drives` the chart."""
+        gid, spec = b["id"], b.get("spec")
+        if not isinstance(spec, dict):
+            fail(f"vega {gid}: `spec` (a Vega-Lite spec object) is required")
+        if not b.get("_vega_ok"):
+            def no_url(x):
+                if isinstance(x, dict):
+                    if isinstance(x.get("data"), dict) and "url" in x["data"]:
+                        fail(f"vega {gid}: data must be inline values (`data.url` would break the one-file page)")
+                    for v in x.values():
+                        no_url(v)
+                elif isinstance(x, list):
+                    for v in x:
+                        no_url(v)
+            no_url(spec)
+            data = spec.get("data")
+            if not isinstance(data, dict) or not isinstance(data.get("values"), list):
+                fail(f"vega {gid}: data must be inline values (`spec.data.values` as an array of row objects)")
+            for n, r in enumerate(data["values"], 1):
+                if not isinstance(r, dict):
+                    fail(f"vega {gid}: data row {n} is not an object")
+                if b.get("entity") and b["entity"] not in r:
+                    fail(f"vega {gid}: entity {b['entity']} missing in row {n}")
+            spec.setdefault("$schema", VEGA_SCHEMA)
+            spec.setdefault("width", "container")
+            data["name"] = "rows"
+            b["_vega_ok"] = True
+        return spec["data"]["values"]
+
+    def b_vega(self, b):
+        """Vega-Lite chart (`report-charts`): the spec travels as JSON next to an empty <div class="vg">; the page script
+        embeds it from the CDN scripts in HEAD. `entity` names the row field that holds entity ids (tree `drives`)."""
+        gid = b["id"]
+        self.vega_check(b)
+        js = json.dumps(b["spec"], ensure_ascii=False).replace("<", "\\u003c")
+        ent = f' data-e="{E(str(b["entity"]))}"' if b.get("entity") else ""
+        after = self.evidence([(E(b.get("label", gid)), b["at"])]) if b.get("at") else ""
+        inner = (f'<div class="vg" id="vg-{E(gid)}" data-nocdn="{E(self.t["chart_cdn"])}"></div>'
+                 f'<script type="application/json" class="vgs">{js}</script>')
+        return self.figure(b, inner, used={}, tools="", after=after).replace('<figure class="fg"', f'<figure class="fg"{ent}', 1)
 
     def block(self, b, where, scope=False):
         """One block; in a change document a marked block gets its mark and rule, an unmarked one next to a marked sibling dims."""

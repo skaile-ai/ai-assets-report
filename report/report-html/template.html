@@ -38,6 +38,7 @@ code{font-size:.92em;background:var(--wash);padding:0 4px;border-radius:3px}
 .dw{overflow-x:auto;padding:2px 0}
 .dg{display:block;max-width:none;color:var(--ink)}.dg text{font-variant-ligatures:none;font-feature-settings:"calt" 0,"liga" 0}
 pre.mermaid{font:12px var(--mono);white-space:pre;overflow-x:auto;margin:0}pre.mermaid[data-processed] svg{max-width:100%;height:auto}
+.vg{width:100%;min-width:0}.vg .vega-embed{width:100%;display:flex}.vg .vega-embed>svg{max-width:100%}
 .bx{fill:var(--paper);stroke:var(--ink);stroke-width:1;transition:fill 1.5s,stroke-width .15s}
 .bx.ext{fill:var(--wash);stroke:var(--mute)}.bx.bd{fill:var(--wash);stroke:var(--mute);stroke-dasharray:4 3}
 .bt{font:600 13px var(--mono);fill:var(--ink)}.bs{font:12px var(--mono);fill:var(--mute)}
@@ -208,7 +209,8 @@ function treeFilter(cats,label,drives=[]){return{off:{},v:{},count:'',q:'',shown
    v[li.dataset.id]=ok;return ok};
   this.$root.querySelectorAll('ul.tr>li').forEach(li=>walk(li,true));this.v=v;this.shown=shown;this.count=shown+' / '+total+' '+label;findN();
   const hide=new Set(Object.keys(v).filter(k=>!v[k]));
-  for(const id of drives){const f=document.getElementById(id),svg=f&&f.querySelector('svg.dg');if(!svg)continue;f._hide=hide;
+  for(const id of drives){const f=document.getElementById(id),svg=f&&f.querySelector('svg.dg');
+   if(f&&f.querySelector('.vg')){f._hide=hide;f.dispatchEvent(new Event('treefilter'));continue}if(!svg)continue;f._hide=hide;
    if(svg.classList.contains('mp')){f.dispatchEvent(new Event('treefilter'));continue}
    const gone=new Set();svg.querySelectorAll('[data-e]').forEach(n=>{const h=hide.has(n.dataset.e);n.classList.toggle('fx',h);if(h)gone.add(n.dataset.n)});
    svg.querySelectorAll('[data-f]').forEach(x=>x.classList.toggle('fx',gone.has(x.dataset.f)||gone.has(x.dataset.t)))}},
@@ -413,8 +415,8 @@ addEventListener('DOMContentLoaded',()=>{const box=document.getElementById('find
    (exact match; null or [] removes that filter) — for a chart selection. Sources AND together; 'search' (the table's own box)
    and 'find' (the header box) match by substring. Counts (`FIND.parts.dt`) follow every change. CSV exports every row.
    `dt-init` fires on document once all tables are upgraded (a chart that listens to a table waits for it). */
-const DTL={de:{placeholder:'Tabelle durchsuchen…',searchTitle:'In der Tabelle suchen',pageTitle:'Seite {page}',perPage:'Zeilen pro Seite',noRows:'Keine Zeilen',info:'Zeilen {start} bis {end} von {rows}',noResults:'Keine Zeile passt zur Suche'},
- en:{placeholder:'Search table…',searchTitle:'Search within table',pageTitle:'Page {page}',perPage:'rows per page',noRows:'No rows',info:'Showing {start} to {end} of {rows} rows',noResults:'No row matches the search'}};
+const DTL={de:{placeholder:'Tabelle durchsuchen…',searchTitle:'In der Tabelle suchen',searchLabel:'Suchen',sortHint:'Zum Sortieren aktivieren',pageTitle:'Seite {page}',perPage:'Zeilen pro Seite',noRows:'Keine Zeilen',info:'Zeilen {start} bis {end} von {rows}',noResults:'Keine Zeile passt zur Suche'},
+ en:{placeholder:'Search table…',searchTitle:'Search within table',searchLabel:'Search',sortHint:'Activate to sort',pageTitle:'Page {page}',perPage:'rows per page',noRows:'No rows',info:'Showing {start} to {end} of {rows} rows',noResults:'No row matches the search'}};
 const dtAll=()=>[...document.querySelectorAll('table.dt')].filter(e=>e._dt);
 function dtCount(){const t=dtAll();if(!t.length)return;
  FIND.parts.dt=t.reduce((s,e)=>s+(e._dt._searchQueries.length?e._dt._searchData.length:e._dt.data.data.length),0);findN()}
@@ -435,6 +437,48 @@ addEventListener('dt-ready',dtInit);
 addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button.csv');if(!b)return;
  const el=document.getElementById('dt-'+b.dataset.dt);if(el&&el._dt)DT.exportCSV(el._dt,{download:true,filename:b.dataset.dt})});
 document.addEventListener('find',()=>{for(const e of dtAll())e._dt.multiSearch(FIND.q?[{terms:[FIND.q]}]:[],'find');dtCount()});
+/* Vega-Lite charts (`vega` block). vega, vega-lite and vega-embed are `defer` scripts in <head> (only when the report has a `vega`
+   block), so they exist at DOMContentLoaded. Per chart: el._view (Vega view), el._rows (the inline rows, dataset `rows`).
+   Chart -> table: a table.dt whose data-dt.listen.chart is this chart gets the point selection of `listen.param` as an exact filter
+   on column `listen.col` (field values read from the signal `{field:[values]}`, else from the `<param>_store` tuples).
+   Tree -> chart: `drives` sets fig._hide (entity ids) and fires `treefilter`; the rows of those ids leave the dataset. */
+function vgPick(v,l){let vals=null;
+ try{const s=v.signal(l.param);if(s&&Array.isArray(s[l.field]))vals=s[l.field]}catch(_){}
+ if(!vals){vals=[];try{for(const t of v.data(l.param+'_store')||[]){
+   const i=(t.fields||[]).findIndex(f=>(f&&f.field||f)===l.field);if(i>=0&&t.values&&t.values[i]!=null)vals.push(t.values[i])}}catch(_){}}
+ return vals.map(String)}
+function vgLink(){for(const el of document.querySelectorAll('.vg')){const v=el._view;if(!v)continue;const id=el.id.slice(3);el._lk=el._lk||new Set();
+ for(const t of dtAll()){const l=JSON.parse(t.dataset.dt||'{}').listen;if(!l||l.chart!==id||el._lk.has(t.id))continue;el._lk.add(t.id);
+  v.addSignalListener(l.param,()=>t._dtFilter(l.col,vgPick(v,l),'chart'))}}}
+/* Vega-Lite clears a point selection only on dblclick. A click on empty chart area (no mark item, or an axis/title item) must also clear
+   it: reset every point param's `<param>_store` dataset (the selection test of the mark encodings reads it, so the highlight resets),
+   then reset the listening tables by hand. The signal listener above does not fire for this: the param signal depends on
+   `<param>_modify`, not on the store, so the store reset leaves it stale. A mark item with a datum (a bar) is left to Vega-Lite:
+   its own click handler selects it, a second bar replaces the selection, shift-click adds. */
+function vgPoints(spec){const n=new Set(),walk=o=>{if(!o||typeof o!=='object')return;
+  if(Array.isArray(o.params))for(const p of o.params){const s=p&&p.select;if(s&&(s==='point'||s.type==='point'))n.add(p.name)}
+  for(const k of ['layer','concat','hconcat','vconcat'])if(Array.isArray(o[k]))o[k].forEach(walk);if(o.spec)walk(o.spec)};
+ walk(spec);return [...n]}
+function vgClear(el,spec){const v=el._view,id=el.id.slice(3),pts=vgPoints(spec);if(!v||!pts.length)return;
+ v.addEventListener('click',(ev,item)=>{
+  if(item&&item.datum&&!/^(axis|title)/.test(item.mark&&item.mark.role||''))return;
+  const cl=pts.filter(p=>{try{return(v.data(p+'_store')||[]).length}catch(_){return false}});if(!cl.length)return;
+  for(const p of cl)v.data(p+'_store',[]);
+  v.runAsync().then(()=>{for(const t of dtAll()){const l=JSON.parse(t.dataset.dt||'{}').listen;
+   if(l&&l.chart===id&&cl.includes(l.param))t._dtFilter(l.col,null,'chart')}})})}
+function vgFilter(fig,el){const v=el._view,ent=fig.dataset.e;if(!v||!ent||!fig._hide)return;const h=fig._hide;
+ v.change('rows',(window.vega||vegaEmbed.vega).changeset().remove(()=>true).insert(el._rows.filter(r=>!h.has(String(r[ent]))).map(r=>({...r})))).run()}
+function vgInit(){document.querySelectorAll('.vg').forEach(el=>{if(el._view||el._busy)return;el._busy=true;
+  const fig=el.closest('.fg'),sc=el.parentNode.querySelector('script.vgs');
+  const bad=()=>{el.textContent='';const p=document.createElement('p');p.className='mt';p.textContent=el.dataset.nocdn||'';el.appendChild(p)};
+  if(typeof vegaEmbed==='undefined'||!sc){bad();return}
+  let spec;try{spec=JSON.parse(sc.textContent)}catch(_){bad();return}
+  el._rows=spec.data.values;
+  fig.addEventListener('treefilter',()=>vgFilter(fig,el));
+  vegaEmbed(el,spec,{actions:false,renderer:'svg',config:{font:'JetBrains Mono, monospace',axis:{labelColor:'#59636e'}}})
+   .then(r=>{el._view=r.view;vgClear(el,spec);vgFilter(fig,el);vgLink()}).catch(bad)})}
+addEventListener('DOMContentLoaded',vgInit);
+document.addEventListener('dt-init',vgLink);
 </script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
 {{HEAD}}

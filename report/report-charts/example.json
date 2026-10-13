@@ -1,0 +1,110 @@
+{
+ "title": "Beispiel · Tickets je Art",
+ "lang": "de",
+ "meta": [
+  "Quelle: Beispieldaten (report-charts/example.json)",
+  "Stand: 2026-10-13"
+ ],
+ "badges": {
+  "kind": {
+   "label": "Art · eckig",
+   "shape": "square",
+   "values": {
+    "feat": {"label": "FEAT", "color": "green", "desc": "Neue Funktion"},
+    "fix": {"label": "FIX", "color": "red", "desc": "Fehlerbehebung"},
+    "chore": {"label": "CHORE", "color": "purple", "desc": "Pflege ohne neue Funktion"}
+   }
+  }
+ },
+ "entities": [
+  {"id": "t1", "title": "Login-Maske", "badges": {"kind": ["feat"]}},
+  {"id": "t2", "title": "Export als CSV", "badges": {"kind": ["feat"]}},
+  {"id": "t3", "title": "Suchfeld", "badges": {"kind": ["feat"]}},
+  {"id": "t4", "title": "Absturz beim Import", "badges": {"kind": ["fix"]}},
+  {"id": "t5", "title": "Falsche Summe", "badges": {"kind": ["fix"]}},
+  {"id": "t6", "title": "Abhängigkeiten aktualisieren", "badges": {"kind": ["chore"]}},
+  {"id": "t7", "title": "Logging vereinheitlichen", "badges": {"kind": ["chore"]}},
+  {"id": "t8", "title": "Tabellen sortieren", "badges": {"kind": ["feat"]}},
+  {"id": "t9", "title": "Zeitzone im Bericht", "badges": {"kind": ["fix"]}}
+ ],
+ "sections": [
+  {
+   "title": "Tickets",
+   "sub": "Baum, Balken und Diagramm",
+   "blocks": [
+    {
+     "type": "p",
+     "text": "Das Beispiel enthält neun Tickets in drei Arten. Ein Klick auf ein Badge im Baum nimmt die Tickets dieser Art aus dem Diagramm."
+    },
+    {
+     "type": "tree",
+     "filter": ["kind"],
+     "count": "feat",
+     "count_label": "Tickets",
+     "hint": "Badge ein- und ausschalten: das Diagramm folgt.",
+     "drives": ["pick-chart"]
+    },
+    {
+     "type": "p",
+     "text": "Der Balken zeigt den Aufwand je Ticket. Er braucht keine Bibliothek und läuft ohne Netz. Jeder Name verweist auf das Ticket im Baum."
+    },
+    {
+     "type": "bars",
+     "items": [["t4", 8], ["t1", 5], ["t8", 5], ["t2", 3], ["t7", 3], ["t3", 2], ["t6", 2], ["t9", 2], ["t5", 1]]
+    },
+    {
+     "type": "vega",
+     "id": "pick-chart",
+     "label": "Tickets je Art",
+     "entity": "id",
+     "spec": {
+      "height": 200,
+      "data": {
+       "values": [
+        {"id": "t1", "kind": "feat", "effort": 5},
+        {"id": "t2", "kind": "feat", "effort": 3},
+        {"id": "t3", "kind": "feat", "effort": 2},
+        {"id": "t4", "kind": "fix", "effort": 8},
+        {"id": "t5", "kind": "fix", "effort": 1},
+        {"id": "t6", "kind": "chore", "effort": 2},
+        {"id": "t7", "kind": "chore", "effort": 3},
+        {"id": "t8", "kind": "feat", "effort": 5},
+        {"id": "t9", "kind": "fix", "effort": 2}
+       ]
+      },
+      "params": [{"name": "pick", "select": {"type": "point", "fields": ["kind"]}}],
+      "mark": {"type": "bar", "color": "#0969da", "tooltip": true},
+      "encoding": {
+       "x": {"field": "kind", "type": "nominal", "title": "Art", "axis": {"labelAngle": 0}},
+       "y": {"aggregate": "count", "type": "quantitative", "title": "Tickets", "axis": {"tickMinStep": 1}},
+       "opacity": {"condition": {"param": "pick", "value": 1}, "value": 0.35}
+      }
+     }
+    },
+    {
+     "type": "data",
+     "id": "tickets",
+     "label": "Tickets",
+     "key": "id",
+     "columns": [
+      {"label": "Ticket", "key": "id"},
+      {"label": "Art", "key": "kind"},
+      {"label": "Aufwand", "key": "effort", "type": "number"}
+     ],
+     "rows": [
+      {"id": "t1", "kind": "feat", "effort": 5},
+      {"id": "t2", "kind": "feat", "effort": 3},
+      {"id": "t3", "kind": "feat", "effort": 2},
+      {"id": "t4", "kind": "fix", "effort": 8},
+      {"id": "t5", "kind": "fix", "effort": 1},
+      {"id": "t6", "kind": "chore", "effort": 2},
+      {"id": "t7", "kind": "chore", "effort": 3},
+      {"id": "t8", "kind": "feat", "effort": 5},
+      {"id": "t9", "kind": "fix", "effort": 2}
+     ],
+     "listen": {"chart": "pick-chart", "param": "pick", "field": "kind"}
+    }
+   ]
+  }
+ ]
+}
