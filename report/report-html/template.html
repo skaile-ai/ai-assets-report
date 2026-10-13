@@ -419,7 +419,7 @@ const DTL={de:{placeholder:'Tabelle durchsuchen…',searchTitle:'In der Tabelle 
  en:{placeholder:'Search table…',searchTitle:'Search within table',searchLabel:'Search',sortHint:'Activate to sort',pageTitle:'Page {page}',perPage:'rows per page',noRows:'No rows',info:'Showing {start} to {end} of {rows} rows',noResults:'No row matches the search'}};
 const dtAll=()=>[...document.querySelectorAll('table.dt')].filter(e=>e._dt);
 function dtCount(){const t=dtAll();if(!t.length)return;
- FIND.parts.dt=t.reduce((s,e)=>s+(e._dt._searchQueries.length?e._dt._searchData.length:e._dt.data.data.length),0);findN()}
+ FIND.parts.dt=t.reduce((s,e)=>s+(e._dtN??e._dt.data.data.length),0);findN()}
 function dtInit(){if(!window.DT)return;const L=DTL[document.documentElement.lang.slice(0,2)]||DTL.en;
  const text=c=>(c.text??(typeof c.data==='string'?c.data:'')).trim();
  document.querySelectorAll('table.dt').forEach(el=>{if(el._dt)return;const c=JSON.parse(el.dataset.dt||'{}');
@@ -429,7 +429,9 @@ function dtInit(){if(!window.DT)return;const L=DTL[document.documentElement.lang
    columns:(c.num||[]).length?[{select:c.num,type:'number'}]:[]});
   el._dt=dt;
   el._dtFilter=(col,values,src='filter')=>dt.multiSearch(values&&values.length?[{terms:values.map(String),columns:[col]}]:[],src);
-  dt.on('datatable.multisearch',dtCount);
+  /* e._dtN = rows matching the active search/filter (null: no query, all rows); read from the public event payloads, not from private fields */
+  dt.on('datatable.multisearch',(q,m)=>{el._dtN=q.length?m.length:null;dtCount()});
+  dt.on('datatable.search',(term)=>{if(!term)el._dtN=null;dtCount()});
   dt.on('datatable.init',()=>{if(FIND.q)dt.multiSearch([{terms:[FIND.q]}],'find');dtCount()});
   document.querySelectorAll(`button.csv[data-dt="${CSS.escape(el.id.slice(3))}"]`).forEach(b=>b.hidden=false)});
  document.dispatchEvent(new Event('dt-init'))}

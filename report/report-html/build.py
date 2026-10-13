@@ -425,6 +425,8 @@ class Report:
         cols, rows = b.get("columns") or [], b.get("rows") or []
         if not cols:
             fail(f"data {did}: needs `columns`")
+        if not all(isinstance(c, dict) and c.get("key") is not None for c in cols):
+            fail(f"data {did}: every column needs a key")
         keys = [c["key"] for c in cols]
         if len(set(keys)) != len(keys):
             fail(f"data {did}: duplicate column key")
@@ -485,7 +487,7 @@ class Report:
             body.append(f"<tr{de}>{''.join(tds)}</tr>")
         cap = f'<b>{E(b["label"])}</b>' if b.get("label") else ""
         if not rows:
-            warn(f"data {did}: no rows")
+            warn(f"data {did}: no rows" + (", listen ignored" if listen else ""))
             body = [f'<tr><td colspan="{len(cols)}">—</td></tr>']
             return (f'<figure class="fg" id="{E(self.danchor(did))}"><figcaption>{cap}</figcaption><div class="tw"><table>'
                     f'<thead><tr>{head}</tr></thead><tbody>{"".join(body)}</tbody></table></div></figure>')
@@ -1528,7 +1530,8 @@ class Report:
         return str(v)
 
     def incoming(self):
-        """Entity ids that something links to: `refs`, [[id]] in any text, {ref}/{refs} cells, node `ref`, tab `entity`, bars labels.
+        """Entity ids that something links to: `refs`, [[id]] in any text, {ref}/{refs} cells, node `ref`, tab `entity`, bars labels,
+        `key` column values of `data` rows, mermaid `click … "#e-<id>"` targets.
         A link from an entity to itself does not count; `parent` is structure, not a link."""
         known = {str(k): k for k in self.ents}
         inc = set()
@@ -1546,6 +1549,14 @@ class Report:
                 for v in x:
                     scan(v, owner)
             elif isinstance(x, dict):
+                if x.get("type") == "data" and isinstance(x.get("key"), str) and isinstance(x.get("rows"), list):
+                    for r in x["rows"]:
+                        if isinstance(r, dict) and isinstance(r.get(x["key"]), (str, int)) and not isinstance(r[x["key"]], bool):
+                            add(r[x["key"]], owner)
+                elif x.get("type") == "mermaid" and isinstance(x.get("code"), str):
+                    for h in MERMAID_HREF.findall(x["code"]):
+                        if h.startswith("e-"):
+                            add(h[2:], owner)
                 for k, v in x.items():
                     if k == "ref" and not isinstance(v, (dict, list)):
                         add(v, owner)
@@ -1666,10 +1677,8 @@ class Report:
             fail("links without a target: " + ", ".join(dead[:12]) + " (an entity needs a tree row, a table `anchor` or a tab `entity`)")
         page = TEMPLATE.read_text()
         head = "\n".join(HEAD[k] for k in sorted(used & HEAD.keys()))
-        return (page.replace("{{LANG}}", E(d.get("lang", "de")))
-                    .replace("{{TITLE}}", E(d["title"]))
-                    .replace("{{HEAD}}", head)
-                    .replace("{{BODY}}", body))
+        vals = {"LANG": E(d.get("lang", "de")), "TITLE": E(d["title"]), "HEAD": head, "BODY": body}
+        return re.sub(r"\{\{(LANG|TITLE|HEAD|BODY)\}\}", lambda m: vals[m.group(1)], page)  # one pass: report text cannot inject a placeholder
 
 
 def main():

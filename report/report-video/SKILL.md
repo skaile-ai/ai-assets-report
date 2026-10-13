@@ -53,7 +53,7 @@ ffmpeg -y -ss 12 -i <id>.mp4 -frames:v 1 <id>.jpg
 ```
 
 - The `id` shares the diagram id space: it is unique among all diagram ids and the figure anchor is `#f-<id>`.
-- The build fails with `video <id>: file not found <path>` when `src` or `poster` does not exist next to the output HTML. Build into the directory that holds the media folder.
+- The build fails with ``video <id>: `src` is required`` when `src` is missing, and with `video <id>: file not found <path>` when `src` or `poster` does not exist next to the output HTML. Build into the directory that holds the media folder.
 - `caption` takes inline text (`code`, `[[id]]`). `at` adds the evidence table.
 - A video has no ⤢ zoom and no node hover. The browser's own controls cover fullscreen.
 - A report with a video is a folder: the HTML and `<report>.media/` move together.
@@ -77,4 +77,4 @@ ffmpeg -y -ss 12 -i <id>.mp4 -frames:v 1 <id>.jpg
 - Build the example from the skill folder: `python3 ~/.agents/skills/report-html/build.py example.json example.html` builds. The same call with output `/tmp/x.html` fails with `video demo: file not found …` because the media is not beside it.
 - In the browser: the `<video>` element has `readyState ≥ 1` after `load()`. The poster shows before play. Play moves `currentTime`.
 - 390 px: `scrollWidth == 390`, no console errors.
-- A block with a missing `src` fails the build with `video <id>: file not found <path>`.
+- A block without `src` fails the build with ``video <id>: `src` is required``. A `src` or `poster` that does not exist fails with `video <id>: file not found <path>`.
