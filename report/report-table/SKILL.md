@@ -34,6 +34,7 @@ Edit the draft until it answers the question. The core schema (`badges`, `entiti
 
 - One entity per thing a reader may jump to. State each link once, in `parent` or `refs`; `build.py` computes the back-links (`←`).
 - A badge category has 2-4 values that split the entities. A value on more than 85 % or on fewer than 5 % of the entities that carry the category is not a badge: move it to a `meta` line or a table column. The build prints `badge <cat>=<val>: <n> of <m> entities (<pct> %)`.
+- A category whose values equal the tree level (for example `stage` on parents and `finding` on their children) is not a badge: the nesting already shows it, and toggling it hides whole subtrees. Use `kind`, a `meta` line or a column. The build prints `badge <cat>: mirrors tree level, not a filter`.
 - Every entity of one `kind` carries the same `meta` keys. The build prints `kind <val>: <id> lacks meta "<key>"` when at least 80 % of its siblings have the key. Fill the gap from the dump or drop the key from all.
 - Every entity gets a link: a tree row, a table row `anchor`, or a tab `entity`. Link it from prose with `[[id]]`.
 - Drop badges that only decorate. Rename titles so the reader finds the thing by the word the code uses.

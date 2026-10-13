@@ -31,7 +31,7 @@ Use this skill only when the user asks for a video, an animation or an explainer
 
 ## Render
 
-Run in `<report>.media/` (create the folder next to the HTML):
+Run in `<report>.media/` (create the folder next to the HTML or next to `report.json`):
 
 ```
 manim -qm --format=mp4 -o <id> <id>.py Explainer
@@ -53,20 +53,20 @@ ffmpeg -y -ss 12 -i <id>.mp4 -frames:v 1 <id>.jpg
 ```
 
 - The `id` shares the diagram id space: it is unique among all diagram ids and the figure anchor is `#f-<id>`.
-- The build fails with ``video <id>: `src` is required`` when `src` is missing, and with `video <id>: file not found <path>` when `src` or `poster` does not exist next to the output HTML. Build into the directory that holds the media folder.
+- The build fails with ``video <id>: `src` is required`` when `src` is missing, and with `video <id>: file not found <path>` when `src` or `poster` exists neither next to the output HTML nor next to `report.json`. `src` resolves next to the HTML first, else next to `report.json`; the page gets the path rewritten relative to the HTML.
 - `caption` takes inline text (`code`, `[[id]]`). `at` adds the evidence table.
 - A video has no ⤢ zoom and no node hover. The browser's own controls cover fullscreen.
-- A report with a video is a folder: the HTML and `<report>.media/` move together.
+- A report with a video is a folder: the HTML and the media move together (keep the relative path between them).
 
 ## Alone
 
 1. Collect the steps (Write the scene). Render the mp4 and the poster (Render). Stop: no HTML.
-2. If the user wants a page: write a `report.json` with one `p` and the `video` block (copy `example.json`), build it into the directory of the media folder: `python3 ~/.agents/skills/report-html/build.py report.json <out>.html`.
+2. If the user wants a page: write a `report.json` with one `p` and the `video` block (copy `example.json`), then build: `python3 ~/.agents/skills/report-html/build.py report.json <out>.html`. The media folder may sit next to `report.json` or next to the HTML.
 3. Run Verify. State the path of the mp4 in chat.
 
 ## Under report-html
 
-1. Do the Write-the-scene and Render steps. Put the media in `<out dir>/<report>.media/`, the same directory as the built HTML.
+1. Do the Write-the-scene and Render steps. Put the media in `<report>.media/` next to `report.json` (or next to the built HTML).
 2. Hand the `video` block back to the orchestrator's section plan. Place it last, after the prose and the diagrams.
 3. The orchestrator builds. Run Verify on the built page.
 
@@ -74,7 +74,7 @@ ffmpeg -y -ss 12 -i <id>.mp4 -frames:v 1 <id>.jpg
 
 - `ffprobe -v error -show_entries format=duration:stream=codec_name,width,height <id>.mp4`: h264, 1280×720, duration > 0.
 - Read the poster. All boxes and the caption are visible and no text is cut off.
-- Build the example from the skill folder: `python3 ~/.agents/skills/report-html/build.py example.json example.html` builds. The same call with output `/tmp/x.html` fails with `video demo: file not found …` because the media is not beside it.
+- Build the example from any directory: `python3 ~/.agents/skills/report-html/build.py example.json /tmp/x.html` builds (`src` resolves next to `report.json`) and the emitted `src` points at the existing file relative to `/tmp`.
 - In the browser: the `<video>` element has `readyState ≥ 1` after `load()`. The poster shows before play. Play moves `currentTime`.
 - 390 px: `scrollWidth == 390`, no console errors.
-- A block without `src` fails the build with ``video <id>: `src` is required``. A `src` or `poster` that does not exist fails with `video <id>: file not found <path>`.
+- A block without `src` fails the build with ``video <id>: `src` is required``. A `src` or `poster` that exists in neither place fails with `video <id>: file not found <path>`.

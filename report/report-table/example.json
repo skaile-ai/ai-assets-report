@@ -6,22 +6,6 @@
   "Stand: 2026-10-13"
  ],
  "badges": {
-  "kind": {
-   "label": "Entität · eckig",
-   "shape": "square",
-   "values": {
-    "area": {
-     "label": "AREA",
-     "color": "purple",
-     "desc": "Bereich"
-    },
-    "scrn": {
-     "label": "SCRN",
-     "color": "green",
-     "desc": "Screen"
-    }
-   }
-  },
   "aud": {
    "label": "Zielgruppe · rund",
    "shape": "round",
@@ -52,11 +36,9 @@
   {
    "id": "alltag",
    "title": "Im Alltag",
-   "badges": {
-    "kind": [
-     "area"
-    ]
-   }
+   "meta": [
+    "Bereich"
+   ]
   },
   {
    "id": "trigger",
@@ -67,9 +49,6 @@
     "9 Blöcke"
    ],
    "badges": {
-    "kind": [
-     "scrn"
-    ],
     "aud": [
      "teen",
      "young"
@@ -85,9 +64,6 @@
     "9 Blöcke"
    ],
    "badges": {
-    "kind": [
-     "scrn"
-    ],
     "aud": [
      "teen"
     ],
@@ -105,9 +81,6 @@
     "9 Blöcke"
    ],
    "badges": {
-    "kind": [
-     "scrn"
-    ],
     "aud": [
      "young"
     ]
@@ -122,9 +95,6 @@
     "7 Blöcke"
    ],
    "badges": {
-    "kind": [
-     "scrn"
-    ],
     "aud": [
      "teen",
      "young"
@@ -144,11 +114,9 @@
     {
      "type": "tree",
      "filter": [
-      "kind",
       "aud",
       "flag"
      ],
-     "count": "scrn",
      "count_label": "Screens"
     }
    ]

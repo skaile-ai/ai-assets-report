@@ -9,6 +9,7 @@ Schema: see SKILL.md ("report.json") and the extension skills (report-flow/NOTAT
 and drill-down links (from a diagram's `parent`) are computed here, so the data
 states each link once.
 """
+import os
 import hashlib
 import html
 import re
@@ -1271,6 +1272,7 @@ class Report:
             bvals = e.get("badges", {})
             kind = (bvals.get(kind_cat) or [None])[0]
             kind_badge = "".join(self.badge(kind_cat, v, True) for v in bvals.get(kind_cat, []))
+            kind_badge = f'<span class="kb">{kind_badge}</span>' if kind_badge else ""  # one grid cell, however many values
             groups = [f'<span class="id">{E(str(e.get("label") or e["id"]))}</span>'] + self.groups(e, kind_cat, filt)
             lc = ""
             if depth == 0 and kind is not None:
@@ -1343,6 +1345,7 @@ class Report:
             fail(f"tabs: unknown entity {eid}")
         e = self.ents[eid]
         kind = "".join(self.badge(kind_cat, v, False) for v in e.get("badges", {}).get(kind_cat, []))
+        kind = f'<span class="kb">{kind}</span>' if kind else ""
         _, cls, mk = self.state(e, False)
         return (f'<div class="row card{cls}" id="{E(self.anchor(eid))}">{kind}<span class="bd">{mk}'
                 f'<span class="tt">{E(e.get("title") or str(eid))}</span>'
@@ -1400,14 +1403,21 @@ class Report:
         return self.figure(b, f'<pre class="mermaid">{E(b["code"])}</pre>', used={}, after=after)
 
     def b_video(self, b):
-        """Explainer video (`report-video`): `src`/`poster` are paths relative to the output HTML and must exist there."""
+        """Explainer video (`report-video`): `src`/`poster` resolve next to the output HTML, else next to report.json
+        (the emitted path is then rewritten relative to the output HTML)."""
         gid = b["id"]
-        base = Path(self.out_dir) if self.out_dir is not None else Path(".")
+        out_dir = Path(self.out_dir) if self.out_dir is not None else Path(".")
+        bases = [out_dir] + ([Path(self.src).parent] if self.src is not None else [])
         for key in ("src", "poster"):
             if key == "src" and not b.get(key):
                 fail(f"video {gid}: `src` is required")
-            if b.get(key) and not (base / b[key]).is_file():
+            if not b.get(key):
+                continue
+            found = next((x / b[key] for x in bases if (x / b[key]).is_file()), None)
+            if found is None:
                 fail(f"video {gid}: file not found {b[key]}")
+            if found != out_dir / b[key]:
+                b[key] = Path(os.path.relpath(found.resolve(), out_dir.resolve())).as_posix()
         poster = f' poster="{E(b["poster"])}"' if b.get("poster") else ""
         el = (f'<video controls preload="metadata"{poster} src="{E(b["src"])}" '
               f'style="width:100%;max-height:70vh"></video>')
@@ -1610,6 +1620,23 @@ class Report:
                 pct = n * 100 / len(have)
                 if pct > 85 or pct < 5:
                     out.append(f"badge {c}={val}: {n} of {len(have)} entities ({pct:.0f} %)")
+        depth = {}
+        for e in d.get("entities", []):
+            n, p = 0, e.get("parent")
+            while p is not None and n <= len(self.ents):
+                n, p = n + 1, self.ents[p].get("parent")
+            depth[e["id"]] = n
+        for c, cat in self.cats.items():
+            have = [e for e in d.get("entities", []) if e.get("badges", {}).get(c)]
+            if len(have) < 3 or len(cat["values"]) < 2:
+                continue
+            levels = defaultdict(set)  # value -> depths it occurs at
+            for e in have:
+                for val in e["badges"][c]:
+                    levels[val].add(depth[e["id"]])
+            if len(levels) >= 2 and all(len(ls) == 1 for ls in levels.values()) \
+                    and len({next(iter(ls)) for ls in levels.values()}) == len(levels):
+                out.append(f"badge {c}: mirrors tree level, not a filter")
         tree = next((b for b in (b for sec in secs for b in walk(sec.get("blocks", []))) if b.get("type") == "tree"), {})
         filt = tree.get("filter", list(self.cats))
         kind_cat = tree.get("kind", filt[0] if filt else next(iter(self.cats), None))
@@ -1718,7 +1745,7 @@ def main():
     choice = None
     if "--check-choice" in argv:
         i = argv.index("--check-choice")
-        if i + 1 >= len(argv):
+        if i + 1 >= len(argv) or argv[i + 1].startswith("--"):
             sys.exit(__doc__)
         choice = argv[i + 1]
         del argv[i:i + 2]

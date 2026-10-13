@@ -5,9 +5,6 @@
   "profile": "inventory",
   "stats": [["Bereiche", {"count": "areas"}], ["Screens", {"count": "screens"}], ["Entwürfe", {"count": "screens", "where": {"status": "draft"}}], ["Quellen", {"count": "sources"}], ["Entitäten", {"rows": "entitaeten"}]],
   "badges": {
-    "kind": {"label": "Entität · eckig", "shape": "square", "values": {
-      "area": {"label": "AREA", "color": "purple", "desc": "Bereich"},
-      "scrn": {"label": "SCRN", "color": "green", "desc": "Screen"}}},
     "aud": {"label": "Zielgruppe · rund", "shape": "round", "values": {
       "teen": {"color": "navy"}, "young": {"color": "brown"}}},
     "origin": {"label": "Herkunft · Pille", "shape": "pill", "values": {
@@ -16,11 +13,11 @@
       "draft": {"color": "yellow", "desc": "Entwurf"}}}
   },
   "entities": [
-    {"id": "alltag", "title": "Im Alltag", "badges": {"kind": ["area"]}},
+    {"id": "alltag", "title": "Im Alltag", "meta": ["Bereich"]},
     {"id": "trigger", "parent": "alltag", "order": 1, "title": "Trigger", "meta": ["12 Blöcke"],
-     "badges": {"kind": ["scrn"], "aud": ["teen", "young"], "origin": ["book"]}, "refs": ["BOOK-C01"]},
+     "badges": {"aud": ["teen", "young"], "origin": ["book"]}, "refs": ["BOOK-C01"]},
     {"id": "pause", "parent": "alltag", "order": 2, "title": "Mach mal Pause",
-     "badges": {"kind": ["scrn"], "aud": ["teen"], "origin": ["authored"], "flag": ["draft"]}},
+     "badges": {"aud": ["teen"], "origin": ["authored"], "flag": ["draft"]}},
     {"id": "BOOK-C01", "title": "Kapitel 1", "tree": false},
     {"id": "imp", "label": "import", "title": "Kapitel importieren", "tree": false, "meta": ["`npm run import`", "Hash falsch: Abbruch"],
      "badges": {"origin": ["book"]}, "refs": ["BOOK-C01"]}
@@ -76,7 +73,7 @@
         {"from": ["variant", "row"], "to": "json", "fn": "compileContent()", "at": "pipeline/compile.ts:8", "note": "MDC wird JSON; Zitate aufgelöst."}]}]},
     {"title": "Baum", "sub": "erst die Liste, dann die Karte; ein Filter für beide", "blocks": [
       {"type": "p", "text": "Der Bereich [[alltag]] enthält zwei Screens. [[pause]] ist ein Entwurf; ein Klick auf das Badge „Status“ blendet ihn samt Karte und Diagramm aus."},
-      {"type": "tree", "filter": ["kind", "aud", "origin", "flag"], "count": "scrn", "count_label": "Screens sichtbar", "drives": ["module", "verteilung"]},
+      {"type": "tree", "filter": ["aud", "origin", "flag"], "count_label": "Screens sichtbar", "drives": ["module", "verteilung"]},
       {"type": "map", "id": "module", "label": "Pakete der Pipeline",
        "kinds": {"npm": {"color": "blue"}, "sub": {"label": "Submodul", "color": "orange", "dash": "dash"}},
        "nodes": [
