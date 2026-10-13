@@ -1,0 +1,97 @@
+{
+  "title": "Beispiel · Inhaltsbaum",
+  "lang": "de",
+  "meta": ["Quelle: lokales Directus (localhost:8059)", "Stand: 2026-10-12"],
+  "stats": [["Bereiche", 1], ["Screens", 2], ["Quellen", 1]],
+  "badges": {
+    "kind": {"label": "Entität · eckig", "shape": "square", "values": {
+      "area": {"label": "AREA", "color": "purple", "desc": "Bereich"},
+      "scrn": {"label": "SCRN", "color": "green", "desc": "Screen"}}},
+    "aud": {"label": "Zielgruppe · rund", "shape": "round", "values": {
+      "teen": {"color": "navy"}, "young": {"color": "brown"}}},
+    "origin": {"label": "Herkunft · Pille", "shape": "pill", "values": {
+      "book": {"label": "powerbook", "color": "orange"}, "authored": {"color": "pink"}}},
+    "flag": {"label": "Status · gestrichelt", "shape": "dashed", "filter": "hide", "values": {
+      "draft": {"color": "yellow", "desc": "Entwurf"}}}
+  },
+  "entities": [
+    {"id": "alltag", "title": "Im Alltag", "badges": {"kind": ["area"]}},
+    {"id": "trigger", "parent": "alltag", "order": 1, "title": "Trigger", "meta": ["12 Blöcke"],
+     "badges": {"kind": ["scrn"], "aud": ["teen", "young"], "origin": ["book"]}, "refs": ["BOOK-C01"]},
+    {"id": "pause", "parent": "alltag", "order": 2, "title": "Mach mal Pause",
+     "badges": {"kind": ["scrn"], "aud": ["teen"], "origin": ["authored"], "flag": ["draft"]}},
+    {"id": "BOOK-C01", "title": "Kapitel 1", "tree": false},
+    {"id": "imp", "label": "import", "title": "Kapitel importieren", "tree": false, "meta": ["`npm run import`", "Hash falsch: Abbruch"],
+     "badges": {"origin": ["book"]}, "refs": ["BOOK-C01"]}
+  ],
+  "sections": [
+    {"title": "Ablauf", "sub": "L0 Übersicht, L1 je Stufe", "blocks": [
+      {"type": "flow", "id": "uebersicht", "label": "Vom Buch zum Screen", "nodes": [
+        {"id": "buch", "label": "Buch", "sub": "chapters/*.md", "shape": "external"},
+        {"id": "import", "label": "Kapitel importieren", "sub": "npm run import", "ref": "imp"},
+        {"id": "kapitel", "label": "source_chapter", "sub": "Directus", "shape": "store"},
+        {"id": "schreiben", "label": "Screen schreiben", "sub": "Editor", "ref": "trigger"},
+        {"id": "leser", "label": "Leser", "shape": "external"}],
+       "kinds": {"liest": {"label": "liest", "color": "teal", "dash": "dot"}},
+       "edges": [["buch", "import", "Kapitel"], ["import", "kapitel", "Zeile"],
+                 ["kapitel", "schreiben", "Absätze", "liest"], ["schreiben", "leser", "Screen"]]},
+      {"type": "tabs", "id": "stufen", "label": "Stufen", "tabs": [
+       {"entity": "imp", "blocks": [
+      {"type": "flow", "id": "import", "parent": "uebersicht:import", "label": "Kapitel importieren", "dir": "down", "nodes": [
+        {"id": "buch", "label": "Buch", "sub": "chapters/*.md"},
+        {"id": "lesen", "label": "readChapter()", "sub": "Frontmatter + Text", "at": "scripts/import.ts:12"},
+        {"id": "hash", "label": "Hash stimmt?", "shape": "decision", "at": "scripts/import.ts:20"},
+        {"id": "post", "label": "POST /items", "sub": "neue Zeile", "at": "scripts/import.ts:31"},
+        {"id": "abbruch", "label": "Abbruch", "sub": "exit 1", "color": "red", "at": "scripts/import.ts:22"},
+        {"id": "kapitel", "label": "source_chapter", "shape": "store"}],
+       "edges": [
+        {"from": "buch", "to": "lesen", "label": "*.md", "at": "scripts/import.ts:10"},
+        {"from": "lesen", "to": "hash", "label": "Kandidat", "at": "scripts/import.ts:18"},
+        {"from": "hash", "to": "post", "label": "ja", "at": "scripts/import.ts:21"},
+        {"from": "hash", "to": "abbruch", "label": "nein", "kind": "error", "at": "scripts/import.ts:22"},
+        {"from": "post", "to": "kapitel", "label": "Zeile", "at": "scripts/import.ts:31"}]},
+      {"type": "p", "text": "Der Screen [[trigger]] zitiert [[BOOK-C01|Kapitel 1]]. Er liegt in `content_variant`."}]},
+       {"label": "source_chapter", "summary": "Status eines Kapitels vom Import bis zum Archiv.", "blocks": [
+      {"type": "states", "id": "status", "parent": "uebersicht:kapitel", "label": "Kapitelstatus", "field": "source_chapter.status", "at": "schema.ts:4",
+       "states": [{"id": "entwurf"}, {"id": "geprueft", "label": "geprüft"}, {"id": "frei", "label": "veröffentlicht", "color": "green"}],
+       "transitions": [
+        {"from": "[*]", "to": "entwurf", "trigger": "Import", "at": "scripts/import.ts:31"},
+        {"from": "entwurf", "to": "entwurf", "trigger": "Speichern", "at": "server/save.ts:9"},
+        {"from": "entwurf", "to": "geprueft", "trigger": "Review", "guard": "alle Absätze mit `id`", "at": "server/review.ts:14"},
+        {"from": "geprueft", "to": "entwurf", "trigger": "Änderung", "at": "server/save.ts:12"},
+        {"from": "geprueft", "to": "frei", "trigger": "Freigabe", "action": "`published_at` setzen", "at": "server/review.ts:30"},
+        {"from": "frei", "to": "[*]", "trigger": "Archiv", "at": "server/archive.ts:5"}]}]}]}]},
+    {"title": "Typen", "sub": "was wird zu was", "blocks": [
+      {"type": "lineage", "id": "typen", "label": "Buch bis Screen", "types": [
+        {"id": "md", "label": "chapters/*.md", "sub": "Markdown + YAML"},
+        {"id": "cand", "label": "ChapterCandidate", "sub": "TS-Typ"},
+        {"id": "row", "label": "source_chapter", "sub": "Directus-Zeile", "shape": "store"},
+        {"id": "variant", "label": "content_variant", "sub": "Directus-Zeile", "shape": "store"},
+        {"id": "json", "label": "stations.json", "sub": "Build-Artefakt"}],
+       "steps": [
+        {"from": "md", "to": "cand", "fn": "readChapter()", "at": "scripts/import.ts:12", "note": "Frontmatter wird zu Feldern; Hash geprüft."},
+        {"from": "cand", "to": "row", "fn": "POST /items", "at": "scripts/import.ts:31", "note": "bekommt `id` und `corpus_version`."},
+        {"from": "row", "to": "variant", "fn": "writeScreen()", "at": "server/screen.ts:40", "note": "Absätze werden Blöcke, je Zielgruppe."},
+        {"from": ["variant", "row"], "to": "json", "fn": "compileContent()", "at": "pipeline/compile.ts:8", "note": "MDC wird JSON; Zitate aufgelöst."}]}]},
+    {"title": "Baum", "sub": "erst die Liste, dann die Karte; ein Filter für beide", "blocks": [
+      {"type": "tree", "filter": ["kind", "aud", "origin", "flag"], "count": "scrn", "count_label": "Screens sichtbar", "drives": ["module"]},
+      {"type": "map", "id": "module", "label": "Pakete der Pipeline",
+       "kinds": {"npm": {"color": "blue"}, "sub": {"label": "Submodul", "color": "orange", "dash": "dash"}},
+       "nodes": [
+        {"id": "app", "label": "studio", "sub": "Nuxt-App", "lines": ["server/screen.ts"]},
+        {"id": "imp", "label": "importer", "sub": "scripts/", "ref": "trigger"},
+        {"id": "cmp", "label": "compiler", "sub": "pipeline/", "lines": ["@boje/compile@1.2.0"]},
+        {"id": "ui", "label": "ui-kit", "sub": "packages/ui", "lines": ["@boje/ui@0.9.1"]},
+        {"id": "book", "label": "powerbook", "sub": "Quelle", "shape": "external", "href": "https://example.org/powerbook"}],
+       "edges": [
+        {"from": "app", "to": "cmp", "kind": "npm", "label": "@boje/compile", "at": "package.json:14"},
+        {"from": "app", "to": "ui", "kind": "npm", "label": ["@boje/ui", "^0.8"], "warn": true, "at": "package.json:15"},
+        {"from": "imp", "to": "cmp", "kind": "npm", "label": "@boje/compile", "at": "scripts/package.json:9"},
+        {"from": "imp", "to": "book", "kind": "sub", "label": "vendor/book", "at": ".gitmodules:3"}],
+       "off": ["book"]}]},
+    {"title": "Quellen", "blocks": [
+      {"type": "table", "columns": ["Kapitel", "Zitiert von", "Absätze"], "numeric": [2],
+       "rows": [{"anchor": "BOOK-C01", "cells": ["BOOK-C01", {"refs": ["trigger"]}, 18]}]},
+      {"type": "bars", "items": [["book", 1, "orange"], ["authored", 1, "pink"]], "link": false}]}
+  ]
+}
