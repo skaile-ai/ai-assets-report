@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render a report.json into one self-contained HTML file.
 
-    python3 build.py [--strict] report.json out.html
+    python3 build.py [--strict] [--check-choice <stem>.choice.json] report.json out.html
 
 Schema: see SKILL.md ("report.json") and the extension skills (report-flow/NOTATION.md, report-diagram, report-table, report-charts, report-video). Every entity gets the anchor
 `#e-<id>`, every diagram `#f-<id>`, every diagram node `#f-<id>-<node>`. `refs`,
@@ -1359,7 +1359,8 @@ class Report:
         first = next((i for i, t in enumerate(b["tabs"]) if self.changed(t)), 0) if scope else 0  # open the first change
         for i, t in enumerate(b["tabs"]):
             eid = t.get("entity")
-            label = t.get("label") or (eid and (self.ents.get(eid, {}).get("label") or eid))
+            ent = self.ents.get(eid, {}) if eid else {}
+            label = t.get("label") or (eid and (ent.get("label") or ent.get("title", "").replace("`", "") or eid))
             if not label:
                 fail(f"tabs {tid}: tab {i + 1} needs a label or an entity")
             pid, on = f"{tid}-{i + 1}", i == first
@@ -1526,7 +1527,7 @@ class Report:
                 return str(v["value"])
             fail(f'stat "{label}": give count, rows, or value with source')
         if (isinstance(v, (int, float)) and not isinstance(v, bool)) or re.fullmatch(r"[\d.,\s]+", str(v)):
-            fail(f'stat "{label}": literal number needs source, count or rows')
+            fail(f'stat "{label}": bare number {v}; write {{count: "<collection>"}} against <stem>.data/ or {{value, source}}')
         return str(v)
 
     def incoming(self):
@@ -1681,12 +1682,53 @@ class Report:
         return re.sub(r"\{\{(LANG|TITLE|HEAD|BODY)\}\}", lambda m: vals[m.group(1)], page)  # one pass: report text cannot inject a placeholder
 
 
+CHOICE_KEYS = ("tree", "data", "charts", "crossfilter", "badge-chart", "find", "flow", "map", "mermaid", "video")
+CHOICE_BLOCKS = {"tree": "tree", "table": "tree", "data": "data", "vega": "charts", "bars": "charts",
+                 "flow": "flow", "lineage": "flow", "states": "flow", "map": "map", "mermaid": "mermaid", "video": "video"}
+
+
+def check_choice(data, path):
+    """Compare the features the report uses with the ones the choice file lists; fail on a used, unchosen key."""
+    try:
+        choice = json.loads(Path(path).read_text())
+    except (OSError, ValueError) as e:
+        fail(f"--check-choice {path}: {e}")
+    feats = choice.get("features") if isinstance(choice, dict) else None
+    if not isinstance(feats, list):
+        fail(f'--check-choice {path}: expected {{"profile": ..., "features": [...]}}')
+    unknown = [f for f in feats if f not in CHOICE_KEYS]
+    if unknown:
+        fail(f"--check-choice {path}: unknown feature keys {', '.join(map(str, unknown))}")
+    used = set()
+    for sec in data.get("sections", []):
+        for b in walk(sec.get("blocks", [])):
+            if b.get("type") in CHOICE_BLOCKS:
+                used.add(CHOICE_BLOCKS[b["type"]])
+    if data.get("badges"):
+        used.add("tree")
+    for k in CHOICE_KEYS:
+        print(f"choice: {k} chosen={'yes' if k in feats else 'no'} used={'yes' if k in used else 'no'}")
+    bad = [k for k in CHOICE_KEYS if k in used and k not in feats]
+    if bad:
+        fail(f"--check-choice: used but not chosen: {', '.join(bad)}")
+
+
 def main():
-    args = [a for a in sys.argv[1:] if a != "--strict"]
-    strict = len(args) != len(sys.argv) - 1
+    argv = sys.argv[1:]
+    choice = None
+    if "--check-choice" in argv:
+        i = argv.index("--check-choice")
+        if i + 1 >= len(argv):
+            sys.exit(__doc__)
+        choice = argv[i + 1]
+        del argv[i:i + 2]
+    args = [a for a in argv if a != "--strict"]
+    strict = len(args) != len(argv)
     if len(args) != 2:
         sys.exit(__doc__)
     data = json.loads(Path(args[0]).read_text())
+    if choice:
+        check_choice(data, choice)
     out = Path(args[1])
     rep = Report(data, out_dir=out.parent, src=Path(args[0]))
     page = rep.render()
