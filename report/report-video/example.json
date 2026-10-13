@@ -1,0 +1,17 @@
+{
+  "title": "Import pipeline as a video",
+  "lang": "en",
+  "meta": ["report-video example"],
+  "sections": [
+    {
+      "title": "Pipeline",
+      "sub": "three steps",
+      "blocks": [
+        {"type": "p", "text": "The importer reads a book, builds the screens and publishes them."},
+        {"type": "video", "id": "demo", "label": "Import pipeline",
+         "src": "example.media/demo.mp4", "poster": "example.media/demo.jpg",
+         "caption": "Generated with `scene_template.py`; the scene file sits next to the video as `example.media/demo.py`."}
+      ]
+    }
+  ]
+}
