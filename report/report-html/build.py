@@ -24,6 +24,9 @@ LINKS_SHOWN = 12  # per direction and tree row; the rest is counted
 COLORS = {"purple", "blue", "green", "gray", "orange", "pink", "teal", "yellow", "red", "navy", "brown", "ink"}
 CHANGE = {"new": "green", "changed": "orange", "removed": "red"}  # `change` value -> mark colour
 DIAGRAMS = {"flow", "lineage", "states", "map"}
+ID_FIGURES = {"mermaid", "vega", "video"}  # figures with an id and a `#f-<id>` anchor but no nodes; their renderers register below
+FIND_TYPES = {"tree"}  # block types that switch on the header find box
+HEAD = {}  # block type -> HTML for <head> (CDN tags); added once when a block of that type is in the report
 SHAPES = {"process", "store", "external", "decision", "data", "state"}
 EDGE_KINDS = {"flow", "error", "opt"}
 PSEUDO = "[*]"  # UML initial (as source) / final (as target) pseudo-state, as in Mermaid
@@ -41,7 +44,8 @@ TXT = {
            "m_copy": "Anordnung kopieren", "m_full": "Vollbild",
            "m_hint": "Kasten klicken: ausgrauen · ⌘/Strg-Klick oder ↗: Link · Kasten ziehen: verschieben · "
                      "Hintergrund ziehen: schwenken · ⌘/Strg + Mausrad oder zwei Finger: zoomen · "
-                     "Anordnung und Ausgegrautes bleiben in diesem Browser"},
+                     "Anordnung und Ausgegrautes bleiben in diesem Browser",
+           "find": "Suchen…", "csv": "CSV", "chart_cdn": "Diagramm braucht das vega-CDN"},
     "en": {"ev": "Evidence", "el": "Element", "at": "Evidence", "from": "From", "to": "To", "fn": "Function",
            "note": "Change", "trigger": "Trigger", "guard": "Guard", "up": "Part of",
            "process": "process", "store": "data store", "external": "external", "boundary": "neighbour from parent level",
@@ -54,7 +58,8 @@ TXT = {
            "m_copy": "Copy layout", "m_full": "Full screen",
            "m_hint": "click a box: grey it out · ⌘/Ctrl-click or ↗: link · drag a box: move · "
                      "drag the background: pan · ⌘/Ctrl + wheel or two fingers: zoom · "
-                     "layout and greyed boxes stay in this browser"},
+                     "layout and greyed boxes stay in this browser",
+           "find": "Find…", "csv": "CSV", "chart_cdn": "Chart needs the vega CDN"},
 }
 
 
@@ -99,6 +104,8 @@ def changes(x):
 
 def diagram_nodes(b):
     """Node ids a diagram block exposes as drill-down / anchor targets."""
+    if b["type"] in ID_FIGURES:
+        return []
     if b["type"] in ("flow", "map"):
         return [n["id"] for n in b["nodes"]]
     if b["type"] == "lineage":
@@ -107,8 +114,9 @@ def diagram_nodes(b):
 
 
 class Report:
-    def __init__(self, data):
+    def __init__(self, data, out_dir=None):
         self.d = data
+        self.out_dir = out_dir  # directory of the output HTML; media (`video`) resolves against it
         self.cats = data.get("badges", {})
         self.ents = {e["id"]: e for e in data.get("entities", [])}
         if len(self.ents) != len(data.get("entities", [])):
@@ -190,7 +198,7 @@ class Report:
         n = 0
         for sec in self.d.get("sections", []):
             for b in walk(sec.get("blocks", [])):
-                if b.get("type") not in DIAGRAMS:
+                if b.get("type") not in DIAGRAMS | ID_FIGURES:
                     continue
                 n += 1
                 b.setdefault("id", f"d{n}")
@@ -200,6 +208,10 @@ class Report:
                     fail(f"{b['type']} {b['id']}: duplicate node id")
                 self.dg[b["id"]] = b
         for b in self.dg.values():
+            if b["type"] in ID_FIGURES:
+                if b.get("parent"):
+                    fail(f"{b['type']} {b['id']}: `parent` applies to flow, lineage, states and map only")
+                continue
             if not b.get("parent"):
                 continue
             pid, _, nid = b["parent"].partition(":")
@@ -212,6 +224,9 @@ class Report:
                 fail(f"{b['type']} {b['id']}: node {b['parent']} already drills into {self.dkid[(pid, nid)]}")
             self.dkid[(pid, nid)] = b["id"]
         for b in self.dg.values():
+            if b["type"] in ID_FIGURES:
+                b["_level"] = 0
+                continue
             seen, p = {b["id"]}, b
             while p.get("parent"):
                 p = self.dg[p["parent"].partition(":")[0]]
@@ -820,8 +835,9 @@ class Report:
         """Caption, diagram, legend; `tools` replaces the ⤢ zoom button (a map has its own toolbar)."""
         gid = b["id"]
         cap = []
-        if b["_level"] or any(k[0] == gid for k in self.dkid):
-            cap.append(f'<span class="lvl">L{b["_level"]}</span>')
+        lvl = b.get("_level", 0)
+        if lvl or any(k[0] == gid for k in self.dkid):
+            cap.append(f'<span class="lvl">L{lvl}</span>')
         if b.get("label") and b["label"] != self.ents.get(self.tab_entity, {}).get("title"):
             cap.append(f'<b>{E(b["label"])}</b>')
         if b.get("parent"):
@@ -1264,7 +1280,11 @@ class Report:
     # -- page ------------------------------------------------------------
     def render(self):
         d = self.d
-        parts = [f'<header><h1>{E(d["title"])}</h1><p>' + "<br>".join(E(m) for m in d.get("meta", [])) + "</p></header>"]
+        used = {b.get("type") for sec in d.get("sections", []) for b in walk(sec.get("blocks", []))}
+        t = self.t
+        find = (f'<div class="find"><input id="find" type="search" placeholder="{E(t["find"])}" aria-label="{E(t["find"])}">'
+                '<span id="findn"></span></div>') if used & FIND_TYPES else ""
+        parts = [f'<header><h1>{E(d["title"])}</h1><p>' + "<br>".join(E(m) for m in d.get("meta", [])) + f"</p>{find}</header>"]
         if d.get("stats"):
             parts.append('<dl class="stats">' + "".join(f"<div><dt>{E(k)}</dt><dd>{E(str(v))}</dd></div>" for k, v in d["stats"]) + "</dl>")
         secs = d.get("sections", [])
@@ -1295,8 +1315,10 @@ class Report:
         if dead:
             fail("links without a target: " + ", ".join(dead[:12]) + " (an entity needs a tree row, a table `anchor` or a tab `entity`)")
         page = TEMPLATE.read_text()
+        head = "\n".join(HEAD[k] for k in sorted(used & HEAD.keys()))
         return (page.replace("{{LANG}}", E(d.get("lang", "de")))
                     .replace("{{TITLE}}", E(d["title"]))
+                    .replace("{{HEAD}}", head)
                     .replace("{{BODY}}", body))
 
 
@@ -1304,7 +1326,8 @@ def main():
     if len(sys.argv) != 3:
         sys.exit(__doc__)
     data = json.loads(Path(sys.argv[1]).read_text())
-    Path(sys.argv[2]).write_text(Report(data).render())
+    out = Path(sys.argv[2])
+    out.write_text(Report(data, out_dir=out.parent).render())
     print(sys.argv[2])
 
 

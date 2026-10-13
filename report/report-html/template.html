@@ -161,26 +161,32 @@ ul.ste li.chg,ol.ste li.chg,tr.chg>td,.row.chg{background:var(--cb)}tr.chg>td:fi
 .nd.chg .bx{stroke:var(--c)!important;fill:var(--cb)!important;stroke-width:2.4!important}.nd.c-removed .bx{stroke-dasharray:4 3}
 .ln.chg{stroke:var(--c);stroke-width:2}.ln.c-removed{stroke-dasharray:3 3}.el.chg{fill:var(--c);font-weight:600}
 .tl button.dim{opacity:.5}.cdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--c);margin-right:6px;vertical-align:1px}
-@media print{.ctl,.tg{cursor:auto}.row.hit,tr.hit{background:none}.tl{display:none}.tp{display:block!important}.chgbar button,.zb{display:none}}
+@media print{.ctl,.tg{cursor:auto}.row.hit,tr.hit{background:none}.tl{display:none}.tp{display:block!important}.chgbar button,.zb,.find{display:none}}
+.find{grid-column:1/-1;display:flex;align-items:center;gap:12px}
+#find{flex:0 1 320px;min-width:0;font:12px var(--mono);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:4px 10px}
+#find:focus{outline:2px solid var(--acc);outline-offset:-1px}
+#findn{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
 </style>
 <script>
 /* One filter per tree. FILTER holds the toggleable categories of that tree. `drives`: figure ids of
    diagrams showing the same entities (node data-e); a map hides the filtered boxes, others fade them. */
-function treeFilter(cats,label,drives=[]){return{off:{},v:{},count:'',
- init(){this.recalc();window.addEventListener('hashchange',()=>this.reveal());this.$nextTick(()=>this.reveal())},
+function treeFilter(cats,label,drives=[]){return{off:{},v:{},count:'',q:'',shown:0,
+ init(){(window.TF=window.TF||new Set()).add(this);this.recalc();window.addEventListener('hashchange',()=>this.reveal());this.$nextTick(()=>this.reveal())},
  t(k){this.off={...this.off,[k]:!this.off[k]};this.recalc()},
  reset(){this.off={};this.recalc()},
- recalc(){const o=this.off,v={};let shown=0,total=0;
+ recalc(){const o=this.off,q=this.q,v={};let shown=0,total=0;
   /* own: this node's badges pass; up: every ancestor's badges pass. */
   const walk=(li,up)=>{const vals=JSON.parse(li.dataset.b||'{}');let own=true;
    for(const c of cats){const a=vals[c.key]||[];if(!a.length)continue;
     own=own&&(c.mode==='hide'?!a.some(x=>o[c.key+':'+x]):a.some(x=>!o[c.key+':'+x]))}
+   /* find box: a row matches by its own text; an ancestor of a match stays, a descendant of a match does not. */
+   const hit=!q||li.querySelector(':scope>.row').textContent.toLowerCase().includes(q);
    const kids=[...li.querySelectorAll(':scope>ul>li')].map(k=>walk(k,up&&own));
    let ok=up&&own;
-   if(kids.length&&!('leaf' in li.dataset))ok=ok&&kids.some(Boolean);
+   if((kids.length&&!('leaf' in li.dataset))||!hit)ok=ok&&kids.some(Boolean);
    if('count' in li.dataset){total++;if(ok)shown++}
    v[li.dataset.id]=ok;return ok};
-  this.$root.querySelectorAll('ul.tr>li').forEach(li=>walk(li,true));this.v=v;this.count=shown+' / '+total+' '+label;
+  this.$root.querySelectorAll('ul.tr>li').forEach(li=>walk(li,true));this.v=v;this.shown=shown;this.count=shown+' / '+total+' '+label;findN();
   const hide=new Set(Object.keys(v).filter(k=>!v[k]));
   for(const id of drives){const f=document.getElementById(id),svg=f&&f.querySelector('svg.dg');if(!svg)continue;f._hide=hide;
    if(svg.classList.contains('mp')){f.dispatchEvent(new Event('treefilter'));continue}
@@ -372,8 +378,18 @@ function mapInit(svg){const fig=svg.closest('.fg'),w=svg.parentElement,t=MT[docu
   const n=N.get(g.dataset.n),v=vb(),f=Math.min(1,900/v.width);v.width*=f;v.height*=f;v.x=n.x+n.w/2-v.width/2;v.y=n.y+n.h/2-v.height/2};
  addEventListener('hashchange',show);show()}
 addEventListener('DOMContentLoaded',()=>document.querySelectorAll('svg.mp').forEach(mapInit));
+/* Find box in the header (only when the report has a tree or a data table). Every tree filters by its own row text;
+   any other feature listens for `find` on document (detail.q) and reports its visible count in FIND.parts[name]. */
+const FIND={q:'',parts:{}};
+function findN(){const n=document.getElementById('findn');if(!n)return;const tf=[...(window.TF||[])];
+ n.textContent=FIND.q?[...(tf.length?[tf.reduce((s,t)=>s+t.shown,0)]:[]),...Object.values(FIND.parts)].join(' · '):''}
+addEventListener('DOMContentLoaded',()=>{const box=document.getElementById('find');if(!box)return;let timer;
+ box.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>{FIND.q=box.value.trim().toLowerCase();
+  for(const tf of window.TF||[]){tf.q=FIND.q;tf.recalc()}
+  document.dispatchEvent(new CustomEvent('find',{detail:{q:FIND.q}}));findN()},120)})});
 </script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
+{{HEAD}}
 </head>
 <body>
 {{BODY}}
