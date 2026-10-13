@@ -1,0 +1,72 @@
+{
+  "title": "Example · Import dependencies and call order",
+  "lang": "en",
+  "meta": ["Source: example data", "Date: 2026-10-13"],
+  "badges": {
+    "kind": {
+      "label": "Kind · square",
+      "shape": "square",
+      "values": {
+        "pkg": {"label": "PKG", "color": "blue", "desc": "Package"},
+        "svc": {"label": "SVC", "color": "green", "desc": "Service"}
+      }
+    }
+  },
+  "entities": [
+    {"id": "studio", "title": "studio", "badges": {"kind": ["pkg"]}, "meta": ["Nuxt app"]},
+    {"id": "importer", "title": "importer", "badges": {"kind": ["pkg"]}, "meta": ["scripts/import.ts"]},
+    {"id": "compiler", "title": "compiler", "badges": {"kind": ["pkg"]}, "meta": ["pipeline/compile.ts"]},
+    {"id": "ui", "title": "ui-kit", "badges": {"kind": ["pkg"]}, "meta": ["packages/ui"]},
+    {"id": "directus", "title": "Directus", "badges": {"kind": ["svc"]}, "meta": ["localhost:8059"]}
+  ],
+  "sections": [
+    {
+      "title": "What depends on what",
+      "sub": "map",
+      "blocks": [
+        {"type": "p", "text": "The `studio` app depends on `compiler` and `ui-kit`. The `importer` writes to [[directus]] and reads the same types as the `compiler`."},
+        {"type": "tree", "filter": ["kind"], "drives": ["deps"]},
+        {
+          "type": "map",
+          "id": "deps",
+          "label": "Package dependencies",
+          "kinds": {"npm": {"label": "npm", "color": "blue"}, "reads": {"label": "reads", "color": "orange", "dash": "dash"}},
+          "nodes": [
+            {"id": "studio", "label": "studio", "sub": "Nuxt app", "ref": "studio"},
+            {"id": "importer", "label": "importer", "sub": "scripts/", "ref": "importer"},
+            {"id": "compiler", "label": "compiler", "sub": "pipeline/", "ref": "compiler", "lines": ["@boje/compile@1.2.0"]},
+            {"id": "ui", "label": "ui-kit", "sub": "packages/ui", "ref": "ui", "lines": ["@boje/ui@0.9.1"]},
+            {"id": "directus", "label": "Directus", "sub": "service", "ref": "directus", "shape": "external"}
+          ],
+          "edges": [
+            {"from": "studio", "to": "compiler", "kind": "npm", "label": "@boje/compile", "at": "package.json:14"},
+            {"from": "studio", "to": "ui", "kind": "npm", "label": "@boje/ui", "at": "package.json:15"},
+            {"from": "importer", "to": "compiler", "kind": "npm", "label": "@boje/compile", "at": "scripts/package.json:9"},
+            {"from": "importer", "to": "directus", "kind": "reads", "label": "items API", "at": "scripts/import.ts:22"},
+            {"from": "compiler", "to": "directus", "kind": "reads", "label": "items API", "at": "pipeline/compile.ts:40"}
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Who calls whom in which order",
+      "sub": "mermaid",
+      "blocks": [
+        {"type": "p", "text": "A run starts in `studio`. The [[importer]] fetches rows from [[directus]] and hands them to the [[compiler]]."},
+        {
+          "type": "mermaid",
+          "id": "order",
+          "label": "Call order of one import",
+          "at": "scripts/import.ts:10",
+          "code": "sequenceDiagram\n    participant S as studio\n    participant I as importer\n    participant D as Directus\n    participant C as compiler\n    S->>I: start run(collection)\n    I->>D: GET /items/{collection}\n    D-->>I: rows (JSON)\n    I->>C: compile(rows)\n    C-->>I: screens (JSON)\n    I-->>S: run report"
+        },
+        {
+          "type": "mermaid",
+          "id": "links",
+          "label": "Boxes link to their entity",
+          "code": "flowchart LR\n    S[studio] -->|start run| I[importer]\n    I -->|rows| C[compiler]\n    I -->|GET items| D[(Directus)]\n    click S href \"#e-studio\"\n    click I href \"#e-importer\"\n    click C href \"#e-compiler\"\n    click D href \"#e-directus\""
+        }
+      ]
+    }
+  ]
+}
