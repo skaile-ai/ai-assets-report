@@ -1,0 +1,515 @@
+{
+ "title": "Beispiel · Blöcke je Screen",
+ "lang": "de",
+ "meta": [
+  "Quelle: Beispieldaten (report-table/example.json)",
+  "Stand: 2026-10-13"
+ ],
+ "badges": {
+  "kind": {
+   "label": "Entität · eckig",
+   "shape": "square",
+   "values": {
+    "area": {
+     "label": "AREA",
+     "color": "purple",
+     "desc": "Bereich"
+    },
+    "scrn": {
+     "label": "SCRN",
+     "color": "green",
+     "desc": "Screen"
+    }
+   }
+  },
+  "aud": {
+   "label": "Zielgruppe · rund",
+   "shape": "round",
+   "values": {
+    "teen": {
+     "color": "navy",
+     "desc": "Jugendliche"
+    },
+    "young": {
+     "color": "brown",
+     "desc": "junge Erwachsene"
+    }
+   }
+  },
+  "flag": {
+   "label": "Status · gestrichelt",
+   "shape": "dashed",
+   "filter": "hide",
+   "values": {
+    "draft": {
+     "color": "yellow",
+     "desc": "Entwurf"
+    }
+   }
+  }
+ },
+ "entities": [
+  {
+   "id": "alltag",
+   "title": "Im Alltag",
+   "badges": {
+    "kind": [
+     "area"
+    ]
+   }
+  },
+  {
+   "id": "trigger",
+   "parent": "alltag",
+   "order": 1,
+   "title": "Trigger",
+   "meta": [
+    "9 Blöcke"
+   ],
+   "badges": {
+    "kind": [
+     "scrn"
+    ],
+    "aud": [
+     "teen",
+     "young"
+    ]
+   }
+  },
+  {
+   "id": "pause",
+   "parent": "alltag",
+   "order": 2,
+   "title": "Mach mal Pause",
+   "meta": [
+    "9 Blöcke"
+   ],
+   "badges": {
+    "kind": [
+     "scrn"
+    ],
+    "aud": [
+     "teen"
+    ],
+    "flag": [
+     "draft"
+    ]
+   }
+  },
+  {
+   "id": "schlaf",
+   "parent": "alltag",
+   "order": 3,
+   "title": "Schlaf",
+   "meta": [
+    "9 Blöcke"
+   ],
+   "badges": {
+    "kind": [
+     "scrn"
+    ],
+    "aud": [
+     "young"
+    ]
+   }
+  },
+  {
+   "id": "sport",
+   "parent": "alltag",
+   "order": 4,
+   "title": "Sport",
+   "meta": [
+    "7 Blöcke"
+   ],
+   "badges": {
+    "kind": [
+     "scrn"
+    ],
+    "aud": [
+     "teen",
+     "young"
+    ]
+   }
+  }
+ ],
+ "sections": [
+  {
+   "title": "Inhalt",
+   "sub": "Baum der Screens",
+   "blocks": [
+    {
+     "type": "p",
+     "text": "Der Bereich [[alltag]] enthält vier Screens. Ein Klick auf ein Badge blendet die passenden Screens ein oder aus."
+    },
+    {
+     "type": "tree",
+     "filter": [
+      "kind",
+      "aud",
+      "flag"
+     ],
+     "count": "scrn",
+     "count_label": "Screens"
+    }
+   ]
+  },
+  {
+   "title": "Blöcke",
+   "sub": "Tabelle und interaktive Tabelle",
+   "blocks": [
+    {
+     "type": "p",
+     "text": "Jede Zeile von `blocks` gehört zu einem Screen. Die Tabelle zählt die Blöcke je Typ."
+    },
+    {
+     "type": "table",
+     "columns": [
+      "Typ",
+      "Anzahl",
+      "Screens"
+     ],
+     "numeric": [
+      1
+     ],
+     "rows": [
+      [
+       "text",
+       7,
+       {
+        "refs": [
+         "pause",
+         "schlaf",
+         "sport",
+         "trigger"
+        ]
+       }
+      ],
+      [
+       "quiz",
+       7,
+       {
+        "refs": [
+         "pause",
+         "schlaf",
+         "sport",
+         "trigger"
+        ]
+       }
+      ],
+      [
+       "video",
+       7,
+       {
+        "refs": [
+         "pause",
+         "schlaf",
+         "sport",
+         "trigger"
+        ]
+       }
+      ],
+      [
+       "reflexion",
+       7,
+       {
+        "refs": [
+         "pause",
+         "schlaf",
+         "sport",
+         "trigger"
+        ]
+       }
+      ],
+      [
+       "tipp",
+       6,
+       {
+        "refs": [
+         "pause",
+         "schlaf",
+         "sport",
+         "trigger"
+        ]
+       }
+      ]
+     ]
+    },
+    {
+     "type": "p",
+     "text": "Die interaktive Tabelle lässt sich sortieren, durchsuchen und als CSV laden. Das Suchfeld oben filtert auch den Baum."
+    },
+    {
+     "type": "data",
+     "id": "blocks",
+     "label": "blocks · 34 Zeilen",
+     "key": "screen",
+     "page": 10,
+     "columns": [
+      {
+       "label": "Block",
+       "key": "block"
+      },
+      {
+       "label": "Typ",
+       "key": "type"
+      },
+      {
+       "label": "Screen",
+       "key": "screen"
+      },
+      {
+       "label": "Wörter",
+       "key": "words",
+       "type": "number"
+      },
+      {
+       "label": "Geändert",
+       "key": "changed",
+       "type": "date"
+      }
+     ],
+     "rows": [
+      {
+       "block": "trigger-01",
+       "type": "video",
+       "screen": "trigger",
+       "words": 0,
+       "changed": "2026-09-05"
+      },
+      {
+       "block": "trigger-02",
+       "type": "reflexion",
+       "screen": "trigger",
+       "words": 101,
+       "changed": "2026-10-02"
+      },
+      {
+       "block": "trigger-03",
+       "type": "tipp",
+       "screen": "trigger",
+       "words": 18,
+       "changed": "2026-10-04"
+      },
+      {
+       "block": "trigger-04",
+       "type": "text",
+       "screen": "trigger",
+       "words": 93,
+       "changed": "2026-10-02"
+      },
+      {
+       "block": "trigger-05",
+       "type": "quiz",
+       "screen": "trigger",
+       "words": 129,
+       "changed": "2026-08-02"
+      },
+      {
+       "block": "trigger-06",
+       "type": "video",
+       "screen": "trigger",
+       "words": 0,
+       "changed": "2026-08-14"
+      },
+      {
+       "block": "trigger-07",
+       "type": "reflexion",
+       "screen": "trigger",
+       "words": 107,
+       "changed": "2026-08-08"
+      },
+      {
+       "block": "trigger-08",
+       "type": "tipp",
+       "screen": "trigger",
+       "words": 23,
+       "changed": "2026-10-14"
+      },
+      {
+       "block": "trigger-09",
+       "type": "text",
+       "screen": "trigger",
+       "words": 15,
+       "changed": "2026-10-04"
+      },
+      {
+       "block": "pause-01",
+       "type": "text",
+       "screen": "pause",
+       "words": 57,
+       "changed": "2026-10-21"
+      },
+      {
+       "block": "pause-02",
+       "type": "quiz",
+       "screen": "pause",
+       "words": 149,
+       "changed": "2026-08-19"
+      },
+      {
+       "block": "pause-03",
+       "type": "video",
+       "screen": "pause",
+       "words": 0,
+       "changed": "2026-10-13"
+      },
+      {
+       "block": "pause-04",
+       "type": "reflexion",
+       "screen": "pause",
+       "words": 12,
+       "changed": "2026-08-02"
+      },
+      {
+       "block": "pause-05",
+       "type": "tipp",
+       "screen": "pause",
+       "words": 142,
+       "changed": "2026-08-10"
+      },
+      {
+       "block": "pause-06",
+       "type": "text",
+       "screen": "pause",
+       "words": 107,
+       "changed": "2026-08-18"
+      },
+      {
+       "block": "pause-07",
+       "type": "quiz",
+       "screen": "pause",
+       "words": 30,
+       "changed": "2026-10-10"
+      },
+      {
+       "block": "pause-08",
+       "type": "video",
+       "screen": "pause",
+       "words": 0,
+       "changed": "2026-10-27"
+      },
+      {
+       "block": "pause-09",
+       "type": "reflexion",
+       "screen": "pause",
+       "words": 174,
+       "changed": "2026-08-04"
+      },
+      {
+       "block": "schlaf-01",
+       "type": "quiz",
+       "screen": "schlaf",
+       "words": 148,
+       "changed": "2026-10-21"
+      },
+      {
+       "block": "schlaf-02",
+       "type": "video",
+       "screen": "schlaf",
+       "words": 0,
+       "changed": "2026-08-12"
+      },
+      {
+       "block": "schlaf-03",
+       "type": "reflexion",
+       "screen": "schlaf",
+       "words": 24,
+       "changed": "2026-10-23"
+      },
+      {
+       "block": "schlaf-04",
+       "type": "tipp",
+       "screen": "schlaf",
+       "words": 16,
+       "changed": "2026-10-02"
+      },
+      {
+       "block": "schlaf-05",
+       "type": "text",
+       "screen": "schlaf",
+       "words": 158,
+       "changed": "2026-08-16"
+      },
+      {
+       "block": "schlaf-06",
+       "type": "quiz",
+       "screen": "schlaf",
+       "words": 174,
+       "changed": "2026-10-14"
+      },
+      {
+       "block": "schlaf-07",
+       "type": "video",
+       "screen": "schlaf",
+       "words": 0,
+       "changed": "2026-09-15"
+      },
+      {
+       "block": "schlaf-08",
+       "type": "reflexion",
+       "screen": "schlaf",
+       "words": 149,
+       "changed": "2026-09-12"
+      },
+      {
+       "block": "schlaf-09",
+       "type": "tipp",
+       "screen": "schlaf",
+       "words": 76,
+       "changed": "2026-08-26"
+      },
+      {
+       "block": "sport-01",
+       "type": "text",
+       "screen": "sport",
+       "words": 46,
+       "changed": "2026-10-25"
+      },
+      {
+       "block": "sport-02",
+       "type": "quiz",
+       "screen": "sport",
+       "words": 62,
+       "changed": "2026-08-19"
+      },
+      {
+       "block": "sport-03",
+       "type": "video",
+       "screen": "sport",
+       "words": 0,
+       "changed": "2026-09-17"
+      },
+      {
+       "block": "sport-04",
+       "type": "reflexion",
+       "screen": "sport",
+       "words": 126,
+       "changed": "2026-09-24"
+      },
+      {
+       "block": "sport-05",
+       "type": "tipp",
+       "screen": "sport",
+       "words": 114,
+       "changed": "2026-09-20"
+      },
+      {
+       "block": "sport-06",
+       "type": "text",
+       "screen": "sport",
+       "words": 18,
+       "changed": "2026-08-17"
+      },
+      {
+       "block": "sport-07",
+       "type": "quiz",
+       "screen": "sport",
+       "words": 107,
+       "changed": "2026-08-25"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
