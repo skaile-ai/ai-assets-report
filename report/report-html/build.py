@@ -3,7 +3,7 @@
 
     python3 build.py [--strict] report.json out.html
 
-Schema: see SKILL.md ("report.json") and DIAGRAMS.md. Every entity gets the anchor
+Schema: see SKILL.md ("report.json") and the extension skills (report-flow/NOTATION.md, report-diagram, report-table, report-charts, report-video). Every entity gets the anchor
 `#e-<id>`, every diagram `#f-<id>`, every diagram node `#f-<id>-<node>`. `refs`,
 `{"ref": id}` table cells and diagram nodes link to them; back-links ("cited by")
 and drill-down links (from a diagram's `parent`) are computed here, so the data

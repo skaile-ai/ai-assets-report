@@ -2,7 +2,8 @@
   "title": "Beispiel · Inhaltsbaum",
   "lang": "de",
   "meta": ["Quelle: lokales Directus (localhost:8059)", "Stand: 2026-10-12"],
-  "stats": [["Bereiche", {"value": 1, "source": "directus areas"}], ["Screens", {"value": 2, "source": "directus screens"}], ["Quellen", {"value": 1, "source": "directus sources"}]],
+  "profile": "inventory",
+  "stats": [["Bereiche", {"count": "areas"}], ["Screens", {"count": "screens"}], ["Entwürfe", {"count": "screens", "where": {"status": "draft"}}], ["Quellen", {"count": "sources"}], ["Entitäten", {"rows": "entitaeten"}]],
   "badges": {
     "kind": {"label": "Entität · eckig", "shape": "square", "values": {
       "area": {"label": "AREA", "color": "purple", "desc": "Bereich"},
@@ -74,7 +75,8 @@
         {"from": "row", "to": "variant", "fn": "writeScreen()", "at": "server/screen.ts:40", "note": "Absätze werden Blöcke, je Zielgruppe."},
         {"from": ["variant", "row"], "to": "json", "fn": "compileContent()", "at": "pipeline/compile.ts:8", "note": "MDC wird JSON; Zitate aufgelöst."}]}]},
     {"title": "Baum", "sub": "erst die Liste, dann die Karte; ein Filter für beide", "blocks": [
-      {"type": "tree", "filter": ["kind", "aud", "origin", "flag"], "count": "scrn", "count_label": "Screens sichtbar", "drives": ["module"]},
+      {"type": "p", "text": "Der Bereich [[alltag]] enthält zwei Screens. [[pause]] ist ein Entwurf; ein Klick auf das Badge „Status“ blendet ihn samt Karte und Diagramm aus."},
+      {"type": "tree", "filter": ["kind", "aud", "origin", "flag"], "count": "scrn", "count_label": "Screens sichtbar", "drives": ["module", "verteilung"]},
       {"type": "map", "id": "module", "label": "Pakete der Pipeline",
        "kinds": {"npm": {"color": "blue"}, "sub": {"label": "Submodul", "color": "orange", "dash": "dash"}},
        "nodes": [
@@ -92,6 +94,31 @@
     {"title": "Quellen", "blocks": [
       {"type": "table", "columns": ["Kapitel", "Zitiert von", "Absätze"], "numeric": [2],
        "rows": [{"anchor": "BOOK-C01", "cells": ["BOOK-C01", {"refs": ["trigger"]}, 18]}]},
-      {"type": "bars", "items": [["book", 1, "orange"], ["authored", 1, "pink"]], "link": false}]}
+      {"type": "bars", "items": [["book", 1, "orange"], ["authored", 1, "pink"]], "link": false}]},
+    {"title": "Interaktiv", "sub": "Diagramm filtert Tabelle, Baum filtert Diagramm", "blocks": [
+      {"type": "p", "text": "Das Diagramm zählt die Entitäten je Art. Ein Klick auf einen Balken filtert die Tabelle darunter. Ein Badge im Baum nimmt Balken aus dem Diagramm."},
+      {"type": "vega", "id": "verteilung", "label": "Entitäten je Art", "entity": "id", "spec": {
+        "height": 160,
+        "data": {"values": [
+          {"id": "alltag", "art": "area"}, {"id": "trigger", "art": "scrn"}, {"id": "pause", "art": "scrn"},
+          {"id": "BOOK-C01", "art": "quelle"}, {"id": "imp", "art": "stufe"}]},
+        "params": [{"name": "pick", "select": {"type": "point", "fields": ["art"]}}],
+        "mark": {"type": "bar", "color": "#0969da", "tooltip": true},
+        "encoding": {
+          "x": {"field": "art", "type": "nominal", "title": "Art", "axis": {"labelAngle": 0}},
+          "y": {"aggregate": "count", "type": "quantitative", "title": "Entitäten", "axis": {"tickMinStep": 1}},
+          "opacity": {"condition": {"param": "pick", "value": 1}, "value": 0.35}}}},
+      {"type": "data", "id": "entitaeten", "label": "Alle Entitäten", "key": "id", "columns": [
+        {"label": "Entität", "key": "id"}, {"label": "Art", "key": "art"}, {"label": "Titel", "key": "titel"}],
+       "rows": [
+        {"id": "alltag", "art": "area", "titel": "Im Alltag"},
+        {"id": "trigger", "art": "scrn", "titel": "Trigger"},
+        {"id": "pause", "art": "scrn", "titel": "Mach mal Pause"},
+        {"id": "BOOK-C01", "art": "quelle", "titel": "Kapitel 1"},
+        {"id": "imp", "art": "stufe", "titel": "Kapitel importieren"}],
+       "listen": {"chart": "verteilung", "param": "pick", "field": "art"}},
+      {"type": "mermaid", "id": "wege", "label": "Vom Kapitel zum Entwurf", "code": "flowchart LR\n  A[Kapitel importieren] -->|Zeile| B[Trigger schreiben]\n  B -->|Screen| C[Mach mal Pause]\n  click A href \"#e-imp\"\n  click B href \"#e-trigger\"\n  click C href \"#e-pause\""},
+      {"type": "video", "id": "demo", "label": "Import in drei Schritten", "src": "../report-video/example.media/demo.mp4", "poster": "../report-video/example.media/demo.jpg",
+       "caption": "Erzeugt mit `scene_template.py` aus `report-video`."}]}
   ]
 }
