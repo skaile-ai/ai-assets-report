@@ -1,0 +1,74 @@
+{
+  "title": "Beispiel · Vom Buch zum Screen",
+  "lang": "de",
+  "meta": ["Quelle: Beispielcode (scripts/, server/, pipeline/)", "Stand: 2026-10-13"],
+  "badges": {
+    "kind": {"label": "Entität · eckig", "shape": "square", "values": {
+      "step": {"label": "STUFE", "color": "purple", "desc": "Verarbeitungsstufe"},
+      "src": {"label": "QUELLE", "color": "green", "desc": "Kapitel im Buch"}}}
+  },
+  "entities": [
+    {"id": "imp", "label": "import", "title": "Kapitel importieren", "meta": ["`npm run import`", "Hash falsch: Abbruch"],
+     "badges": {"kind": ["step"]}, "refs": ["BOOK-C01"]},
+    {"id": "trigger", "title": "Screen schreiben", "badges": {"kind": ["step"]}},
+    {"id": "BOOK-C01", "title": "Kapitel 1", "badges": {"kind": ["src"]}}
+  ],
+  "sections": [
+    {"title": "Ablauf", "sub": "L0 Übersicht, L1 je Stufe", "blocks": [
+      {"type": "p", "text": "Ein Kapitel läuft in zwei Stufen vom Buch zum Screen: Der Import schreibt es nach `source_chapter`, der Editor liest es von dort."},
+      {"type": "flow", "id": "uebersicht", "label": "Vom Buch zum Screen", "nodes": [
+        {"id": "buch", "label": "Buch", "sub": "chapters/*.md", "shape": "external"},
+        {"id": "import", "label": "Kapitel importieren", "sub": "npm run import", "ref": "imp"},
+        {"id": "kapitel", "label": "source_chapter", "sub": "Directus", "shape": "store"},
+        {"id": "schreiben", "label": "Screen schreiben", "sub": "Editor", "ref": "trigger"},
+        {"id": "leser", "label": "Leser", "shape": "external"}],
+       "kinds": {"liest": {"label": "liest", "color": "teal", "dash": "dot"}},
+       "edges": [
+        {"from": "buch", "to": "import", "label": "Kapitel", "at": "scripts/import.ts:10"},
+        {"from": "import", "to": "kapitel", "label": "Zeile", "at": "scripts/import.ts:31"},
+        {"from": "kapitel", "to": "schreiben", "label": "Absätze", "kind": "liest", "at": "server/screen.ts:36"},
+        {"from": "schreiben", "to": "leser", "label": "Screen", "at": "server/screen.ts:52"}]},
+      {"type": "tabs", "id": "stufen", "label": "Stufen", "tabs": [
+        {"entity": "imp", "blocks": [
+          {"type": "flow", "id": "import", "parent": "uebersicht:import", "label": "Kapitel importieren", "dir": "down", "nodes": [
+            {"id": "buch", "label": "Buch", "sub": "chapters/*.md"},
+            {"id": "lesen", "label": "readChapter()", "sub": "Frontmatter + Text", "at": "scripts/import.ts:12"},
+            {"id": "hash", "label": "Hash stimmt?", "shape": "decision", "at": "scripts/import.ts:20"},
+            {"id": "post", "label": "POST /items", "sub": "neue Zeile", "at": "scripts/import.ts:31"},
+            {"id": "abbruch", "label": "Abbruch", "sub": "exit 1", "color": "red", "at": "scripts/import.ts:22"},
+            {"id": "kapitel", "label": "source_chapter", "shape": "store"}],
+           "edges": [
+            {"from": "buch", "to": "lesen", "label": "*.md", "at": "scripts/import.ts:10"},
+            {"from": "lesen", "to": "hash", "label": "Kandidat", "at": "scripts/import.ts:18"},
+            {"from": "hash", "to": "post", "label": "ja", "at": "scripts/import.ts:21"},
+            {"from": "hash", "to": "abbruch", "label": "nein", "kind": "error", "at": "scripts/import.ts:22"},
+            {"from": "post", "to": "kapitel", "label": "Zeile", "at": "scripts/import.ts:31"}]},
+          {"type": "p", "text": "Die Stufe [[trigger]] liest [[BOOK-C01|Kapitel 1]] aus `source_chapter`."}]},
+        {"label": "source_chapter", "summary": "Status eines Kapitels vom Import bis zum Archiv.", "blocks": [
+          {"type": "states", "id": "status", "parent": "uebersicht:kapitel", "label": "Kapitelstatus", "field": "source_chapter.status", "at": "schema.ts:4",
+           "states": [{"id": "entwurf"}, {"id": "geprueft", "label": "geprüft"}, {"id": "frei", "label": "veröffentlicht", "color": "green"}],
+           "transitions": [
+            {"from": "[*]", "to": "entwurf", "trigger": "Import", "at": "scripts/import.ts:31"},
+            {"from": "entwurf", "to": "entwurf", "trigger": "Speichern", "at": "server/save.ts:9"},
+            {"from": "entwurf", "to": "geprueft", "trigger": "Review", "guard": "alle Absätze mit `id`", "at": "server/review.ts:14"},
+            {"from": "geprueft", "to": "entwurf", "trigger": "Änderung", "at": "server/save.ts:12"},
+            {"from": "geprueft", "to": "frei", "trigger": "Freigabe", "action": "`published_at` setzen", "at": "server/review.ts:30"},
+            {"from": "frei", "to": "[*]", "trigger": "Archiv", "at": "server/archive.ts:5"}]}]}]}]},
+    {"title": "Typen", "sub": "was wird zu was", "blocks": [
+      {"type": "lineage", "id": "typen", "label": "Buch bis Screen", "types": [
+        {"id": "md", "label": "chapters/*.md", "sub": "Markdown + YAML"},
+        {"id": "cand", "label": "ChapterCandidate", "sub": "TS-Typ"},
+        {"id": "row", "label": "source_chapter", "sub": "Directus-Zeile", "shape": "store"},
+        {"id": "variant", "label": "content_variant", "sub": "Directus-Zeile", "shape": "store"},
+        {"id": "json", "label": "stations.json", "sub": "Build-Artefakt"}],
+       "steps": [
+        {"from": "md", "to": "cand", "fn": "readChapter()", "at": "scripts/import.ts:12", "note": "Frontmatter wird zu Feldern; Hash geprüft."},
+        {"from": "cand", "to": "row", "fn": "POST /items", "at": "scripts/import.ts:31", "note": "bekommt `id` und `corpus_version`."},
+        {"from": "row", "to": "variant", "fn": "writeScreen()", "at": "server/screen.ts:40", "note": "Absätze werden Blöcke, je Zielgruppe."},
+        {"from": ["variant", "row"], "to": "json", "fn": "compileContent()", "at": "pipeline/compile.ts:8", "note": "MDC wird JSON; Zitate aufgelöst."}]}]},
+    {"title": "Belege", "sub": "Ziele der Links aus Diagrammen und Text", "blocks": [
+      {"type": "table", "columns": ["Eintrag", "Art", "Absätze"], "numeric": [2],
+       "rows": [{"anchor": "trigger", "cells": ["Screen schreiben", "Stufe", "—"]},
+                {"anchor": "BOOK-C01", "cells": ["Kapitel 1", "Quelle", 18]}]}]}
+  ]
+}
