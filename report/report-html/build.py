@@ -1715,7 +1715,7 @@ CHOICE_BLOCKS = {"tree": "tree", "table": "tree", "data": "data", "vega": "chart
 
 
 def check_choice(data, path):
-    """Compare the features the report uses with the ones the choice file lists; fail on a used, unchosen key."""
+    """Compare the features and questions the report uses with the ones the choice file lists; fail on a used, unchosen one."""
     try:
         choice = json.loads(Path(path).read_text())
     except (OSError, ValueError) as e:
@@ -1738,6 +1738,36 @@ def check_choice(data, path):
     bad = [k for k in CHOICE_KEYS if k in used and k not in feats]
     if bad:
         fail(f"--check-choice: used but not chosen: {', '.join(bad)}")
+    qs = choice.get("questions")
+    if qs is None:
+        return
+    if not isinstance(qs, list) or not all(isinstance(q, dict) and q.get("id") and q.get("text") for q in qs):
+        fail(f'--check-choice {path}: "questions" must be [{{"id", "chapter", "text", "feature"}}]')
+    ids = [q["id"] for q in qs]
+    if len(set(ids)) != len(ids):
+        fail(f"--check-choice {path}: duplicate question ids")
+    for q in qs:
+        f = q.get("feature", "none")
+        if f != "none" and f not in feats:
+            fail(f'--check-choice: question {q["id"]} needs feature {f}, which is not in "features"')
+    answered = defaultdict(list)
+    for n, sec in enumerate(data.get("sections", [])):
+        q = sec.get("question")
+        if q is None and n == 0:
+            continue
+        if q not in ids:
+            fail(f'--check-choice: section "{sec.get("title")}" answers no chosen question; '
+                 f'set "question" to one of {", ".join(ids)} or drop the section')
+        answered[q].append(sec.get("title"))
+    for q in qs:
+        secs = answered.get(q["id"], [])
+        print(f'choice: question {q["id"]} sections={len(secs)} "{q["text"]}"')
+    missing = [q["id"] for q in qs if not answered.get(q["id"])]
+    if missing:
+        fail(f"--check-choice: chosen questions without a section: {', '.join(missing)}")
+    twice = [q for q, s in answered.items() if len(s) > 1]
+    if twice:
+        fail(f"--check-choice: questions answered by more than one section (merge them): {', '.join(twice)}")
 
 
 def main():
