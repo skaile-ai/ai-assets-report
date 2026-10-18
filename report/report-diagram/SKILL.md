@@ -3,7 +3,7 @@ name: report-diagram
 description: "Dependency `map` canvases and mermaid notations (sequence, class, ER, C4, gantt, mindmap, sankey, railroad) with the notation-choice table. Use for 'what depends on what', 'who calls whom in which order', 'draw this as a diagram'."
 metadata:
   version: 0.1.0
-  publisher: mortegro
+  publisher: skaile-ai
 ---
 
 # report-diagram <question>
@@ -72,7 +72,7 @@ The browser renders `code` from the pinned CDN module `mermaid@11`. The build ch
 1. Pick the block from the table. Collect the relations from the code or data, every one with `path:line`.
 2. Define one entity per node the reader should reach (`badges`, `meta`), and a `tree` for them, so each `ref` and `click` target exists.
 3. Write `report.json` with only the block, its entities, the tree, and one `p` that states the answer. Copy the shape from `example.json`. State each term as in the code.
-4. Build: `python3 ~/.agents/skills/report-html/build.py report.json <out>.html`. Fix every `report.json:` line.
+4. Build: `python3 <skill-dir>/../report-html/build.py report.json <out>.html`. Fix every `report.json:` line.
 5. Verify (list below), then `open <out>.html` and state the answer in chat.
 
 ## Under report-html

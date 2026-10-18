@@ -3,7 +3,7 @@ name: report-charts
 description: "Quantities as `bars` or Vega-Lite `vega` charts with tooltips, selections and cross-filter. Use for 'how much', 'distribution', 'over time', 'compare counts'."
 metadata:
   version: 0.1.0
-  publisher: mortegro
+  publisher: skaile-ai
 ---
 
 # report-charts <question>
@@ -80,7 +80,7 @@ Needs `entity` on the `vega` block, and the rows' `entity` values must be ids of
 
 1. Pin the question and find the numbers: dump the collection (`<report>.data/`) or read them from the code. Name the field for each axis.
 2. Write `report.json`: one `p` that states the answer, then per question one `vega` (or `bars`) block. Add `badges`, `entities` and a `tree` only when the rows are entities and the reader should filter them; add a `data` table only when the reader needs the rows. Copy the shape from `example.json`.
-3. Build: `python3 ~/.agents/skills/report-html/build.py report.json <out>.html`. Fix every `lint:` line or justify it in chat.
+3. Build: `python3 <skill-dir>/../report-html/build.py report.json <out>.html`. Fix every `lint:` line or justify it in chat.
 4. Verify (below), `open <out>.html`, state the answer in chat.
 5. Location: `<repo>/.scratch/reports/<topic>-<YYYY-MM-DD>[-vN].html`. Take the first free `-vN` (`-v2`, `-v3`, …); never overwrite an existing report.
 

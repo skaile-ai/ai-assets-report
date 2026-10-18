@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+*.log
+.scratch/
+example.html
+__pycache__/
+*.voice/
+media/

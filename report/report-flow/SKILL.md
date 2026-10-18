@@ -3,7 +3,7 @@ name: report-flow
 description: "Capture how code or a pipeline works from the source (trigger, steps, stores, error paths, file:line evidence) and draw levelled DFD `flow`, `lineage` and `states` diagrams. Use for 'how does X work', 'what becomes what', 'which states'."
 metadata:
   version: 0.1.0
-  publisher: mortegro
+  publisher: skaile-ai
 ---
 
 # report-flow <question>
@@ -69,7 +69,7 @@ Done when every node and every edge you draw maps to one line of this list.
 
 1. Collect the facts (Capture the flow). Define one entity per stage and one per source you cite, with `badges` and `meta` (`trigger`, `code`, `guard`).
 2. Write `report.json` with only these blocks: the L0 `flow`, one L1 `flow` per stage in `tabs`, the `states` and `lineage` blocks the question needs, and one `p` that states the answer. Copy the shape from `example.json`.
-3. Build: `python3 ~/.agents/skills/report-html/build.py report.json <out>.html`. Fix every `report.json:` line.
+3. Build: `python3 <skill-dir>/../report-html/build.py report.json <out>.html`. Fix every `report.json:` line.
 4. Verify (list below), then `open <out>.html` and state the answer in chat.
 
 ## Under report-html

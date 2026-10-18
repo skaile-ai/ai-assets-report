@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Detect entities and their connections in a data dump; write a type schema and a draft report.
 
-    python3 ~/.agents/skills/report-table/detect.py <dump> <outdir> [--title T] [--lang de] [--max N] [--skip c1,c2]
+    python3 <skill-dir>/detect.py <dump> <outdir> [--title T] [--lang de] [--max N] [--skip c1,c2]
 
 <dump>: a JSON file `{collection: [row, ...]}`, or a directory of `<collection>.json`
 (array, or `{"data": [...]}` as Directus returns) and `<collection>.jsonl` files.

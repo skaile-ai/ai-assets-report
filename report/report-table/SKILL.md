@@ -3,7 +3,7 @@ name: report-table
 description: "Dump collections, detect keys/relations/enums with detect.py, and render entities as badge-filtered trees and interactive sortable/searchable tables. Use for inventories, 'which X exist', 'how many', data sheets."
 metadata:
   version: 0.1.0
-  publisher: mortegro
+  publisher: skaile-ai
 ---
 
 # report-table <question>
@@ -20,7 +20,7 @@ Done when each collection that the question names has a file and its row count i
 
 ## Detect
 
-`python3 ~/.agents/skills/report-table/detect.py <report>.data <report>.build [--title T] [--lang de] [--max N] [--skip c1,c2]`
+`python3 <skill-dir>/detect.py <report>.data <report>.build [--title T] [--lang de] [--max N] [--skip c1,c2]`
 
 It infers from values, not names:
 
@@ -63,7 +63,7 @@ Edit the draft until it answers the question. The core schema (`badges`, `entiti
 
 1. Dump, detect and shape (above) for `<question>`.
 2. Write `report.json` with the entities, the `badges`, one `tree` and the `table` or `data` blocks the question needs, plus one `p` that states the answer. Copy the shape from `example.json`.
-3. Build: `python3 ~/.agents/skills/report-html/build.py report.json <out>.html`. The build aborts on an unknown ref, parent, badge or colour: fix the data, not the check. Read every `lint:` line and fix it or justify it in chat.
+3. Build: `python3 <skill-dir>/../report-html/build.py report.json <out>.html`. The build aborts on an unknown ref, parent, badge or colour: fix the data, not the check. Read every `lint:` line and fix it or justify it in chat.
 4. Verify (below), then `open <out>.html` and state the answer in chat.
 5. Location: `<repo>/.scratch/reports/<topic>-<YYYY-MM-DD>[-vN].html`, dump in `<topic>-<date>[-vN].data/`, detector output in `<topic>-<date>[-vN].build/`. When any of these names already exists, use the first free `-vN` (`-v2`, `-v3`, …) for all of them. Never overwrite an earlier report.
 

@@ -3,7 +3,7 @@ name: report-video
 description: "Chaptered, narrated manim explainer of a report's main concepts with a brand look, embedded as a `video` block with captions and chapters. Use only when the user asks for a video, animation or explainer."
 metadata:
   version: 0.2.0
-  publisher: mortegro
+  publisher: skaile-ai
 ---
 
 # report-video <report.json | topic>
@@ -70,11 +70,11 @@ Shots: <layout names per beat, e.g. FULL_CENTER → LEFT_RIGHT>
 - The script's `lang` picks the `say` voice; the caption track takes the `lang` of `report.json`.
 - The chapter plan is the brief; the shots are yours. Take the shot per block from `TECHNIQUES.md` and go beyond it where the report's own structure suggests a better picture: a hook, an "aha" beat, a payoff. Only the chrome (header), the title/chapter/end cards and the caption lane are fixed.
 
-Done when `python3 ~/.agents/skills/report-video/narrate.py <id>.script.md --provider none` parses the script without error.
+Done when `python3 <skill-dir>/narrate.py <id>.script.md --provider none` parses the script without error.
 
 ## Brand
 
-1. Copy the module next to the script: `cp ~/.agents/skills/report-video/brand.py <stem>.media/brand.py`. The media folder stays self-contained.
+1. Copy the module next to the script: `cp <skill-dir>/brand.py <stem>.media/brand.py`. The media folder stays self-contained.
 2. Precedence, first hit wins: `REPORT_BRAND` (a path) → the script's `brand:` path (`narrate.py` reads it for the voice only; render with `REPORT_BRAND=<path>` to apply it to the scenes) → `<stem>.brand.json` beside `<stem>.media/` → `brand.json` beside it → the defaults.
 3. Defaults: the GitHub dark look with the report's badge colour names, so an entity keeps its report colour in the video. Write a brand file only when the user gives brand facts; ask for none.
 4. `brand.json`: a found file is merged over the defaults (`colors` and `voice` key by key).
@@ -106,7 +106,7 @@ Done when `<id>.py` holds one scene per script chapter and one `beat` per script
 
 Run in `<stem>.media/` before rendering: the measured clip lengths are the time budget of the beats.
 
-`python3 ~/.agents/skills/report-video/narrate.py <id>.script.md [--provider auto|elevenlabs|say|dir|none] [--voice <id|name>] [--out <dir>] [--force]`
+`python3 <skill-dir>/narrate.py <id>.script.md [--provider auto|elevenlabs|say|dir|none] [--voice <id|name>] [--out <dir>] [--force]`
 
 | Provider | What it does |
 |---|---|
@@ -128,7 +128,7 @@ Run in `<stem>.media/`, in this order:
 
 1. Draft: `manim -ql -a <id>.py` (every scene).
 2. Read one still per chapter: `manim -ql -s <id>.py <Scene>` (or an ffmpeg frame of the draft) against the `TECHNIQUES.md` checklist (chrome, no cut text, ≤ 6 elements, readable caption lane, report colours). Fix and render again.
-3. Final: `manim -qm --format=mp4 -a <id>.py`, then `python3 ~/.agents/skills/report-video/stitch.py <id>.script.md --quality m`. `-qh` and `--quality h` only on request. Render and stitch use the same quality. About 3-5 s render per scene at `-qm` per 10 s of video.
+3. Final: `manim -qm --format=mp4 -a <id>.py`, then `python3 <skill-dir>/stitch.py <id>.script.md --quality m`. `-qh` and `--quality h` only on request. Render and stitch use the same quality. About 3-5 s render per scene at `-qm` per 10 s of video.
 
 `stitch.py [--quality l|m|h] [--poster <chapter>.<beat> | <seconds> | <seconds>s] [--keep]` mixes each chapter's clips at the beat start times, joins the chapters with mp4 chapter markers, writes `<id>.mp4`, `<id>.vtt`, `<id>.jpg` and `<id>.block.json`, then removes `media/` (`--keep` keeps it). The poster defaults to the answer with everything shown (after chapter 1's last beat has settled, before its closing fade). It prints `stitch: <id>.mp4 <s> s, <n> chapters, voice=<yes|no>, captions=<cues>`.
 
@@ -158,7 +158,7 @@ Done when `stitch:` prints its summary line.
 ## Alone
 
 1. Brief from the user's text → Script → Brand → Scenes → Narrate → Render (all above), in `<stem>.media/`.
-2. Stop at the mp4: no HTML. If the user wants a page, write a `report.json` with one `p` and the block from `<id>.block.json` (copy `example.json`) and build: `python3 ~/.agents/skills/report-html/build.py report.json <out>.html`.
+2. Stop at the mp4: no HTML. If the user wants a page, write a `report.json` with one `p` and the block from `<id>.block.json` (copy `example.json`) and build: `python3 <skill-dir>/../report-html/build.py report.json <out>.html`.
 3. Run Verify. State the path of the mp4 and the chapter list in chat.
 
 The example in `example.media/` holds a finished set: `demo.script.md`, `demo.py`, `brand.py`, `demo.block.json`.
@@ -175,6 +175,6 @@ The example in `example.media/` holds a finished set: `demo.script.md`, `demo.py
 - `ffprobe -v error -show_entries format=duration:stream=codec_name,width,height -show_chapters <id>.mp4`: h264 (+ aac when narrated), 1280×720, chapter count = script chapter count, chapter titles match `<n>. <title>`.
 - `<id>.vtt` cue count (`grep -c -- '-->'`) = narration line count.
 - Read the poster and one still per chapter: chrome visible, no cut text, ≤ 6 elements.
-- Build from any directory: `python3 ~/.agents/skills/report-html/build.py <report>.json /tmp/x.html` prints `lint: 0 findings`; the emitted `src`/`poster` point at existing files relative to `/tmp`; the track is inlined as a `data:text/vtt` URI.
+- Build from any directory: `python3 <skill-dir>/../report-html/build.py <report>.json /tmp/x.html` prints `lint: 0 findings`; the emitted `src`/`poster` point at existing files relative to `/tmp`; the track is inlined as a `data:text/vtt` URI.
 - Built page at 1280 px and 390 px: `scrollWidth == 390`, no console errors; `<video>` `readyState ≥ 1` after `load()`; `video.textTracks[0].cues.length` = the vtt cue count (also from `file://`); a click on the second chapter button sets `currentTime` to its `t` and starts playback.
 - Build errors fire on a missing `src`, a missing file, and a `chapters` entry without `t`.

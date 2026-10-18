@@ -2,7 +2,7 @@
 name: report
 slug: report
 title: Report
-publisher: mortegro
+publisher: skaile-ai
 description: "Static HTML reports: data sheets, diagrams, charts, video"
 ---
 
