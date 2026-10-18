@@ -317,6 +317,79 @@ class ChoiceCheck(unittest.TestCase):
         self.assertIn("unknown feature keys sparkles", str(cm.exception))
 
 
+class VideoBlock(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = Path(self.tmp.name)
+        for name in ("v.mp4", "v.jpg", "v.vtt"):
+            (self.dir / name).write_bytes(b"x")
+
+    def video(self, lang="en", **extra):
+        block = {"type": "video", "id": "demo", "src": "v.mp4"}
+        block.update(extra)
+        r = report(lang=lang)
+        r.out_dir = self.dir
+        return r.b_video(block)
+
+    def fails(self, **extra):
+        with self.assertRaises(SystemExit) as cm:
+            self.video(**extra)
+        return str(cm.exception)
+
+    def test_chapters_render_as_seek_buttons(self):
+        out = self.video(chapters=[{"t": 0, "label": "1. Answer"}, {"t": 75.5, "label": "2. <Flow> & more"}])
+        self.assertEqual(out.count("<button type=\"button\" data-t="), 2)
+        self.assertIn('<li><button type="button" data-t="0"><span class="t">0:00</span>1. Answer</button></li>', out)
+        self.assertIn('data-t="75.5"><span class="t">1:15</span>2. &lt;Flow&gt; &amp; more</button>', out)
+
+    def test_chapter_list_precedes_caption(self):
+        out = self.video(chapters=[{"t": 0, "label": "A"}], caption="Cap.")
+        self.assertTrue(out.index('<ol class="vch">') < out.index('<p class="mt">'))
+
+    def test_no_chapters_no_list(self):
+        self.assertNotIn("vch", self.video())
+
+    def test_chapter_validation(self):
+        bad = [
+            [{"t": 5, "label": "x"}, {"t": 2, "label": "y"}],  # not ascending
+            [{"t": 5, "label": "x"}, {"t": 5, "label": "y"}],  # not strictly ascending
+            [{"t": -1, "label": "x"}],
+            [{"t": "5", "label": "x"}],
+            [{"t": True, "label": "x"}],
+            [{"label": "x"}],
+            [{"t": 1, "label": ""}],
+            [{"t": 1, "label": "  "}],
+            [{"t": 1}],
+            ["x"],
+        ]
+        for chapters in bad:
+            with self.subTest(chapters=chapters):
+                self.assertIn("video demo: chapters[", self.fails(chapters=chapters))
+
+    def test_chapter_error_names_the_index(self):
+        msg = self.fails(chapters=[{"t": 5, "label": "x"}, {"t": 2, "label": "y"}])
+        self.assertIn("video demo: chapters[1] needs numeric ascending t and a label", msg)
+
+    def test_track_uses_report_language(self):
+        out = self.video(lang="de", track="v.vtt")
+        self.assertIn('<track kind="captions" src="v.vtt" srclang="de" label="DE" default>', out)
+        self.assertTrue(out.index("<track ") < out.index("</video>"))
+
+    def test_no_track_no_element(self):
+        self.assertNotIn("<track", self.video())
+
+    def test_missing_track_file_fails(self):
+        self.assertIn("video demo: file not found missing.vtt", self.fails(track="missing.vtt"))
+
+    def test_src_is_required(self):
+        r = report()
+        r.out_dir = self.dir
+        with self.assertRaises(SystemExit) as cm:
+            r.b_video({"type": "video", "id": "demo"})
+        self.assertIn("video demo: `src` is required", str(cm.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

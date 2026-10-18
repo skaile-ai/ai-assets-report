@@ -1414,12 +1414,14 @@ class Report:
         return self.figure(b, f'<pre class="mermaid">{E(b["code"])}</pre>', used={}, after=after)
 
     def b_video(self, b):
-        """Explainer video (`report-video`): `src`/`poster` resolve next to the output HTML, else next to report.json
-        (the emitted path is then rewritten relative to the output HTML)."""
+        """Explainer video (`report-video`): `src`/`poster`/`track` resolve next to the output HTML, else next to report.json
+        (the emitted path is then rewritten relative to the output HTML).
+        Fields: `src` (required), `poster`, `track` (WebVTT captions, emitted as a default `<track>` in the report's `lang`),
+        `chapters` (`[{t, label}]`, `t` seconds ascending: a button list under the player that seeks it), `caption`, `at`."""
         gid = b["id"]
         out_dir = Path(self.out_dir) if self.out_dir is not None else Path(".")
         bases = [out_dir] + ([Path(self.src).parent] if self.src is not None else [])
-        for key in ("src", "poster"):
+        for key in ("src", "poster", "track"):
             if key == "src" and not b.get(key):
                 fail(f"video {gid}: `src` is required")
             if not b.get(key):
@@ -1429,10 +1431,28 @@ class Report:
                 fail(f"video {gid}: file not found {b[key]}")
             if found != out_dir / b[key]:
                 b[key] = Path(os.path.relpath(found.resolve(), out_dir.resolve())).as_posix()
+        chapters = b.get("chapters") or []
+        prev = -1
+        for i, c in enumerate(chapters):
+            t = c.get("t") if isinstance(c, dict) else None
+            if (isinstance(t, bool) or not isinstance(t, (int, float)) or t < 0 or t <= prev
+                    or not isinstance(c.get("label"), str) or not c["label"].strip()):
+                fail(f"video {gid}: chapters[{i}] needs numeric ascending t and a label")
+            prev = t
+        lang = str(self.d.get("lang", "de"))[:2]
         poster = f' poster="{E(b["poster"])}"' if b.get("poster") else ""
+        track = (f'<track kind="captions" src="{E(b["track"])}" srclang="{E(lang)}" label="{E(lang.upper())}" default>'
+                 if b.get("track") else "")
         el = (f'<video controls preload="metadata"{poster} src="{E(b["src"])}" '
-              f'style="width:100%;max-height:70vh"></video>')
-        after = f'<p class="mt">{self.inline(b["caption"])}</p>' if b.get("caption") else ""
+              f'style="width:100%;max-height:70vh">{track}</video>')
+        after = ""
+        if chapters:
+            items = "".join(
+                f'<li><button type="button" data-t="{E(str(c["t"]))}"><span class="t">{int(c["t"]) // 60}:{int(c["t"]) % 60:02d}</span>'
+                f'{E(c["label"])}</button></li>' for c in chapters)
+            after += f'<ol class="vch">{items}</ol>'
+        if b.get("caption"):
+            after += f'<p class="mt">{self.inline(b["caption"])}</p>'
         if b.get("at"):
             after += self.evidence([(E(b.get("label", gid)), b["at"])])
         return self.figure(b, el, used={}, tools="", after=after)

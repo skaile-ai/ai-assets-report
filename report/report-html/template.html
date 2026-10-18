@@ -98,6 +98,7 @@ html:not(.js) .zb{display:none}
 .mh{font-size:11px;color:var(--mute);margin:4px 0 0;max-width:none}
 .fg:fullscreen{background:var(--paper);padding:12px 16px;display:flex;flex-direction:column;overflow:auto}.fg:fullscreen>.dw{flex:1;min-height:0}
 .fg:fullscreen .mw{height:100%!important;max-height:none!important;aspect-ratio:auto!important}
+.vch{list-style:none;margin:.5rem 0 0;padding:0;display:flex;flex-wrap:wrap;gap:.25rem 1rem}.vch button{font:inherit;background:none;border:0;padding:0;color:var(--acc);cursor:pointer}.vch button:hover{text-decoration:underline}.vch .t{color:var(--mute);margin-right:.4em;font-variant-numeric:tabular-nums}
 /* tables and bars */
 .tw{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:13px}
@@ -232,6 +233,7 @@ function tab(btn,focus){const tl=btn.parentElement;
   document.getElementById(b.getAttribute('aria-controls')).classList.toggle('on',on)}
  tl.scrollTo({left:btn.offsetLeft-(tl.clientWidth-btn.offsetWidth)/2,behavior:'smooth'});if(focus)btn.focus()}
 addEventListener('click',e=>{const b=e.target.closest('.tl>[role=tab]');if(b)tab(b)});
+addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.vch button');if(!b)return;const v=b.closest('figure').querySelector('video');v.currentTime=+b.dataset.t;v.play()});
 addEventListener('keydown',e=>{const b=e.target.closest&&e.target.closest('.tl>[role=tab]');if(!b)return;
  const all=[...b.parentElement.children],i=all.indexOf(b),n=all.length;
  const j={ArrowRight:i+1,ArrowLeft:i-1+n,Home:0,End:n-1}[e.key];if(j===undefined)return;e.preventDefault();tab(all[j%n],true)});
