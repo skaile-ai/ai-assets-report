@@ -32,8 +32,8 @@ Answer `<question>` with one static HTML file: data-sheet style (GitHub Primer l
    - `extras`, `multi: true`: the wiring abilities that apply to the candidates (`crossfilter`, `badge-chart`) and `video`, label `` `<key>` <ability> ``.
 
    Without an `ask` tool: print the same lists in chat and wait. After the answer: the questions are the selected candidates; a typed answer becomes a new candidate, tag it yourself. The features are the ability keys of the questions plus the selected extras. Write `<stem>.choice.json` beside `report.json` once, from the answer: `{"profile": "<p>", "questions": [{"id", "chapter", "text", "feature"}], "features": ["<key>", ...]}`. Leave it as written; a failing check means the report is wrong. In chat, name the candidates left out in one line.
-5. **Run the chosen extensions.** Read `skill://report-<x>` for each chosen ability and follow its "Under report-html" branch: it returns blocks and entities, no build. Order inside a section: the answer first, then the `tree`, the diagrams it `drives`, `flow`/`mermaid`, charts and `data` tables, `video` last. A chart or diagram never precedes the prose that explains it.
-6. **Shape `report.json`** (schema below). The first section answers `<question>` in at most 3 sentences. Then one section per chosen question, chapters in order: `question: "<id>"`, `title` = the question in at most 8 words, `sub` = the chapter. Each opens with its answer in at most 3 sentences, then holds only the blocks its candidate named. Entities and `[[links]]` are core regardless of the chosen abilities; without `tree`, entities get `tree: false`. One entity per thing a reader may jump to; state each link once, in `parent` or `refs`; `build.py` computes the back-links. Prose per `skill://report-asd-ste100`. Every number comes from the dump or the code.
+5. **Run the chosen extensions.** Take each chosen ability to the skill the **Dispatch** table names. Follow that skill's "Under report-html" branch: it returns the selected blocks and entities, no build. An extension adds only the selected blocks. Its standalone recipe (a tree, an L0/L1 suite, a map) does not apply when the choice did not select it. Order inside a section: the answer first, then the `tree`, the diagrams it `drives`, `flow`/`mermaid`, charts and `data` tables, `video` last. A chart or diagram never precedes the prose that explains it.
+6. **Shape `report.json`** (schema below, rules in **Reading contract**). The first section answers `<question>` in at most 3 sentences. Then one section per chosen question, chapters in order: `question: "<id>"`, `title` = the question in at most 8 words, `sub` = the chapter. Each opens with its answer in at most 3 sentences, then holds only the blocks its candidate named. Entities and `[[links]]` are core regardless of the chosen abilities; without `tree`, entities get `tree: false`. One entity per thing a reader may jump to; state each link once, in `parent` or `refs`; `build.py` computes the back-links. Prose per `skill://report-asd-ste100`. Every number comes from the dump or the code.
 7. **Build:** `python3 ~/.agents/skills/report-html/build.py report.json <out>.html --check-choice <stem>.choice.json [--strict]`. It aborts on an unknown ref, parent, badge or colour: fix the data, not the check. `--check-choice` must pass. It fails when the report holds a block (or top-level `badges`) of an unchosen ability and prints `choice: <key> chosen=<yes|no> used=<yes|no>` per key; keys without a block (`crossfilter`, `badge-chart`, `find`) are reported, never fail. With `questions` in the choice file it also fails when a section after the first carries no chosen `question`, a chosen question has no section or two, or a question's ability is missing from `features`. Every `lint:` line is fixed or justified in chat: `orphan`, `prose … 0 links`, `badge <cat>=<val>` (value on > 85 % or < 5 % of the entities: make it a `meta` line or a column), `badge <cat>: mirrors tree level` (the values restate the nesting: drop the category), `kind … lacks meta`, `tree after the diagram it drives`, `stat … literal`. A bare-number stat from an older report gets a migration hint; give it a dump before `--strict`. A missing `at` on an edge is an error in the `explanation` and `structure` profiles. `--strict` turns every lint line into an error.
 8. **Verify in a browser** at 1280 px and 390 px: `scrollWidth == 390`, no console errors, one link jumps and highlights, a link into a closed tab opens it; when badges exist, one badge toggle changes the counter. With no extension chosen: these base checks, plus every tab opens and every `[[link]]` resolves. Otherwise add the "Verify" list of every chosen extension.
 9. **Location:** `<repo>/.scratch/reports/<topic>-<YYYY-MM-DD>[-vN].html`. All siblings share the stem: `<stem>.json`, `<stem>.choice.json`, `<stem>.data/` (dump), `<stem>.build/` (detector output), `<stem>.media/`. Earlier versions stay untouched. `open <file>`; give the answer in chat, not only the file.
@@ -56,10 +56,38 @@ Tag each candidate with the cheapest ability that answers it: prose before a tab
 |`video`|Manim explainer (`report-video`: `video`)|show it as an animation|the user asks for a video, animation, explainer; otherwise offered unchecked ("renders in minutes, needs manim")|one player|manim, a `.media/` folder|
 |`find`|Global find box (core)|—|automatic with a `tree` or `data` block; never offered|header field|—|
 
+## Dispatch
+
+Each chosen feature goes to one skill. STE prose (`skill://report-asd-ste100`) is always on and never in this table.
+
+|Feature|Skill to read|
+|---|---|
+|`tree`, `data`|`skill://report-table`|
+|`charts`|`skill://report-charts`|
+|`flow`|`skill://report-flow`|
+|`map`, `mermaid`|`skill://report-diagram`|
+|`video`|`skill://report-video`|
+|`none`|core prose, no extension|
+|`crossfilter`|`skill://report-charts` and `skill://report-table`|
+|`badge-chart`|`skill://report-charts` and `skill://report-table`|
+|`find`|core, automatic, no extension|
+
+Under orchestration an extension returns only the blocks of the chosen features. A feature that is not chosen adds no `tree`, `flow`, `map` or table, even when the extension's standalone recipe starts with one.
+
+## Reading contract
+
+This section owns the rules. The extensions point here.
+
+- **Answer first.** The first section answers the question. `build.py` renders the header (title, find box), then that section, then the statistics and the change summary, then the other sections. Do not put counts, run details or source lists in an introduction. Put provenance in two places only. Top-level `meta` lines render in a collapsed "Sources and run details" disclosure under the title (German "Quellen und Laufdetails"), open in print. Evidence goes in `at` fields and `[@…]` citations next to the claim.
+- **Link labels.** `[[id]]` shows the entity `label`, else its `title`, else the id. Give every entity a short human `title` and, when the title is long, a short `label`. Ids are keys: never reader-facing text. Write `[[id|text]]` only when the sentence needs other wording. The full `title` stays on the link as a hover hint.
+- **Citations.** `[@source text]` in any inline text (`p`, `bullets`, `steps`, captions, notes, entity `meta`, top-level `meta`) renders as the literal text `[source text]` in muted grey. It wraps, stays selectable, and is not a link or HTML. The text is non-empty, on one line, and holds no `[`, `]` or backtick. Spaces, a path without a line, `:line` and `:start-end` are allowed. A malformed token stays literal text. A token inside a backtick code span stays literal. Example: `The import rejects bad dates [@src/import.py:88-94].`
+- **Where citations belong.** Use `[@…]` for the provenance of a claim: a file, a line, a dump, a page read. Use `` `code` `` for an identifier the sentence explains. Structured `at` fields (evidence tables, `lineage`, `states`) render the same grey bracket. Write the bare value there, without `[@…]`. A source path does not go in a title, a node label, a tab label or an axis label.
+- **One home.** State each piece of evidence once, where the reader checks the claim. Do not repeat a tree row's evidence in a table cell.
+
 ## report.json
 
 ```
-title, lang, profile, meta: [line], numbered: true, since?, data_dir?
+title, lang, profile, meta: [inline line], numbered: true, since?, data_dir?
 stats: [[label, {count: "<collection>", where?: {field: value}} | {rows: "<table|data id>"} | {value, source}]]
 badges: { <cat>: { label, shape: square|round|pill|dashed|text, filter: any|hide,
                    values: { <val>: { label?, color, desc? } } } }
@@ -71,7 +99,7 @@ sections: [{ title, sub?, id?, question?: "<choice id>", change?, blocks: [block
 - `stats`: `count` reads `<report stem>.data/<collection>.json` (or `data_dir`); a bare number fails.
 - `shape`: one per category. `filter: any` keeps a node while one of its values is on; `hide` drops a node with a switched-off value. `color`: purple blue green gray orange pink teal yellow red navy brown ink.
 - `tree: false`: link target only. Render places: a table row `anchor`, a tab `entity`. Without a `table`, gather link-only entities in one `tabs` block. Each entity renders in one place.
-- Inline text: `` `code` ``, `[[id]]`, `[[id|label]]`. One `lang`; identifiers stay as in the code.
+- Inline text: `` `code` ``, `[[id]]`, `[[id|label]]`, `[@source text]`. One `lang`; identifiers stay as in the code. Rules: **Reading contract**.
 - Generic blocks: `p` (`text`); `bullets`, `steps` (`items: [inline]`); `tabs` (`id`, `label`, `tabs: [{entity? | label, summary?, blocks}]`, `kind?`, `numbered?`; three or more blocks of one kind go in one `tabs`, each tab opens with its `entity` card or a `summary`; the tab label falls back to the entity `label`, then `title`, backticks stripped); `html` (`html`, escape hatch).
 - **Change document** (what changed): start from the previous `report.json`, set `change: new|changed|removed` on the smallest part that differs (node, edge, row, item; a tab or section only when all of it changed) and top-level `since`. Removed parts stay, struck through. Do not mark inside a `new` or `removed` part. `change` is allowed on sections, blocks, tabs, entities, table rows, list items, flow/map nodes and edges, lineage types/steps, states and transitions.
 

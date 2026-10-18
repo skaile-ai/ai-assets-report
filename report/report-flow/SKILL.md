@@ -12,6 +12,8 @@ Answer `<question>` about how code or a pipeline works with levelled diagrams. C
 
 Read [`NOTATION.md`](NOTATION.md) before you write a `flow`, `lineage` or `states` block. It holds the schema, the layout rules and the sources for the notation choice.
 
+Reading contract: follow `skill://report-html` (citations, labels, answer-first).
+
 ## Which block
 
 | Question | Block | Notation |
@@ -42,6 +44,7 @@ Done when every node and every edge you draw maps to one line of this list.
 - Draw an edge only if you read it in the code: a call, or a write that a later read consumes.
 - Put `path:line` in `at` on every edge (every transition, every `lineage` step). The build warns about each edge without `at` as soon as one edge has it. In the `explanation` and `structure` profiles the build fails without it.
 - Name a process with a verb and an object, or with the real function name. Name a store with its collection or path. Name an edge with the data it carries (`source_chapter`, `ImportDoc`), never "uses" or "calls".
+- Keep source paths in `at`, not in node, store or edge labels. Exception: a path that is itself the object the diagram explains (a store that is a directory, a file that a step writes).
 - Mark an error path `kind: "error"` to a node with `color: "red"` whose `sub` states the effect (`exit 1`, `409 conflict`).
 - Mark a conditional or optional path `kind: "opt"`.
 - Write a decision as `shape: "decision"` with a question as label and the answers as edge labels.
@@ -71,9 +74,10 @@ Done when every node and every edge you draw maps to one line of this list.
 
 ## Under report-html
 
-1. Do steps 1 and 2 of Alone; hand the blocks and entities back to the orchestrator's section plan instead of building.
-2. Order inside a section: the prose that explains first, then the `tree` of the stages, then the diagrams it drives, then the `lineage`. Set `drives: [<flow id>]` on the tree and `ref` on every node that is one of its entities.
-3. The orchestrator builds and runs the full checks. Run the Verify list for your blocks.
+1. Do steps 1 and 2 of Alone for the selected blocks only (the L0/L1 `tabs` suite in step 2 applies only when the plan selected it); hand the blocks and entities back to the orchestrator's section plan instead of building.
+2. Return only the flow, lineage and states blocks the section plan selected. Do not add an L0/L1 suite or a `tree` of stages when the plan did not select them; the standalone recipe keeps them. A single selected `flow` needs no L0 parent. Add the `tree` of the stages only when the plan selected it.
+3. Order inside a section: the prose that explains first, then the selected `tree` (if any), then the diagrams it drives, then the `lineage`. When a `tree` is selected, set `drives: [<flow id>]` on it and `ref` on every node that is one of its entities.
+4. The orchestrator builds and runs the full checks. Run the Verify list for your blocks.
 
 ## Verify
 

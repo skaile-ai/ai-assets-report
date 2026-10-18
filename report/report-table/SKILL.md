@@ -10,6 +10,8 @@ metadata:
 
 Answer `<question>` about what exists with data from the source: entities in a badge-filtered `tree`, plain `table` blocks and interactive `data` tables. Dump first, detect second, write `report.json` third.
 
+Reading contract: follow `skill://report-html` (citations, labels, answer-first).
+
 ## Dump
 
 Write a script that dumps every relevant collection or table as-is, one `<collection>.json` per file (array, Directus `{"data": [...]}`, or `.jsonl`) into `<report>.data/`. The dump stays next to the report. Every number in the report comes from it; label estimates as such.
@@ -38,6 +40,8 @@ Edit the draft until it answers the question. The core schema (`badges`, `entiti
 - Every entity of one `kind` carries the same `meta` keys. The build prints `kind <val>: <id> lacks meta "<key>"` when at least 80 % of its siblings have the key. Fill the gap from the dump or drop the key from all.
 - Every entity gets a link: a tree row, a table row `anchor`, or a tab `entity`. Link it from prose with `[[id]]`.
 - Drop badges that only decorate. Rename titles so the reader finds the thing by the word the code uses.
+- Titles and `meta` values are short human labels: a few words, no ids, no paths. Put a source in a grey `[@path:line]` token in a `meta` value or a table cell, never in a title.
+- Each entity has one home: one tree row or one table row `anchor`. Do not repeat its full evidence in a tree row and in a table. Keep the evidence where the entity lives and link to it from other places with `[[id]]` or `{ref}` cells.
 
 ## Blocks
 
@@ -61,11 +65,11 @@ Edit the draft until it answers the question. The core schema (`badges`, `entiti
 2. Write `report.json` with the entities, the `badges`, one `tree` and the `table` or `data` blocks the question needs, plus one `p` that states the answer. Copy the shape from `example.json`.
 3. Build: `python3 ~/.agents/skills/report-html/build.py report.json <out>.html`. The build aborts on an unknown ref, parent, badge or colour: fix the data, not the check. Read every `lint:` line and fix it or justify it in chat.
 4. Verify (below), then `open <out>.html` and state the answer in chat.
-5. Location: `<repo>/.scratch/reports/<topic>-<YYYY-MM-DD>.html`, dump in `<topic>-<date>.data/`, detector output in `<topic>-<date>.build/`.
+5. Location: `<repo>/.scratch/reports/<topic>-<YYYY-MM-DD>[-vN].html`, dump in `<topic>-<date>[-vN].data/`, detector output in `<topic>-<date>[-vN].build/`. When any of these names already exists, use the first free `-vN` (`-v2`, `-v3`, …) for all of them. Never overwrite an earlier report.
 
 ## Under report-html
 
-1. Do Dump, Detect and Shape. Return the entities, the badges and the `tree`, `table` and `data` blocks to the orchestrator's section plan; do not build.
+1. Do Dump, Detect and Shape. Return the entities and only the blocks of the chosen features (`tree` with its `badges`, `table`, `data`) to the orchestrator's section plan; do not build. A `data` choice alone adds no `tree`.
 2. Section order: the prose that answers first, then the `tree`, then the diagrams it `drives`, then `table` and `data` blocks.
 3. Add `data` only when a collection has more than 30 rows (the orchestrator pre-checks it on that signal).
 4. The orchestrator builds and runs the core checks. Run the Verify list below for your blocks.

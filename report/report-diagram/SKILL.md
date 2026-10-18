@@ -10,6 +10,8 @@ metadata:
 
 Answer `<question>` about dependencies, call order or structure with one `map` or `mermaid` block. Read the relations from the code or the dump first, draw second. Never draw an edge you did not read.
 
+Reading contract: follow `skill://report-html` (citations, labels, answer-first).
+
 ## Which block
 
 | Question | Block |
@@ -42,6 +44,7 @@ map: id, label, height?, nodes: [{id, label?, sub?, lines?: [text], shape?: proc
 - An edge `label` may be a list, one line each. `warn: true` paints the label red (spec mismatch, stale version).
 - `off` greys boxes out from the start. The reader's clicks, drags and zoom stay in `localStorage` for this page and build.
 - Put `at` (`path:line`) on every edge. The build lists them in the "Evidence" table.
+- Keep node labels readable: the name as in the code or a short human term, no `path:line`. Put the source in `at`. A path is a label only when it is the object being drawn (a file dependency web).
 - A `tree` with `drives: ["<map id>"]` above the map filters it: boxes whose `ref` the badges filter out disappear with their edges. Set `ref` on every box that is an entity. Tree first, map right after it.
 - Start layout: ranks by longest path, barycentre order, long ranks wrapped. "Copy layout" puts `{"pos": …, "off": […]}` on the clipboard; paste both into the block to ship the reader's arrangement.
 
@@ -59,7 +62,7 @@ The browser renders `code` from the pinned CDN module `mermaid@11`. The build ch
 - Do not write lowercase `end` in a label: it ends a subgraph. Write `End`.
 - `direction` inside a `subgraph` is ignored when an edge crosses the subgraph boundary.
 - Label every edge with the data or message it carries (`rows (JSON)`, `GET /items`), never "uses".
-- Name nodes and participants as in the code. State the entity in `at` when the whole diagram comes from one place.
+- Name nodes and participants as in the code, without paths. State the entity in `at` when the whole diagram comes from one place. Keep `[[id]]` links in the prose beside the figure for diagram types without `click`.
 - One diagram per question. More than ~20 nodes: split it, or use a `map`.
 - Hover-fade does not apply to mermaid output. ⤢ opens the zoom view.
 - Do not use `mermaid@12`: its layout default differs from the tested one.
@@ -74,9 +77,10 @@ The browser renders `code` from the pinned CDN module `mermaid@11`. The build ch
 
 ## Under report-html
 
-1. Do steps 1 to 3 of Alone; hand the blocks and entities back to the orchestrator's section plan instead of building.
-2. Order inside a section: the prose first, then the `tree` of the nodes, then the `map` it `drives`, then `mermaid` figures.
-3. The orchestrator builds and runs the full checks. Run the Verify list for your blocks.
+1. Do steps 1 to 3 of Alone for the selected blocks only; the `tree` in step 2 and the "only the block, its entities, the tree" list in step 3 apply only when the plan selected a tree. Hand the blocks and entities back to the orchestrator's section plan instead of building.
+2. Return only the `map` or `mermaid` blocks the section plan selected, plus the entities that their `ref` and `click` targets need. Add the `tree` of the nodes only when the plan selected it; a `ref`/`click` target can also be an entity that another selected block (table row `anchor`, tab `entity`) already owns. The standalone recipe uses a tree; the orchestration does not force one.
+3. Order inside a section: the prose first, then the selected `tree` (if any), then the `map` it `drives`, then `mermaid` figures.
+4. The orchestrator builds and runs the full checks. Run the Verify list for your blocks.
 
 ## Verify
 

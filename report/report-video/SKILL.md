@@ -12,6 +12,8 @@ Render a stepped, captioned explainer video of `<topic>` with manim Community an
 
 Use this skill only when the user asks for a video, an animation or an explainer. `skill://report-html` offers it unchecked otherwise.
 
+Reading contract: follow `skill://report-html` (citations, labels, answer-first). The video is supplementary: the prose of the report MUST answer the question without it. It goes last and the reader starts it (the block has controls and no autoplay).
+
 ## Install
 1. `manim --version || uv tool install "manim[typst]"`
 2. `manim checkhealth`. LaTeX is not needed.
@@ -54,7 +56,7 @@ ffmpeg -y -ss 12 -i <id>.mp4 -frames:v 1 <id>.jpg
 
 - The `id` shares the diagram id space: it is unique among all diagram ids and the figure anchor is `#f-<id>`.
 - The build fails with ``video <id>: `src` is required`` when `src` is missing, and with `video <id>: file not found <path>` when `src` or `poster` exists neither next to the output HTML nor next to `report.json`. `src` resolves next to the HTML first, else next to `report.json`; the page gets the path rewritten relative to the HTML.
-- `caption` takes inline text (`code`, `[[id]]`). `at` adds the evidence table.
+- `caption` takes inline text (`code`, `[[id]]`, `[@path:line]`). Write it as one readable sentence that says what the video shows; put the source in a `[@…]` token or in `at`, not in `label`. `at` adds the evidence table and renders as the same muted grey citation.
 - A video has no ⤢ zoom and no node hover. The browser's own controls cover fullscreen.
 - A report with a video is a folder: the HTML and the media move together (keep the relative path between them).
 
@@ -67,7 +69,7 @@ ffmpeg -y -ss 12 -i <id>.mp4 -frames:v 1 <id>.jpg
 ## Under report-html
 
 1. Do the Write-the-scene and Render steps. Put the media in `<report>.media/` next to `report.json` (or next to the built HTML).
-2. Hand the `video` block back to the orchestrator's section plan. Place it last, after the prose and the diagrams.
+2. Hand the `video` block back to the orchestrator's section plan. Place it last, after the prose and the diagrams. Do not move a finding into the video: the text above it states the answer and the video repeats it as a walkthrough.
 3. The orchestrator builds. Run Verify on the built page.
 
 ## Verify
