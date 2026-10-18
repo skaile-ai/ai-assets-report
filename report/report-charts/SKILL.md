@@ -1,8 +1,9 @@
 ---
 name: report-charts
 description: "Quantities as `bars` or Vega-Lite `vega` charts with tooltips, selections and cross-filter. Use for 'how much', 'distribution', 'over time', 'compare counts'."
+license: MIT
 metadata:
-  version: 0.1.0
+  version: 0.1.1
   publisher: skaile-ai
 ---
 

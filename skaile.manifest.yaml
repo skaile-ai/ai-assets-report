@@ -1,9 +1,10 @@
 publisher: skaile-ai
+license: MIT
 assets:
   - kind: skill
     name: report-html
     root: report/report-html
-    version: 0.1.0
+    version: 0.1.1
     dependencies:
       - "@skaile-ai/report-asd-ste100"
       - "@skaile-ai/report-table"
@@ -14,24 +15,24 @@ assets:
   - kind: skill
     name: report-asd-ste100
     root: report/report-asd-ste100
-    version: 0.1.0
+    version: 0.1.1
   - kind: skill
     name: report-table
     root: report/report-table
-    version: 0.1.0
+    version: 0.1.1
   - kind: skill
     name: report-flow
     root: report/report-flow
-    version: 0.1.0
+    version: 0.1.1
   - kind: skill
     name: report-diagram
     root: report/report-diagram
-    version: 0.1.0
+    version: 0.1.1
   - kind: skill
     name: report-charts
     root: report/report-charts
-    version: 0.1.0
+    version: 0.1.1
   - kind: skill
     name: report-video
     root: report/report-video
-    version: 0.2.0
+    version: 0.2.1

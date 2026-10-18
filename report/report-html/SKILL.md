@@ -1,8 +1,9 @@
 ---
 name: report-html
 description: "Build one static HTML report (data sheet, pipeline explanation, dependency map, inventory, coverage) from live data or code. Use for 'report', 'overview page', 'data sheet', 'how does X work as a page'. Orchestrates report-table, report-flow, report-diagram, report-charts, report-video."
+license: MIT
 metadata:
-  version: 0.1.0
+  version: 0.1.1
   publisher: skaile-ai
   requires: "report-asd-ste100, report-table, report-flow, report-diagram, report-charts, report-video"
 ---

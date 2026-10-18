@@ -1,8 +1,9 @@
 ---
 name: report-table
 description: "Dump collections, detect keys/relations/enums with detect.py, and render entities as badge-filtered trees and interactive sortable/searchable tables. Use for inventories, 'which X exist', 'how many', data sheets."
+license: MIT
 metadata:
-  version: 0.1.0
+  version: 0.1.1
   publisher: skaile-ai
 ---
 

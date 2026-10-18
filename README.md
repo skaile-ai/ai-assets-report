@@ -61,3 +61,7 @@ done
 ```
 
 `skaile.manifest.yaml` is the publish inventory; `skaile library index ai-assets-report` keeps it in step with the files on disk.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

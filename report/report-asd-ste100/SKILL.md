@@ -1,8 +1,9 @@
 ---
 name: report-asd-ste100
 description: "Write or rewrite technical prose in ASD-STE100 Simplified Technical English: one statement per sentence, active voice, fixed terms. Use for report prose, 'STE', 'simplified English', 'make this unambiguous'."
+license: MIT
 metadata:
-  version: 0.1.0
+  version: 0.1.1
   publisher: skaile-ai
 ---
 
