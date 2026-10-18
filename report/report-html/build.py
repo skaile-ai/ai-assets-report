@@ -31,6 +31,11 @@ ID_FIGURES = {"mermaid", "vega", "video"}  # figures with an id and a `#f-<id>` 
 FIND_TYPES = {"tree", "data"}  # block types that switch on the header find box
 PROFILES = {"explanation", "structure", "inventory", "critique", "comparison", "exploration", "change"}  # top-level `profile`
 AT_REQUIRED = {"explanation", "structure"}  # profiles in which every flow/map edge needs `at`
+SIZES = ("small", "medium", "detailed", "technical")  # `size` in <stem>.choice.json; SKILL.md "Sizes"
+SIZE_QUESTIONS = {"small": 2, "medium": 6}  # max chosen questions; detailed and technical have no cap
+SIZE_FEATURES = {"small": {"none", "tree", "charts", "find"}}  # feature keys a size allows; other sizes allow all
+SIZE_SENTENCES = {"small": 2}  # max sentences in a section's opening `p`; other sizes 3
+SIZE_SENTENCES_DEFAULT = 3
 LINT_PROSE_WORDS = 60  # a p/bullets/steps block longer than this needs one [[id]] link
 LINT_KIND_MIN = 5  # entities of one kind needed before a missing meta key is reported
 HEAD = {}  # block type -> HTML for <head> (CDN tags); added once when a block of that type is in the report
@@ -145,8 +150,15 @@ def diagram_nodes(b):
     return [s["id"] for s in b["states"]]
 
 
+def sentences(text):
+    """Sentence count of inline text: code spans and [@…] citations are dropped first, then every `.`, `!` or `?` that ends the text
+    or precedes whitespace counts; non-empty text counts at least 1."""
+    s = CITE.sub("", re.sub(r"`[^`]*`", "", str(text)))
+    return max(1, len(re.findall(r"[.!?](?=\s|$)", s))) if s.strip() else 0
+
+
 class Report:
-    def __init__(self, data, out_dir=None, src=None):
+    def __init__(self, data, out_dir=None, src=None, size=None):
         self.d = data
         self.out_dir = out_dir  # directory of the output HTML; media (`video`) resolves against it
         self.src = src  # path of report.json; the data dump (`count` stats) resolves against it
@@ -180,9 +192,12 @@ class Report:
         self.chg = any(True for _ in changes(data))  # a change document: marks in colour, the rest dimmed
         self.under = False  # inside a `new`/`removed` part: everything below is that, so no more marks
         self.nchg = Counter()
+        self.size = size  # None: no size rule applies (build without --check-choice)
         self.diagrams()
         if data.get("profile") is not None and data["profile"] not in PROFILES:
             fail(f"profile must be one of {sorted(PROFILES)}, not {data['profile']}")
+        if size is not None and size not in SIZES:
+            fail(f"size must be one of {', '.join(SIZES)}, not {size}")
         self.require_at()
 
     # -- change document -------------------------------------------------
@@ -1516,8 +1531,8 @@ class Report:
 
     # -- computed stats, evidence and lint ---------------------------------
     def require_at(self):
-        """Profiles explanation and structure: every flow/map edge carries `at` (other profiles only warn, see check_evidence)."""
-        if self.d.get("profile") not in AT_REQUIRED:
+        """Profiles explanation and structure, and size technical in every profile: every flow/map edge carries `at` (otherwise only a warning, see check_evidence)."""
+        if self.d.get("profile") not in AT_REQUIRED and self.size != "technical":
             return
         miss = [f"{b['type']} {b['id']}: edge {e['from']}->{e['to']} without at"
                 for b in self.dg.values() if b["type"] in ("flow", "map")
@@ -1647,6 +1662,19 @@ class Report:
                         n = len(text.split())
                         if n > LINT_PROSE_WORDS:
                             out.append(f'prose: section "{sec["title"]}" has {n} words and 0 links')
+        if self.size:
+            cap = SIZE_SENTENCES.get(self.size, SIZE_SENTENCES_DEFAULT)
+            for sec in secs:
+                first = next(iter(sec.get("blocks", [])), None)
+                if first and first.get("type") == "p":
+                    n = sentences(first["text"])
+                    if n > cap:
+                        out.append(f'size {self.size}: section "{sec["title"]}" opens with {n} sentences (max {cap})')
+            if self.size == "technical":
+                for sec in secs[1:]:
+                    s = json.dumps(sec, ensure_ascii=False)
+                    if not CITE.search(s) and '"at":' not in s:
+                        out.append(f'size technical: section "{sec["title"]}" has no [@…] citation and no at')
         for c, cat in self.cats.items():
             have = [e for e in d.get("entities", []) if e.get("badges", {}).get(c)]
             if len(have) < 10:
@@ -1761,7 +1789,8 @@ CHOICE_BLOCKS = {"tree": "tree", "table": "tree", "data": "data", "vega": "chart
 
 
 def check_choice(data, path):
-    """Compare the features and questions the report uses with the ones the choice file lists; fail on a used, unchosen one."""
+    """Compare the features and questions the report uses with the ones the choice file lists; fail on a used, unchosen one.
+    Returns the size (`medium` when the file has none)."""
     try:
         choice = json.loads(Path(path).read_text())
     except (OSError, ValueError) as e:
@@ -1772,6 +1801,15 @@ def check_choice(data, path):
     unknown = [f for f in feats if f not in CHOICE_KEYS + CHOICE_NO_BLOCK]
     if unknown:
         fail(f"--check-choice {path}: unknown feature keys {', '.join(map(str, unknown))}")
+    size = choice.get("size", "medium")
+    if size not in SIZES:
+        fail(f"--check-choice {path}: size must be one of {', '.join(SIZES)}, not {size}")
+    print(f"choice: size {size}" + ("" if "size" in choice else " (not in the choice file, medium assumed)"))
+    allowed = SIZE_FEATURES.get(size)
+    if allowed:
+        bad = [f for f in feats if f not in allowed]
+        if bad:
+            fail(f"--check-choice: size {size} does not allow {', '.join(bad)}")
     used = set()
     for sec in data.get("sections", []):
         for b in walk(sec.get("blocks", [])):
@@ -1779,6 +1817,8 @@ def check_choice(data, path):
                 used.add(CHOICE_BLOCKS[b["type"]])
     if data.get("badges"):
         used.add("tree")
+    if size == "small" and any(b.get("type") == "vega" for sec in data.get("sections", []) for b in walk(sec.get("blocks", []))):
+        fail("--check-choice: size small allows bars, not vega")
     for k in CHOICE_KEYS:
         print(f"choice: {k} chosen={'yes' if k in feats else 'no'} used={'yes' if k in used else 'no'}")
     bad = [k for k in CHOICE_KEYS if k in used and k not in feats]
@@ -1786,12 +1826,15 @@ def check_choice(data, path):
         fail(f"--check-choice: used but not chosen: {', '.join(bad)}")
     qs = choice.get("questions")
     if qs is None:
-        return
+        return size
     if not isinstance(qs, list) or not all(isinstance(q, dict) and q.get("id") and q.get("text") for q in qs):
         fail(f'--check-choice {path}: "questions" must be [{{"id", "chapter", "text", "feature"}}]')
     ids = [q["id"] for q in qs]
     if len(set(ids)) != len(ids):
         fail(f"--check-choice {path}: duplicate question ids")
+    cap = SIZE_QUESTIONS.get(size)
+    if cap and len(qs) > cap:
+        fail(f"--check-choice: size {size} allows at most {cap} questions, the choice file lists {len(qs)}")
     for q in qs:
         f = q.get("feature", "none")
         if f != "none" and f not in feats:
@@ -1814,6 +1857,7 @@ def check_choice(data, path):
     twice = [q for q, s in answered.items() if len(s) > 1]
     if twice:
         fail(f"--check-choice: questions answered by more than one section (merge them): {', '.join(twice)}")
+    return size
 
 
 def main():
@@ -1830,10 +1874,9 @@ def main():
     if len(args) != 2:
         sys.exit(__doc__)
     data = json.loads(Path(args[0]).read_text())
-    if choice:
-        check_choice(data, choice)
+    size = check_choice(data, choice) if choice else None
     out = Path(args[1])
-    rep = Report(data, out_dir=out.parent, src=Path(args[0]))
+    rep = Report(data, out_dir=out.parent, src=Path(args[0]), size=size)
     page = rep.render()
     lints = rep.lint()
     for line in lints:

@@ -21,10 +21,10 @@ def src(text):
     return f'<span class="src">[{text}]</span>'
 
 
-def report(**extra):
+def report(size=None, **extra):
     data = {"title": "T", "lang": "en", "entities": [{"id": "alpha", "title": "Alpha", "label": "A"}], "sections": []}
     data.update(extra)
-    return build.Report(data)
+    return build.Report(data, size=size)
 
 
 class InlineCitations(unittest.TestCase):
@@ -306,10 +306,16 @@ class Provenance(unittest.TestCase):
 
 
 class ChoiceCheck(unittest.TestCase):
-    def check(self, features):
+    def check(self, features, data=None, **choice):
         with tempfile.NamedTemporaryFile("w", suffix=".choice.json", delete=False) as f:
-            json.dump({"profile": "critique", "features": features}, f)
-        build.check_choice({"sections": [section("Answer")]}, f.name)
+            json.dump({"profile": "critique", "features": features, **choice}, f)
+        return build.check_choice(data or {"sections": [section("Answer")]}, f.name)
+
+    def questions(self, n):
+        return [{"id": f"q{i}", "chapter": "c", "text": f"Question {i}?", "feature": "none"} for i in range(1, n + 1)]
+
+    def answered(self, n):
+        return {"sections": [section("Answer"), *({**section(f"S{i}"), "question": f"q{i}"} for i in range(1, n + 1))]}
 
     def test_none_is_a_known_feature(self):
         self.check(["none", "find"])
@@ -318,6 +324,84 @@ class ChoiceCheck(unittest.TestCase):
         with self.assertRaises(SystemExit) as cm:
             self.check(["none", "sparkles"])
         self.assertIn("unknown feature keys sparkles", str(cm.exception))
+
+    def test_missing_size_is_medium(self):
+        self.assertEqual(self.check(["none"]), "medium")
+
+    def test_unknown_size_fails(self):
+        with self.assertRaises(SystemExit) as cm:
+            self.check(["none"], size="huge")
+        self.assertIn("size must be one of", str(cm.exception))
+
+    def test_small_caps_questions(self):
+        with self.assertRaises(SystemExit) as cm:
+            self.check(["none"], self.answered(3), size="small", questions=self.questions(3))
+        self.assertIn("size small allows at most 2 questions", str(cm.exception))
+        self.assertEqual(self.check(["none"], self.answered(2), size="small", questions=self.questions(2)), "small")
+
+    def test_medium_caps_six_questions(self):
+        with self.assertRaises(SystemExit) as cm:
+            self.check(["none"], self.answered(7), questions=self.questions(7))
+        self.assertIn("size medium allows at most 6 questions", str(cm.exception))
+
+    def test_small_rejects_feature_keys(self):
+        with self.assertRaises(SystemExit) as cm:
+            self.check(["none", "flow"], size="small")
+        self.assertIn("size small does not allow flow", str(cm.exception))
+
+    def test_small_rejects_vega(self):
+        vega = {"sections": [{"title": "Answer", "blocks": [{"type": "vega", "id": "v", "spec": {}}]}]}
+        with self.assertRaises(SystemExit) as cm:
+            self.check(["charts"], vega, size="small")
+        self.assertIn("allows bars, not vega", str(cm.exception))
+        bars = {"sections": [{"title": "Answer", "blocks": [{"type": "bars", "items": [["a", 1]]}]}]}
+        self.assertEqual(self.check(["charts"], bars, size="small"), "small")
+
+
+class Sizes(unittest.TestCase):
+    def sized(self, size, *secs):
+        return report(size=size, sections=list(secs)).lint()
+
+    def test_sentences(self):
+        self.assertEqual(build.sentences("Runs at 4.38.0. Done [@a.py:1]."), 2)
+        self.assertEqual(build.sentences("Call `x.y()` now"), 1)
+        self.assertEqual(build.sentences(""), 0)
+        self.assertEqual(build.sentences("Why? Because!"), 2)
+
+    def test_small_opening_lint(self):
+        out = self.sized("small", section("Answer", "One. Two. Three."))
+        self.assertIn('size small: section "Answer" opens with 3 sentences (max 2)', out)
+        out = self.sized("small", section("Answer", "One. Two."))
+        self.assertFalse([line for line in out if line.startswith("size ")])
+
+    def test_medium_allows_three_sentences(self):
+        out = self.sized("medium", section("Answer", "One. Two. Three."))
+        self.assertFalse([line for line in out if line.startswith("size ")])
+        out = self.sized("medium", section("Answer", "One. Two. Three. Four."))
+        self.assertIn('size medium: section "Answer" opens with 4 sentences (max 3)', out)
+
+    def test_technical_requires_citation(self):
+        gap = 'size technical: section "Next" has no [@…] citation and no at'
+        out = self.sized("technical", section("Answer"), section("Next", "No source."))
+        self.assertIn(gap, out)
+        out = self.sized("technical", section("Answer"), section("Next", "Read [@a.py:1]."))
+        self.assertNotIn(gap, out)
+        at = {"title": "Next", "blocks": [{"type": "p", "text": "No source."},
+                                          {"type": "mermaid", "id": "m", "label": "Order", "at": "a.py:1", "code": "graph TD; A-->B"}]}
+        self.assertNotIn(gap, self.sized("technical", section("Answer"), at))
+
+    def test_technical_requires_at_on_edges(self):
+        flow = {"type": "flow", "id": "f", "nodes": [{"id": "a"}, {"id": "b"}], "edges": [{"from": "a", "to": "b"}]}
+        data = {"title": "T", "lang": "en", "profile": "critique", "sections": [{"title": "Answer", "blocks": [flow]}]}
+        with self.assertRaises(SystemExit) as cm:
+            build.Report(data, size="technical")
+        self.assertIn("without at", str(cm.exception))
+        build.Report(data, size="medium")
+
+    def test_unknown_size_fails_construction(self):
+        with self.assertRaises(SystemExit) as cm:
+            build.Report({"title": "T", "lang": "en", "sections": []}, size="huge")
+        self.assertIn("size must be one of", str(cm.exception))
 
 
 class VideoBlock(unittest.TestCase):
