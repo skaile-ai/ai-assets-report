@@ -79,8 +79,9 @@ The browser renders `code` from the pinned CDN module `mermaid@11`. The build ch
 
 1. Do steps 1 to 3 of Alone for the selected blocks only; the `tree` in step 2 and the "only the block, its entities, the tree" list in step 3 apply only when the plan selected a tree. Hand the blocks and entities back to the orchestrator's section plan instead of building.
 2. Return only the `map` or `mermaid` blocks the section plan selected, plus the entities that their `ref` and `click` targets need. Add the `tree` of the nodes only when the plan selected it; a `ref`/`click` target can also be an entity that another selected block (table row `anchor`, tab `entity`) already owns. The standalone recipe uses a tree; the orchestration does not force one.
-3. Order inside a section: the prose first, then the selected `tree` (if any), then the `map` it `drives`, then `mermaid` figures.
-4. The orchestrator builds and runs the full checks. Run the Verify list for your blocks.
+3. Size: under `technical` every `map` edge carries `path:line` in `at` (the build fails without it). `small` never reaches this skill.
+4. Order inside a section: the prose first, then the selected `tree` (if any), then the `map` it `drives`, then `mermaid` figures.
+5. The orchestrator builds and runs the full checks. Run the Verify list for your blocks.
 
 ## Verify
 

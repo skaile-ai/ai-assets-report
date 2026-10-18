@@ -76,8 +76,9 @@ Done when every node and every edge you draw maps to one line of this list.
 
 1. Do steps 1 and 2 of Alone for the selected blocks only (the L0/L1 `tabs` suite in step 2 applies only when the plan selected it); hand the blocks and entities back to the orchestrator's section plan instead of building.
 2. Return only the flow, lineage and states blocks the section plan selected. Do not add an L0/L1 suite or a `tree` of stages when the plan did not select them; the standalone recipe keeps them. A single selected `flow` needs no L0 parent. Add the `tree` of the stages only when the plan selected it.
-3. Order inside a section: the prose that explains first, then the selected `tree` (if any), then the diagrams it drives, then the `lineage`. When a `tree` is selected, set `drives: [<flow id>]` on it and `ref` on every node that is one of its entities.
-4. The orchestrator builds and runs the full checks. Run the Verify list for your blocks.
+3. Size: under `technical` every edge, transition and lineage step carries `path:line` in `at` in every profile (the build fails without it), and a question that names state or data gets its `states` or `lineage` block. `small` never reaches this skill.
+4. Order inside a section: the prose that explains first, then the selected `tree` (if any), then the diagrams it drives, then the `lineage`. When a `tree` is selected, set `drives: [<flow id>]` on it and `ref` on every node that is one of its entities.
+5. The orchestrator builds and runs the full checks. Run the Verify list for your blocks.
 
 ## Verify
 

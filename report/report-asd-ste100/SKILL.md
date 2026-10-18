@@ -64,5 +64,6 @@ Done when no sentence breaks a rule.
 
 1. Apply the rules to every text field of `report.json` before you run `build.py`, including `meta` lines and captions.
 2. Do not ask the user about it. STE prose is always on and is not an option in the `ask` call.
-3. Check the stat labels and prose against rule 8 and rule 11 before the build. Check that each evidence path is a `[@…]` citation or an `at` value, and that each `code` span is an identifier the text explains. The lint lines of `build.py` cover orphans and prose without links. They do not check sentence length.
-4. Write the chat answer with the same rules.
+3. The size sets the opening-sentence budget of every section (`skill://report-html` **Sizes**): 2 for `small`, 3 otherwise.
+4. Check the stat labels and prose against rule 8 and rule 11 before the build. Check that each evidence path is a `[@…]` citation or an `at` value, and that each `code` span is an identifier the text explains. The lint lines of `build.py` cover orphans and prose without links. They do not check sentence length.
+5. Write the chat answer with the same rules.

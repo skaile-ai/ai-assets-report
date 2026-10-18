@@ -88,8 +88,9 @@ Needs `entity` on the `vega` block, and the rows' `entity` values must be ids of
 
 1. Return only the chosen `vega`/`bars` blocks to the orchestrator's section plan; do not build. Add `listen` wiring only when `crossfilter` was chosen and `drives` wiring only when `badge-chart` was chosen.
 2. Section order: the prose that states the finding first, then the chart, then the `data` table that listens to it. A tree that drives the chart comes before the chart.
-3. Wire the cross-filter only when the orchestrator checked it (`data` and `vega` both chosen). Wire badge → chart only when the rows carry entity ids.
-4. The orchestrator builds. Run the Verify list below for your blocks.
+3. Size: `small` returns `bars` only (a `vega` block fails the choice check). Under `technical` the caption's `[@…]` token names the dump file and the field of every series.
+4. Wire the cross-filter only when the orchestrator checked it (`data` and `vega` both chosen). Wire badge → chart only when the rows carry entity ids.
+5. The orchestrator builds. Run the Verify list below for your blocks.
 
 ## Verify
 

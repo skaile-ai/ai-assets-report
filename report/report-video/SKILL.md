@@ -167,7 +167,8 @@ The example in `example.media/` holds a finished set: `demo.script.md`, `demo.py
 
 1. Do Brief to Render with the built `report.json`. Put the media in `<stem>.media/` next to `report.json` (the sibling of `<stem>.json`).
 2. Hand the block from `<id>.block.json` back to the orchestrator's section plan. Place it last in the first section (the answer), unless a chosen question asked for the video: then last in that section. The text above states the answer; the video walks through it. Do not move a finding into the video.
-3. The orchestrator builds and runs the full checks. Run Verify.
+3. Size: `small` never offers a video.
+4. The orchestrator builds and runs the full checks. Run Verify.
 
 ## Verify
 

@@ -71,8 +71,9 @@ Edit the draft until it answers the question. The core schema (`badges`, `entiti
 
 1. Do Dump, Detect and Shape. Return the entities and only the blocks of the chosen features (`tree` with its `badges`, `table`, `data`) to the orchestrator's section plan; do not build. A `data` choice alone adds no `tree`.
 2. Section order: the prose that answers first, then the `tree`, then the diagrams it `drives`, then `table` and `data` blocks.
-3. Add `data` only when a collection has more than 30 rows (the orchestrator pre-checks it on that signal).
-4. The orchestrator builds and runs the core checks. Run the Verify list below for your blocks.
+3. Size (`skill://report-html` **Sizes**): `small` returns one `tree` and no `table` or `data`; `technical` returns a `data` table for every collection the chosen questions name, with every column of the dump.
+4. Add `data` only when a collection has more than 30 rows (the orchestrator pre-checks it on that signal).
+5. The orchestrator builds and runs the core checks. Run the Verify list below for your blocks.
 
 ## Verify
 
