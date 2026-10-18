@@ -115,7 +115,9 @@
         {"id": "imp", "art": "stufe", "titel": "Kapitel importieren"}],
        "listen": {"chart": "verteilung", "param": "pick", "field": "art"}},
       {"type": "mermaid", "id": "wege", "label": "Vom Kapitel zum Entwurf", "code": "flowchart LR\n  A[Kapitel importieren] -->|Zeile| B[Trigger schreiben]\n  B -->|Screen| C[Mach mal Pause]\n  click A href \"#e-imp\"\n  click B href \"#e-trigger\"\n  click C href \"#e-pause\""},
-      {"type": "video", "id": "demo", "label": "Import in drei Schritten", "src": "../report-video/example.media/demo.mp4", "poster": "../report-video/example.media/demo.jpg",
-       "caption": "Erzeugt mit `scene_template.py` aus `report-video`."}]}
+      {"type": "video", "id": "demo", "label": "Vom Buch zum Screen", "src": "../report-video/example.media/demo.mp4", "poster": "../report-video/example.media/demo.jpg",
+       "track": "../report-video/example.media/demo.vtt",
+       "chapters": [{"t": 0, "label": "1. Antwort"}, {"t": 15.6, "label": "2. Ablauf"}, {"t": 36.3, "label": "3. Typen und Baum"}],
+       "caption": "Erzeugt mit `report-video` aus diesem Bericht."}]}
   ]
 }

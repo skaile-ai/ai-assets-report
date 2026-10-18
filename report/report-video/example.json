@@ -1,16 +1,20 @@
 {
-  "title": "Import pipeline as a video",
-  "lang": "en",
-  "meta": ["report-video example"],
+  "title": "Vom Buch zum Screen als Video",
+  "lang": "de",
+  "meta": ["Beispiel für report-video"],
   "sections": [
     {
-      "title": "Pipeline",
-      "sub": "three steps",
+      "title": "Ablauf",
+      "sub": "drei Kapitel",
       "blocks": [
-        {"type": "p", "text": "The importer reads a book, builds the screens and publishes them."},
-        {"type": "video", "id": "demo", "label": "Import pipeline",
-         "src": "example.media/demo.mp4", "poster": "example.media/demo.jpg",
-         "caption": "Generated with `scene_template.py`; the scene file sits next to the video [@example.media/demo.py]."}
+        {"type": "p", "text": "Der Importer liest ein Buch, baut daraus Screens und stellt sie dem Leser bereit."},
+        {"type": "video", "id": "demo", "label": "Vom Buch zum Screen",
+         "src": "example.media/demo.mp4", "poster": "example.media/demo.jpg", "track": "example.media/demo.vtt",
+         "chapters": [
+           {"t": 0, "label": "1. Antwort"},
+           {"t": 15.6, "label": "2. Ablauf"},
+           {"t": 36.3, "label": "3. Typen und Baum"}],
+         "caption": "Drei Kapitel aus `demo.script.md`; Szenen in `demo.py`, Marke in `brand.py`."}
       ]
     }
   ]

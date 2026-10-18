@@ -1,0 +1,46 @@
+WEBVTT
+
+00:00:04.500 --> 00:00:07.710
+Der Bereich „Im Alltag“ enthält zwei Screens.
+
+00:00:07.833 --> 00:00:12.063
+Der Bericht zählt einen Bereich, zwei Screens und einen Entwurf.
+
+00:00:12.200 --> 00:00:14.670
+Doch wie wird aus einem Buch ein Screen?
+
+00:00:19.600 --> 00:00:22.160
+Der Import liest die Kapitel des Buchs.
+
+00:00:22.300 --> 00:00:25.740
+Jedes Kapitel wird eine Zeile in source_chapter.
+
+00:00:25.866 --> 00:00:28.096
+Der Editor liest daraus die Absätze.
+
+00:00:28.233 --> 00:00:31.583
+Aus den Absätzen entsteht der Screen für den Leser.
+
+00:00:31.733 --> 00:00:34.713
+So wandert ein Kapitel vom Buch zum Leser.
+
+00:00:40.333 --> 00:00:42.893
+Am Anfang steht eine Markdown-Datei.
+
+00:00:43.033 --> 00:00:46.563
+readChapter() macht daraus einen ChapterCandidate.
+
+00:00:46.699 --> 00:00:51.119
+POST /items speichert ihn als Zeile in source_chapter.
+
+00:00:51.266 --> 00:00:55.356
+writeScreen() macht aus den Absätzen Blöcke je Zielgruppe.
+
+00:00:55.499 --> 00:01:00.429
+compileContent() erzeugt daraus die Datei stations.json.
+
+00:01:01.366 --> 00:01:04.486
+Der Baum zeigt den Bereich mit seinen zwei Screens.
+
+00:01:04.633 --> 00:01:07.983
+Der Filter blendet den Entwurf aus, ein Screen bleibt.

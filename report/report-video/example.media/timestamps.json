@@ -1,0 +1,126 @@
+{
+  "title": "Vom Buch zum Screen",
+  "provider": "elevenlabs",
+  "beats": [
+    {
+      "chapter": 1,
+      "beat": 1,
+      "scene": "Ch1Antwort",
+      "text": "Der Bereich „Im Alltag“ enthält zwei Screens.",
+      "duration_s": 3.21,
+      "file": "demo.voice/1-1.mp3"
+    },
+    {
+      "chapter": 1,
+      "beat": 2,
+      "scene": "Ch1Antwort",
+      "text": "Der Bericht zählt einen Bereich, zwei Screens und einen Entwurf.",
+      "duration_s": 4.23,
+      "file": "demo.voice/1-2.mp3"
+    },
+    {
+      "chapter": 1,
+      "beat": 3,
+      "scene": "Ch1Antwort",
+      "text": "Doch wie wird aus einem Buch ein Screen?",
+      "duration_s": 2.47,
+      "file": "demo.voice/1-3.mp3"
+    },
+    {
+      "chapter": 2,
+      "beat": 1,
+      "scene": "Ch2Ablauf",
+      "text": "Der Import liest die Kapitel des Buchs.",
+      "duration_s": 2.56,
+      "file": "demo.voice/2-1.mp3"
+    },
+    {
+      "chapter": 2,
+      "beat": 2,
+      "scene": "Ch2Ablauf",
+      "text": "Jedes Kapitel wird eine Zeile in source_chapter.",
+      "duration_s": 3.44,
+      "file": "demo.voice/2-2.mp3"
+    },
+    {
+      "chapter": 2,
+      "beat": 3,
+      "scene": "Ch2Ablauf",
+      "text": "Der Editor liest daraus die Absätze.",
+      "duration_s": 2.23,
+      "file": "demo.voice/2-3.mp3"
+    },
+    {
+      "chapter": 2,
+      "beat": 4,
+      "scene": "Ch2Ablauf",
+      "text": "Aus den Absätzen entsteht der Screen für den Leser.",
+      "duration_s": 3.35,
+      "file": "demo.voice/2-4.mp3"
+    },
+    {
+      "chapter": 2,
+      "beat": 5,
+      "scene": "Ch2Ablauf",
+      "text": "So wandert ein Kapitel vom Buch zum Leser.",
+      "duration_s": 2.98,
+      "file": "demo.voice/2-5.mp3"
+    },
+    {
+      "chapter": 3,
+      "beat": 1,
+      "scene": "Ch3Typen",
+      "text": "Am Anfang steht eine Markdown-Datei.",
+      "duration_s": 2.56,
+      "file": "demo.voice/3-1.mp3"
+    },
+    {
+      "chapter": 3,
+      "beat": 2,
+      "scene": "Ch3Typen",
+      "text": "readChapter() macht daraus einen ChapterCandidate.",
+      "duration_s": 3.53,
+      "file": "demo.voice/3-2.mp3"
+    },
+    {
+      "chapter": 3,
+      "beat": 3,
+      "scene": "Ch3Typen",
+      "text": "POST /items speichert ihn als Zeile in source_chapter.",
+      "duration_s": 4.42,
+      "file": "demo.voice/3-3.mp3"
+    },
+    {
+      "chapter": 3,
+      "beat": 4,
+      "scene": "Ch3Typen",
+      "text": "writeScreen() macht aus den Absätzen Blöcke je Zielgruppe.",
+      "duration_s": 4.09,
+      "file": "demo.voice/3-4.mp3"
+    },
+    {
+      "chapter": 3,
+      "beat": 5,
+      "scene": "Ch3Typen",
+      "text": "compileContent() erzeugt daraus die Datei stations.json.",
+      "duration_s": 4.93,
+      "file": "demo.voice/3-5.mp3"
+    },
+    {
+      "chapter": 3,
+      "beat": 6,
+      "scene": "Ch3Typen",
+      "text": "Der Baum zeigt den Bereich mit seinen zwei Screens.",
+      "duration_s": 3.12,
+      "file": "demo.voice/3-6.mp3"
+    },
+    {
+      "chapter": 3,
+      "beat": 7,
+      "scene": "Ch3Typen",
+      "text": "Der Filter blendet den Entwurf aus, ein Screen bleibt.",
+      "duration_s": 3.35,
+      "file": "demo.voice/3-7.mp3"
+    }
+  ]
+}
