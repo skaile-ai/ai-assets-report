@@ -34,7 +34,7 @@
    "blocks": [
     {
      "type": "p",
-     "text": "Das Beispiel enthält neun Tickets in drei Arten. Ein Klick auf ein Badge im Baum nimmt die Tickets dieser Art aus dem Diagramm."
+     "text": "Das Beispiel enthält neun Tickets in drei Arten [@report-charts/example.json]. Ein Klick auf ein Badge im Baum nimmt die Tickets dieser Art aus dem Diagramm."
     },
     {
      "type": "tree",

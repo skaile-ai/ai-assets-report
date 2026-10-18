@@ -15,7 +15,7 @@
   ],
   "sections": [
     {"title": "Ablauf", "sub": "L0 Übersicht, L1 je Stufe", "blocks": [
-      {"type": "p", "text": "Ein Kapitel läuft in zwei Stufen vom Buch zum Screen: Der Import schreibt es nach `source_chapter`, der Editor liest es von dort."},
+      {"type": "p", "text": "Ein Kapitel läuft in zwei Stufen vom Buch zum Screen: Der Import schreibt es nach `source_chapter` [@scripts/import.ts:31], der Editor liest es von dort [@server/screen.ts:36]."},
       {"type": "flow", "id": "uebersicht", "label": "Vom Buch zum Screen", "nodes": [
         {"id": "buch", "label": "Buch", "sub": "chapters/*.md", "shape": "external"},
         {"id": "import", "label": "Kapitel importieren", "sub": "npm run import", "ref": "imp"},

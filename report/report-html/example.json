@@ -48,7 +48,7 @@
         {"from": "hash", "to": "post", "label": "ja", "at": "scripts/import.ts:21"},
         {"from": "hash", "to": "abbruch", "label": "nein", "kind": "error", "at": "scripts/import.ts:22"},
         {"from": "post", "to": "kapitel", "label": "Zeile", "at": "scripts/import.ts:31"}]},
-      {"type": "p", "text": "Der Screen [[trigger]] zitiert [[BOOK-C01|Kapitel 1]]. Er liegt in `content_variant`."}]},
+      {"type": "p", "text": "Der Screen [[trigger]] zitiert [[BOOK-C01|Kapitel 1]]. Er liegt in `content_variant`. Der Import dazu: [@scripts/import.ts:10-31]."}]},
        {"label": "source_chapter", "summary": "Status eines Kapitels vom Import bis zum Archiv.", "blocks": [
       {"type": "states", "id": "status", "parent": "uebersicht:kapitel", "label": "Kapitelstatus", "field": "source_chapter.status", "at": "schema.ts:4",
        "states": [{"id": "entwurf"}, {"id": "geprueft", "label": "geprüft"}, {"id": "frei", "label": "veröffentlicht", "color": "green"}],

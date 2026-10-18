@@ -24,7 +24,7 @@
       "title": "What depends on what",
       "sub": "map",
       "blocks": [
-        {"type": "p", "text": "The `studio` app depends on `compiler` and `ui-kit`. The `importer` writes to [[directus]] and reads the same types as the `compiler`."},
+        {"type": "p", "text": "The `studio` app depends on `compiler` and `ui-kit` [@package.json:14-15]. The `importer` writes to [[directus]] and reads the same types as the `compiler`."},
         {"type": "tree", "filter": ["kind"], "drives": ["deps"]},
         {
           "type": "map",

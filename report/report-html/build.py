@@ -20,6 +20,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 E = html.escape
+CITE = re.compile(r"\[@([^\[\]`\n]*)\]")  # inline citation: text without brackets, backticks or newlines
 TEMPLATE = Path(__file__).with_name("template.html")
 LINKS_SHOWN = 12  # per direction and tree row; the rest is counted
 COLORS = {"purple", "blue", "green", "gray", "orange", "pink", "teal", "yellow", "red", "navy", "brown", "ink"}
@@ -323,8 +324,14 @@ class Report:
                 f'@click="t(\'{k}\')" @keydown.enter.prevent="t(\'{k}\')" @keydown.space.prevent="t(\'{k}\')">{label}</span>')
 
     # -- blocks ----------------------------------------------------------
+    def source(self, value):
+        """A source reference as literal text in muted grey brackets: not HTML, not a URL, not an entity ref."""
+        return f'<span class="src">[{E(str(value))}]</span>'
+
     def inline(self, text):
-        """Plain text with `code` spans and [[entity-id]] links."""
+        """Plain text with `code` spans, [[entity-id]] / [[entity-id|label]] links and [@source text] citations.
+        A citation is `[@` + text + `]`; the text is non-empty, one line, and has no `[`, `]` or backtick.
+        Anything else after `[@` (empty, unclosed, nested, multi-line) stays literal text."""
         out, i = [], 0
         s = str(text)
         while i < len(s):
@@ -334,14 +341,15 @@ class Report:
                 eid, _, label = ref.partition("|")
                 out.append(self.link(eid, label or None))
                 i = j + 2
+            elif s.startswith("[@", i) and (m := CITE.match(s, i)) and m.group(1).strip():
+                out.append(self.source(m.group(1).strip()))
+                i = m.end()
             elif s[i] == "`" and "`" in s[i + 1:]:
                 j = s.index("`", i + 1)
                 out.append(f"<code>{E(s[i + 1:j])}</code>")
                 i = j + 1
             else:
-                j = min([k for k in (s.find("[[", i), s.find("`", i)) if k != -1] or [len(s)])
-                if j == i:
-                    j = i + 1
+                j = min([k for k in (s.find("[[", i + 1), s.find("[@", i + 1), s.find("`", i + 1)) if k != -1] or [len(s)])
                 out.append(E(s[i:j]))
                 i = j
         return "".join(out)
@@ -982,7 +990,7 @@ class Report:
     def evidence(self, rows):
         if not rows:
             return ""
-        body = "".join(f"<tr><td>{el}</td><td><code>{E(at)}</code></td></tr>" for el, at in rows)
+        body = "".join(f"<tr><td>{el}</td><td>{self.source(at)}</td></tr>" for el, at in rows)
         return (f'<details class="ev"><summary>{E(self.t["ev"])} · {len(rows)}</summary><div class="tw"><table>'
                 f'<thead><tr><th>{E(self.t["el"])}</th><th>{E(self.t["at"])}</th></tr></thead><tbody>{body}</tbody></table></div></details>')
 
@@ -1045,7 +1053,7 @@ class Report:
                 edges += [{"from": jid, "to": t, "label": "", "kind": kind} for t in to]
             cell = lambda ts: "<br>".join(f'<a href="#{E(self.danchor(gid, t))}">{E(lab[t])}</a>' for t in ts)
             rows.append([cell(fr), f"<code>{E(s['fn'])}</code>", cell(to),
-                         f"<code>{E(s['at'])}</code>" if s.get("at") else "—", self.inline(s.get("note", "")) or "—"])
+                         self.source(s["at"]) if s.get("at") else "—", self.inline(s.get("note", "")) or "—"])
         self.check_evidence(b, "steps", [(s["fn"], s.get("at")) for s in b["steps"]])
         svg, used = self.graph(b, nodes, edges, b.get("dir", "down"))
         t = self.t
@@ -1096,7 +1104,7 @@ class Report:
             st = lambda v, n: f"<code>{PSEUDO}</code>" if v == PSEUDO else f'<a href="#{E(self.danchor(gid, n))}">{E(slabel[v])}</a>'
             trig = self.inline(x.get("trigger", "")) + (f" / {self.inline(x['action'])}" if x.get("action") else "")
             rows.append([st(x["from"], a), st(x["to"], z), trig or "—", self.inline(x.get("guard", "")) or "—",
-                         f"<code>{E(x['at'])}</code>" if x.get("at") else "—"])
+                         self.source(x["at"]) if x.get("at") else "—"])
         reach, todo = set(), [e["from"] for e in edges if e["from"] == "__init"]
         while todo:
             u = todo.pop()
@@ -1109,7 +1117,7 @@ class Report:
                 warn(f"states {gid}: not reachable from {PSEUDO}: {', '.join(lost)}")
         self.check_evidence(b, "transitions", [(f"{x['from']} → {x['to']}", x.get("at")) for x in trs])
         svg, used = self.graph(b, nodes, edges, b.get("dir", "down"))
-        extra = (f"<code>{E(b['field'])}</code>" if b.get("field") else "") + (f" · <code>{E(b['at'])}</code>" if b.get("at") else "")
+        extra = (f"<code>{E(b['field'])}</code>" if b.get("field") else "") + (f" · {self.source(b['at'])}" if b.get("at") else "")
         return self.figure(b, svg, used, caption_extra=extra,
                            after=self.grid([t["from"], t["to"], t["trigger"], t["guard"], t["at"]], rows, trs))
 
@@ -1671,7 +1679,7 @@ class Report:
         t = self.t
         find = (f'<div class="find"><input id="find" type="search" placeholder="{E(t["find"])}" aria-label="{E(t["find"])}">'
                 '<span id="findn"></span></div>') if used & FIND_TYPES else ""
-        parts = [f'<header><h1>{E(d["title"])}</h1><p>' + "<br>".join(E(m) for m in d.get("meta", [])) + f"</p>{find}</header>"]
+        parts = [f'<header><h1>{E(d["title"])}</h1><p>' + "<br>".join(self.inline(m) for m in d.get("meta", [])) + f"</p>{find}</header>"]
         if d.get("stats"):
             parts.append('<dl class="stats">' + "".join(f"<div><dt>{E(k)}</dt><dd>{E(self.stat(k, v))}</dd></div>" for k, v in d["stats"]) + "</dl>")
         secs = d.get("sections", [])

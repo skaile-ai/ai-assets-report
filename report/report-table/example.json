@@ -2,7 +2,7 @@
  "title": "Beispiel · Blöcke je Screen",
  "lang": "de",
  "meta": [
-  "Quelle: Beispieldaten (report-table/example.json)",
+  "Quelle: Beispieldaten [@report-table/example.json]",
   "Stand: 2026-10-13"
  ],
  "badges": {
