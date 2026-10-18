@@ -24,10 +24,12 @@ Voice: per chapter, every narration clip is delayed to the beat's t0 and mixed i
 44.1 kHz stereo AAC track; a chapter without clips gets silence of the same format.
 A clip that ends after its chapter video fails the run.
 
---poster picks the poster frame. Default: one second after the start of the last beat of
-chapter 1 (the answer with everything shown). `C.B` (an existing chapter and beat) means
-one second after that beat starts; a plain number or `<number>s` is seconds from the
-start of the video (use the `s` form when the number could read as `C.B`).
+--poster picks the poster frame. Default: the midpoint between the start of the last beat of
+chapter 1 and 0.8 s before chapter 1 ends (where clear_stage starts to fade), never earlier
+than one second after that beat starts: the answer with everything shown and settled.
+`C.B` (an existing chapter and beat) means one second after that beat starts; a plain number
+or `<number>s` is seconds from the start of the video (use the `s` form when the number
+could read as `C.B`).
 
 `media/` is removed after a successful run unless --keep is given; intermediates live in
 `media/stitch/`.
@@ -47,6 +49,7 @@ from narrate import NarrateError, parse_script  # noqa: E402
 RESOLUTIONS = {"l": "480p15", "m": "720p30", "h": "1080p60"}
 SAMPLE_RATE = 44100
 POSTER_OFFSET_S = 1.0
+FADE_OUT_S = 0.8  # clear_stage: 0.5 s fade + 0.3 s wait at the end of a chapter
 _SRT_TIME = r"(\d+):(\d\d):(\d\d)[,.](\d{3})"
 _SRT_CUE_RE = re.compile(rf"{_SRT_TIME}\s*-->\s*{_SRT_TIME}")
 
@@ -174,7 +177,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(prog="stitch.py", description="Join rendered report-video chapters.")
     ap.add_argument("script", help="<id>.script.md")
     ap.add_argument("--quality", choices=sorted(RESOLUTIONS), default="m")
-    ap.add_argument("--poster", help="<chapter>.<beat> or seconds (default: end of chapter 1's last beat + 1 s)")
+    ap.add_argument("--poster", help="<chapter>.<beat> or seconds (default: midpoint between chapter 1's last beat and 0.8 s before its end, at least 1 s after the beat)")
     ap.add_argument("--keep", action="store_true", help="keep media/ after stitching")
     args = ap.parse_args(argv)
 
@@ -275,8 +278,10 @@ def main(argv=None):
     if poster_t is None:
         first = beats_by_scene.get(chapters[0]["scene"], {})
         if first:
-            poster_t = starts[0] + max(first.values()) + POSTER_OFFSET_S
-            poster_t = min(poster_t, starts[0] + durations[0] - 0.1)
+            ch1_end = starts[0] + durations[0]
+            last = starts[0] + max(first.values())
+            poster_t = max((last + ch1_end - FADE_OUT_S) / 2, last + POSTER_OFFSET_S)
+            poster_t = min(poster_t, ch1_end - 0.1)
         else:
             poster_t = max(0.0, durations[0] - 0.5)
     poster_t = max(0.0, min(poster_t, total - 0.1))
