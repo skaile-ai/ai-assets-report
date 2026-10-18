@@ -13,7 +13,7 @@
          "chapters": [
            {"t": 0, "label": "1. Antwort"},
            {"t": 15.6, "label": "2. Ablauf"},
-           {"t": 36.3, "label": "3. Typen und Baum"}],
+           {"t": 36.333, "label": "3. Typen und Baum"}],
          "caption": "Drei Kapitel aus `demo.script.md`; Szenen in `demo.py`, Marke in `brand.py`."}
       ]
     }

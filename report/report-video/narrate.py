@@ -74,6 +74,11 @@ def estimate_s(text):
 def parse_script(path):
     """Parse a `<id>.script.md` and return a plain dict. No file is written.
 
+    Grammar: `# <title>`, `- key: value` header lines, then chapters `## <n>. <Title> {scene=<Class> section=<id>}`
+    with the fields Goal/Carry/Concepts/Shots (a field may continue on indented lines) and numbered
+    beats `<n>. <visual> | <technique>`. A beat has at most one `>` narration line (one sentence,
+    hard limit 30 words); beats and narration never continue on further lines.
+
     Raises NarrateError (message `narrate: <path>:<line>: <reason>`) on any grammar error.
 
     Return shape::
@@ -170,17 +175,16 @@ def parse_script(path):
         if s.startswith(">"):
             if beat is None:
                 raise err(n, "narration line before the first beat")
+            if beat["narration"] is not None:
+                raise err(n, f"beat {beat['number']} has more than one narration line")
             text = s[1:].strip()
             if not text:
                 raise err(n, "empty narration line")
-            if beat["narration"] is not None:
-                text = beat["narration"] + " " + text
             words = len(text.split())
             if words > MAX_WORDS:
                 raise err(n, f"narration has {words} words (hard limit {MAX_WORDS}, style rule 20)")
             beat["narration"] = text
-            if beat["narration_line"] is None:
-                beat["narration_line"] = n
+            beat["narration_line"] = n
             last = None
             continue
 
@@ -206,7 +210,7 @@ def parse_script(path):
                     "technique": technique.strip() if sep else None,
                     "narration": None, "narration_line": None}
             ch["beats"].append(beat)
-            last = (beat, "technique" if sep else "visual")
+            last = None
             continue
 
         raise err(n, "unrecognised line (expected Goal/Carry/Concepts/Shots, a numbered beat or a `>` narration line)")
@@ -229,18 +233,18 @@ def script_id(script_path):
 
 
 def load_brand_voice(script_path, brand_ref):
-    """The `voice` dict of the brand JSON. Lookup: script `brand:` path (unless `default`),
-    REPORT_BRAND, `<media stem>.brand.json` and `brand.json` beside the media folder, else {}."""
+    """The `voice` dict of the brand JSON. Lookup: REPORT_BRAND, the script `brand:` path (unless
+    `default`), `<media stem>.brand.json` and `brand.json` beside the media folder, else {}."""
     media = Path(script_path).resolve().parent
     candidates = []
+    if os.environ.get("REPORT_BRAND"):
+        candidates.append(Path(os.environ["REPORT_BRAND"]).expanduser())
     if brand_ref and brand_ref.lower() != "default":
         ref = Path(brand_ref).expanduser()
         p = ref if ref.is_absolute() else media / ref
         if not p.is_file():
             raise fail(f"{script_path}: brand file {brand_ref} not found")
         candidates.append(p)
-    if os.environ.get("REPORT_BRAND"):
-        candidates.append(Path(os.environ["REPORT_BRAND"]).expanduser())
     stem = media.name[: -len(".media")] if media.name.endswith(".media") else media.name
     candidates.append(media.parent / f"{stem}.brand.json")
     candidates.append(media.parent / "brand.json")
@@ -379,8 +383,16 @@ def run(args):
         raise fail(f"say: {SAY_BIN} not found (macOS only)")
 
     items = [(c, b) for c in parsed["chapters"] for b in c["beats"] if b["narration"]]
+    exts = {"elevenlabs": ("mp3", "txt"), "say": ("wav", "txt"), "dir": ("wav", "mp3", "txt")}.get(provider)
     ext = {"elevenlabs": "mp3", "say": "wav"}.get(provider)
     clip = lambda c, b, e: out / f"{c['number']}-{b['number']}.{e}"
+
+    def prune():
+        """Remove clips of beats no longer in the script and clips of the other extension."""
+        keep = {clip(c, b, e).name for c, b in items for e in exts}
+        for p in out.iterdir():
+            if CLIP_RE.match(p.name) and p.name not in keep:
+                p.unlink()
 
     if provider == "dir":
         files = []
@@ -389,12 +401,8 @@ def run(args):
             if not found:
                 raise fail(f"dir: missing {clip(c, b, 'wav')}")
             files.append(max(found, key=lambda p: p.stat().st_mtime))
+        prune()
     else:
-        keep = {clip(c, b, e).name for c, b in items for e in ([ext, "txt"] if ext else [])}
-        if out.is_dir():
-            for p in out.iterdir():
-                if CLIP_RE.match(p.name) and p.name not in keep:
-                    p.unlink()
         files = []
         if ext:
             out.mkdir(parents=True, exist_ok=True)
@@ -418,8 +426,7 @@ def run(args):
                         tts_say(text, audio, say_voice)
                     txt.write_text(text, encoding="utf-8")
                 files.append(audio)
-        elif out.is_dir() and not any(out.iterdir()):
-            out.rmdir()
+            prune()
 
     beats, total = [], 0.0
     for i, (c, b) in enumerate(items):

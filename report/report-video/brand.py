@@ -26,7 +26,7 @@ header and the caption lane.
 
 Timing: `beat(n, ..., say=...)` waits for the measured narration length of
 (CHAPTER, n) from `timestamps.json` (written by `narrate.py`), else for an
-estimate of `words / 2.5 + 0.6` s. `tear_down()` records the start time of every
+estimate of `words / 2.5 + 0.6` s; `say` must equal the script line there. `tear_down()` records the start time of every
 beat in `beats.json`; `stitch.py` places the voice clips with it.
 
 Brand lookup (`load_brand()`): `REPORT_BRAND` (a path) > `<stem>.brand.json` next
@@ -247,6 +247,7 @@ class Explainer(Scene):
         super().setup()
         self.camera.background_color = BRAND["bg"]
         self.budget: dict[tuple[int, int], float] = {}
+        self.script_text: dict[tuple[int, int], str] = {}
         stamps = Path("timestamps.json")
         stamps_title = ""
         if stamps.is_file():
@@ -254,6 +255,8 @@ class Explainer(Scene):
             stamps_title = data.get("title") or ""
             for b in data.get("beats", []):
                 self.budget[(int(b["chapter"]), int(b["beat"]))] = float(b["duration_s"])
+                if b.get("text") is not None:
+                    self.script_text[(int(b["chapter"]), int(b["beat"]))] = str(b["text"])
         self.caption = None
         self._beats: list[dict] = []
         self._video_title = self.VIDEO_TITLE or stamps_title
@@ -331,15 +334,27 @@ class Explainer(Scene):
     # ---- the unit of the script
 
     def beat(self, n, *anims, say=None, run_time=1.2, wait=0.8, lag=0.0):
-        """Beat `n` of this chapter: play `anims`, show the narration line `say` in the caption lane, hold for the narration budget."""
+        """Beat `n` of this chapter: play `anims`, show the narration line `say` in the caption lane, hold for the narration budget.
+
+        The budget is the measured narration length of (CHAPTER, n) from `timestamps.json`, used whether or not `say` is given
+        (a beat whose script line has narration holds for it; without `say` the caption lane stays as it is). Without a
+        measurement and with `say`, it is estimated from the word count. When `timestamps.json` holds text for this beat,
+        `say` must equal it (whitespace aside); a difference raises ValueError.
+        """
         self._show_chrome()
         anims = sorted(anims, key=lambda a: isinstance(a, _CountTo))  # a count must run after a FadeIn of the same counter
         self._beats.append({"beat": n, "t0": round(float(self.time), 3)})
+        measured = self.budget.get((self.CHAPTER, n))
+        scripted = self.script_text.get((self.CHAPTER, n))
+        if say and scripted is not None and " ".join(say.split()) != " ".join(scripted.split()):
+            raise ValueError(f"beat {n}: say= differs from the script narration in timestamps.json; run narrate.py again or copy the line")
         budget = wait
+        if measured is not None:
+            budget = measured + BUDGET_PAD
+        elif say:
+            budget = len(say.split()) / 2.5 + 0.6
         caption_anim = None
         if say:
-            measured = self.budget.get((self.CHAPTER, n))
-            budget = measured + BUDGET_PAD if measured is not None else len(say.split()) / 2.5 + 0.6
             self.add_subcaption(say, duration=max(budget - BUDGET_PAD, 0.5))  # ends just before the next beat's cue
             new = self._caption_mob(say)
             if self.caption is None:
@@ -350,8 +365,8 @@ class Explainer(Scene):
         if caption_anim is not None:
             plays.append(caption_anim)
         if not plays:  # a pure pause
-            if wait > 0:
-                self.wait(wait)
+            if max(wait, budget) > 0:
+                self.wait(max(wait, budget))
             return
         self.play(*plays, run_time=run_time)
         hold = max(wait, budget - run_time)

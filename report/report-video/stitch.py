@@ -44,7 +44,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from narrate import NarrateError, parse_script  # noqa: E402
+from narrate import NarrateError, parse_script, probe_duration, script_id  # noqa: E402
 
 RESOLUTIONS = {"l": "480p15", "m": "720p30", "h": "1080p60"}
 SAMPLE_RATE = 44100
@@ -76,13 +76,12 @@ def ffmpeg(*args):
     run(["ffmpeg", "-v", "error", "-y", *map(str, args)])
 
 
-def probe_duration(path):
-    out = run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
-               "-of", "csv=p=0", str(path)]).strip()
+def video_length(path):
+    """Duration in seconds, via narrate.probe_duration; its error is re-raised as a `stitch:` one."""
     try:
-        return float(out)
-    except ValueError:
-        raise fail(f"cannot read the duration of {path}")
+        return probe_duration(path)
+    except NarrateError as e:
+        raise fail(str(e).removeprefix("narrate: "))
 
 
 def read_json(path, what):
@@ -96,14 +95,9 @@ def read_json(path, what):
 
 # --------------------------------------------------------------------------- steps
 
-def script_id(script):
-    name = Path(script).name
-    return name[: -len(".script.md")] if name.endswith(".script.md") else Path(script).stem
-
-
 def build_chapter(ch, scene_mp4, clips, t0s, out):
     """Write `out`: the scene video with its voice track (or silence). Returns the voiced flag."""
-    video_len = probe_duration(scene_mp4)
+    video_len = video_length(scene_mp4)
     n = ch["number"]
     if not clips:
         ffmpeg("-i", scene_mp4, "-f", "lavfi", "-i", f"anullsrc=r={SAMPLE_RATE}:cl=stereo",
@@ -189,15 +183,11 @@ def main(argv=None):
     work = media / "stitch"
     res = RESOLUTIONS[args.quality]
     chapters = script["chapters"]
-    if not chapters:
-        raise fail(f"{args.script}: no chapters")
 
     # 1. scene files
     scenes = []
     for ch in chapters:
         scene = ch["scene"]
-        if not scene:
-            raise fail(f"chapter {ch['number']} ({ch['title']}): no scene= attribute")
         mp4 = media / "videos" / sid / res / f"{scene}.mp4"
         if not mp4.is_file():
             raise fail(f"chapter {ch['number']} ({scene}): {mp4.relative_to(cwd)} missing")
@@ -242,7 +232,7 @@ def main(argv=None):
         chapter_files.append(out)
 
     # 3. concat
-    durations = [probe_duration(f) for f in chapter_files]
+    durations = [video_length(f) for f in chapter_files]
     starts = [sum(durations[:i]) for i in range(len(durations))]
     (work / "concat.txt").write_text("".join(f"file '{f.name}'\n" for f in chapter_files), encoding="utf-8")
     joined = work / "joined.mp4"
@@ -258,7 +248,7 @@ def main(argv=None):
     final = cwd / f"{sid}.mp4"
     ffmpeg("-i", joined, "-i", work / "meta.txt", "-map_metadata", 1, "-codec", "copy",
            "-movflags", "+faststart", final)
-    total = probe_duration(final)
+    total = video_length(final)
 
     # 5. captions
     cues = []
@@ -294,7 +284,7 @@ def main(argv=None):
              "src": f"{prefix}/{sid}.mp4", "poster": f"{prefix}/{sid}.jpg"}
     if cues:
         block["track"] = f"{prefix}/{sid}.vtt"
-    block["chapters"] = [{"t": round(start, 1), "label": f"{ch['number']}. {ch['title']}"}
+    block["chapters"] = [{"t": round(start, 3), "label": f"{ch['number']}. {ch['title']}"}
                          for ch, start in zip(chapters, starts)]
     block["chapters"][0]["t"] = 0
     block["caption"] = ""

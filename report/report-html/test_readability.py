@@ -3,7 +3,11 @@
 Run from the reporting source root:  python3 -m unittest discover -s report-html -p 'test_readability.py'
 The tests assert on rendered HTML fragments, not on the renderer's source text.
 """
+import base64
 import importlib.util
+import json
+import re
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -303,7 +307,6 @@ class Provenance(unittest.TestCase):
 
 class ChoiceCheck(unittest.TestCase):
     def check(self, features):
-        import json, tempfile
         with tempfile.NamedTemporaryFile("w", suffix=".choice.json", delete=False) as f:
             json.dump({"profile": "critique", "features": features}, f)
         build.check_choice({"sections": [section("Answer")]}, f.name)
@@ -319,7 +322,6 @@ class ChoiceCheck(unittest.TestCase):
 
 class VideoBlock(unittest.TestCase):
     def setUp(self):
-        import tempfile
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.dir = Path(self.tmp.name)
@@ -373,7 +375,6 @@ class VideoBlock(unittest.TestCase):
         self.assertIn("video demo: chapters[1] needs numeric ascending t and a label", msg)
 
     def test_track_is_inlined_with_report_language(self):
-        import base64, re
         (self.dir / "v.vtt").write_text("WEBVTT\n\n00:00.000 --> 00:01.000\nHällo\n", encoding="utf-8")
         out = self.video(lang="de", track="v.vtt")
         m = re.search(r'<track kind="captions" src="data:text/vtt;base64,([A-Za-z0-9+/=]+)" srclang="de" label="DE" default>', out)
@@ -382,7 +383,6 @@ class VideoBlock(unittest.TestCase):
         self.assertTrue(out.index("<track ") < out.index("</video>"))
 
     def test_track_found_next_to_report_json_is_inlined(self):
-        import base64
         src_dir = self.dir / "src"
         src_dir.mkdir()
         (src_dir / "r.json").write_text("{}")
