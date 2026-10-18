@@ -1683,10 +1683,10 @@ class Report:
         find = (f'<div class="find"><input id="find" type="search" placeholder="{E(t["find"])}" aria-label="{E(t["find"])}">'
                 '<span id="findn"></span></div>') if used & FIND_TYPES else ""
         meta = d.get("meta", [])
-        prov = (f'<details class="provenance"><summary>{E(t["sources"])}</summary><p>'
-                + "<br>".join(self.inline(m) for m in meta) + "</p></details>") if meta else ""
+        lines = "<br>".join(self.inline(m) for m in meta)
+        prov = f'<details class="provenance"><summary>{E(t["sources"])}</summary><p>{lines}</p></details>' if meta else ""
         # closed <details> content is not printed: a print-only copy keeps the sources on paper
-        prov_print = ('<p class="prov-print">' + "<br>".join(self.inline(m) for m in meta) + "</p>") if meta else ""
+        prov_print = f'<p class="prov-print">{lines}</p>' if meta else ""
         head = [f'<header><h1>{E(d["title"])}</h1>{prov}{prov_print}{find}</header>']
         stats = ""
         if d.get("stats"):
@@ -1730,6 +1730,7 @@ class Report:
 
 
 CHOICE_KEYS = ("tree", "data", "charts", "crossfilter", "badge-chart", "find", "flow", "map", "mermaid", "video")
+CHOICE_NO_BLOCK = ("none",)  # valid feature keys that never produce a block and are not reported
 CHOICE_BLOCKS = {"tree": "tree", "table": "tree", "data": "data", "vega": "charts", "bars": "charts",
                  "flow": "flow", "lineage": "flow", "states": "flow", "map": "map", "mermaid": "mermaid", "video": "video"}
 
@@ -1743,7 +1744,7 @@ def check_choice(data, path):
     feats = choice.get("features") if isinstance(choice, dict) else None
     if not isinstance(feats, list):
         fail(f'--check-choice {path}: expected {{"profile": ..., "features": [...]}}')
-    unknown = [f for f in feats if f not in CHOICE_KEYS and f != "none"]
+    unknown = [f for f in feats if f not in CHOICE_KEYS + CHOICE_NO_BLOCK]
     if unknown:
         fail(f"--check-choice {path}: unknown feature keys {', '.join(map(str, unknown))}")
     used = set()
