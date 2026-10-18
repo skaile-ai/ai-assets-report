@@ -210,5 +210,96 @@ class HeaderMeta(unittest.TestCase):
         self.assertIn("&lt;script&gt;x&lt;/script&gt;", page)
 
 
+class LinkLabels(unittest.TestCase):
+    def link(self, ent, ref):
+        data = {"title": "T", "lang": "en", "entities": [dict(ent, id="n05")], "sections": []}
+        return build.Report(data).inline(ref)
+
+    def test_label_wins_over_title(self):
+        out = self.link({"title": "Install script", "label": "Install"}, "[[n05]]")
+        self.assertEqual(out, '<a href="#e-n05" title="Install script">Install</a>')
+
+    def test_title_when_no_label(self):
+        out = self.link({"title": "Install script"}, "[[n05]]")
+        self.assertEqual(out, '<a href="#e-n05" title="Install script">Install script</a>')
+
+    def test_id_when_neither(self):
+        self.assertEqual(self.link({}, "[[n05]]"), '<a href="#e-n05" title="n05">n05</a>')
+
+    def test_explicit_text_is_never_overridden(self):
+        out = self.link({"title": "Install script", "label": "Install"}, "[[n05|the installer]]")
+        self.assertEqual(out, '<a href="#e-n05" title="Install script">the installer</a>')
+
+    def test_label_text_is_escaped(self):
+        out = self.link({"title": "<b>x</b>"}, "[[n05]]")
+        self.assertIn(">&lt;b&gt;x&lt;/b&gt;</a>", out)
+        self.assertNotIn("<b>", out)
+
+
+def section(title, text="Body."):
+    return {"title": title, "blocks": [{"type": "p", "text": text}]}
+
+
+class PageOrder(unittest.TestCase):
+    STATS = [["Files", "three"]]
+
+    def pos(self, page, needle):
+        self.assertIn(needle, page)
+        return page.index(needle)
+
+    def test_first_section_precedes_statistics_and_rest_follow(self):
+        page = report(stats=self.STATS, sections=[section("Answer"), section("Detail")]).render()
+        h1, first, stats, second = (self.pos(page, n) for n in ("<h1>", "Answer", '<dl class="stats">', "Detail"))
+        self.assertTrue(h1 < first < stats < second)
+
+    def test_change_summary_between_first_and_second_section(self):
+        first = dict(section("Answer"), change="new")
+        page = report(stats=self.STATS, sections=[first, section("Detail")]).render()
+        a, stats, bar, detail = (self.pos(page, n) for n in ("Answer", '<dl class="stats">', 'class="chgbar"', "Detail"))
+        self.assertTrue(a < stats < bar < detail)
+
+    def test_change_summary_without_stats(self):
+        page = report(sections=[dict(section("Answer"), change="new"), section("Detail")]).render()
+        self.assertTrue(self.pos(page, "Answer") < self.pos(page, 'class="chgbar"') < self.pos(page, "Detail"))
+
+    def test_no_sections_header_then_statistics_and_change_summary(self):
+        page = report(stats=self.STATS, sections=[]).render()
+        self.assertTrue(self.pos(page, "</header>") < self.pos(page, '<dl class="stats">'))
+        self.assertNotIn("<section", page)
+
+    def test_numbering_and_anchors_survive_reordering(self):
+        page = report(stats=self.STATS, sections=[dict(section("Answer"), id="ans"), dict(section("Detail"), id="det")]).render()
+        self.assertIn('<section id="ans"><h2>1 Answer', page)
+        self.assertIn('<section id="det"><h2>2 Detail', page)
+
+
+class Provenance(unittest.TestCase):
+    def test_no_meta_no_disclosure(self):
+        page = report().render()
+        self.assertNotIn('class="provenance"', page)
+        self.assertNotIn("prov-print", page.split("</style>")[-1])
+
+    def test_english_disclosure_is_collapsed(self):
+        page = report(meta=["Run: 1"]).render()
+        self.assertIn('<details class="provenance"><summary>Sources and run details</summary><p>Run: 1</p></details>', page)
+        self.assertNotIn("<details class=\"provenance\" open", page)
+
+    def test_german_disclosure(self):
+        page = report(lang="de", meta=["Lauf: 1"]).render()
+        self.assertIn('<details class="provenance"><summary>Quellen und Laufdetails</summary>', page)
+
+    def test_disclosure_keeps_citations_and_lines(self):
+        page = report(meta=["A [@x.ts:1]", "B"]).render()
+        self.assertIn(f"<p>A {src('x.ts:1')}<br>B</p></details>", page)
+
+    def test_print_copy_carries_the_same_text(self):
+        page = report(meta=["A [@x.ts:1]"]).render()
+        self.assertIn(f'<p class="prov-print">A {src("x.ts:1")}</p>', page)
+
+    def test_disclosure_sits_in_header_before_first_section(self):
+        page = report(meta=["M"], sections=[section("Answer")]).render()
+        self.assertTrue(page.index('<details class="provenance">') < page.index("</header>") < page.index("<section"))
+
+
 if __name__ == "__main__":
     unittest.main()

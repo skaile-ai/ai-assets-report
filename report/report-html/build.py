@@ -74,7 +74,7 @@ TXT = {
                      "Anordnung und Ausgegrautes bleiben in diesem Browser",
            "find": "Suchen…", "csv": "CSV", "chart_cdn": "Diagramm braucht das vega-CDN",
            "t_hint": "Klicken Sie auf ein Badge: Es schaltet den Wert ein oder aus.",
-           "t_reset": "Zurücksetzen", "t_count": "sichtbar"},
+           "t_reset": "Zurücksetzen", "t_count": "sichtbar", "sources": "Quellen und Laufdetails"},
     "en": {"ev": "Evidence", "el": "Element", "at": "Evidence", "from": "From", "to": "To", "fn": "Function",
            "note": "Change", "trigger": "Trigger", "guard": "Guard", "up": "Part of",
            "process": "process", "store": "data store", "external": "external", "boundary": "neighbour from parent level",
@@ -90,7 +90,7 @@ TXT = {
                      "layout and greyed boxes stay in this browser",
            "find": "Find…", "csv": "CSV", "chart_cdn": "Chart needs the vega CDN",
            "t_hint": "Click a badge to switch the value on or off.",
-           "t_reset": "Reset", "t_count": "visible"},
+           "t_reset": "Reset", "t_count": "visible", "sources": "Sources and run details"},
 }
 
 
@@ -301,10 +301,13 @@ class Report:
         return "e-" + str(eid)
 
     def link(self, eid, text=None):
+        """An entity link. Visible text: explicit `text`, else the entity's `label`, else its `title`, else the id.
+        The id is only the key; `title` stays the hover text and the anchor never changes."""
         if eid not in self.ents:
             fail(f"unknown ref {eid}")
         e = self.ents[eid]
-        return f'<a href="#{E(self.anchor(eid))}" title="{E(e.get("title", eid))}">{E(text or e.get("label") or str(eid))}</a>'
+        shown = text or e.get("label") or e.get("title") or str(eid)
+        return f'<a href="#{E(self.anchor(eid))}" title="{E(e.get("title", eid))}">{E(shown)}</a>'
 
     # -- badges ----------------------------------------------------------
     def badge(self, cat, val, toggle):
@@ -1679,10 +1682,17 @@ class Report:
         t = self.t
         find = (f'<div class="find"><input id="find" type="search" placeholder="{E(t["find"])}" aria-label="{E(t["find"])}">'
                 '<span id="findn"></span></div>') if used & FIND_TYPES else ""
-        parts = [f'<header><h1>{E(d["title"])}</h1><p>' + "<br>".join(self.inline(m) for m in d.get("meta", [])) + f"</p>{find}</header>"]
+        meta = d.get("meta", [])
+        prov = (f'<details class="provenance"><summary>{E(t["sources"])}</summary><p>'
+                + "<br>".join(self.inline(m) for m in meta) + "</p></details>") if meta else ""
+        # closed <details> content is not printed: a print-only copy keeps the sources on paper
+        prov_print = ('<p class="prov-print">' + "<br>".join(self.inline(m) for m in meta) + "</p>") if meta else ""
+        head = [f'<header><h1>{E(d["title"])}</h1>{prov}{prov_print}{find}</header>']
+        stats = ""
         if d.get("stats"):
-            parts.append('<dl class="stats">' + "".join(f"<div><dt>{E(k)}</dt><dd>{E(self.stat(k, v))}</dd></div>" for k, v in d["stats"]) + "</dl>")
+            stats = '<dl class="stats">' + "".join(f"<div><dt>{E(k)}</dt><dd>{E(self.stat(k, v))}</dd></div>" for k, v in d["stats"]) + "</dl>"
         secs = d.get("sections", [])
+        parts = []
         top = self.scope(secs)
         for i, sec in enumerate(secs, 1):
             k, cls, mk = self.state(sec, top)
@@ -1693,13 +1703,15 @@ class Report:
             ccls = f' class="{cls.strip()}"' if cls else ""
             parts.append(f'<section{sid}{ccls}><h2>{num}{mk}{E(sec["title"])}<span>{E(sec.get("sub", ""))}</span></h2>'
                          f'<div class="body">{"".join(body)}</div></section>')
+        summary = ""
         if self.chg:
             since = f' {E(str(d["since"]))}' if d.get("since") else ""
             counts = " ".join(f'{self.mark(k)}<span class="cn">{self.nchg[k]}</span>' for k in CHANGE if self.nchg[k])
-            parts.insert(2 if d.get("stats") else 1,
-                         f'<div class="chgbar"><span>{E(self.t["since"])}{since}:</span>{counts}'
-                         f'<span class="mt">{E(self.t["dimmed"])}</span>'
-                         f'<button type="button" aria-pressed="false" onclick="nodim(this)">{E(self.t["full"])}</button></div>')
+            summary = (f'<div class="chgbar"><span>{E(self.t["since"])}{since}:</span>{counts}'
+                       f'<span class="mt">{E(self.t["dimmed"])}</span>'
+                       f'<button type="button" aria-pressed="false" onclick="nodim(this)">{E(self.t["full"])}</button></div>')
+        # reading order: title and find box, the first section (the answer), statistics and change summary, the rest
+        parts = head + parts[:1] + [x for x in (stats, summary) if x] + parts[1:]
         body = "\n".join(parts)
         found = Counter(html.unescape(i) for i in re.findall(r'\sid="([^"]+)"', body))
         twice = sorted(i for i, k in found.items() if k > 1)
