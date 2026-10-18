@@ -130,7 +130,7 @@ Run in `<stem>.media/`, in this order:
 2. Read one still per chapter: `manim -ql -s <id>.py <Scene>` (or an ffmpeg frame of the draft) against the `TECHNIQUES.md` checklist (chrome, no cut text, ≤ 6 elements, readable caption lane, report colours). Fix and render again.
 3. Final: `manim -qm --format=mp4 -a <id>.py`, then `python3 ~/.agents/skills/report-video/stitch.py <id>.script.md --quality m`. `-qh` and `--quality h` only on request. Render and stitch use the same quality. About 3-5 s render per scene at `-qm` per 10 s of video.
 
-`stitch.py [--quality l|m|h] [--poster <chapter>.<beat> | <seconds> | <seconds>s] [--keep]` mixes each chapter's clips at the beat start times, joins the chapters with mp4 chapter markers, writes `<id>.mp4`, `<id>.vtt`, `<id>.jpg` and `<id>.block.json`, then removes `media/` (`--keep` keeps it). The poster defaults to the answer with everything shown (the last beat of chapter 1 plus 1 s). It prints `stitch: <id>.mp4 <s> s, <n> chapters, voice=<yes|no>, captions=<cues>`.
+`stitch.py [--quality l|m|h] [--poster <chapter>.<beat> | <seconds> | <seconds>s] [--keep]` mixes each chapter's clips at the beat start times, joins the chapters with mp4 chapter markers, writes `<id>.mp4`, `<id>.vtt`, `<id>.jpg` and `<id>.block.json`, then removes `media/` (`--keep` keeps it). The poster defaults to the answer with everything shown (after chapter 1's last beat has settled, before its closing fade). It prints `stitch: <id>.mp4 <s> s, <n> chapters, voice=<yes|no>, captions=<cues>`.
 
 Guard: `stitch: chapter <n> beat <b>: narration ends at <x> s, video is <y> s` means the clip outlasts its scene. Shorten the sentence or give that beat a longer `wait`, then render the scene again.
 
@@ -150,7 +150,7 @@ Done when `stitch:` prints its summary line.
 - `chapters[].t` is seconds from the start, ascending; `label` is `<n>. <title>`. The build shows them as a button list under the player that seeks it. `track` is the WebVTT file (written only when the scenes had narration lines); the build adds it as the default caption track in the report's `lang`.
 - Fill `caption` with one readable sentence that says what the video shows (inline `code`, `[[id]]`, `[@path:line]` are allowed). `at` is optional and adds the evidence table.
 - The `id` shares the diagram id space: unique among all diagram ids; the figure anchor is `#f-<id>`.
-- `src`, `poster` and `track` resolve next to the output HTML first, else next to `report.json`; the page gets the path rewritten relative to the HTML.
+- `src`, `poster` and `track` resolve next to the output HTML first, else next to `report.json`; the page gets `src` and `poster` rewritten relative to the HTML, and the track inlined into the page as a `data:` URI (browsers block `file://` tracks).
 - The build fails with ``video <id>: `src` is required``, with `video <id>: file not found <path>` when `src`, `poster` or `track` exists in neither place, and with `video <id>: chapters[<i>] needs numeric ascending t and a label`.
 - A video has no ⤢ zoom and no node hover; the browser's controls cover fullscreen.
 - A report with a video is a folder: the HTML and the media folder move together (keep the relative path between them).
@@ -174,6 +174,6 @@ The example in `example.media/` holds a finished set: `demo.script.md`, `demo.py
 - `ffprobe -v error -show_entries format=duration:stream=codec_name,width,height -show_chapters <id>.mp4`: h264 (+ aac when narrated), 1280×720, chapter count = script chapter count, chapter titles match `<n>. <title>`.
 - `<id>.vtt` cue count (`grep -c -- '-->'`) = narration line count.
 - Read the poster and one still per chapter: chrome visible, no cut text, ≤ 6 elements.
-- Build from any directory: `python3 ~/.agents/skills/report-html/build.py <report>.json /tmp/x.html` prints `lint: 0 findings`; the emitted `src`/`poster`/`track` point at existing files relative to `/tmp`.
-- Built page at 1280 px and 390 px: `scrollWidth == 390`, no console errors; `<video>` `readyState ≥ 1` after `load()`; the caption track shows in `video.textTracks`; a click on the second chapter button sets `currentTime` to its `t` and starts playback.
+- Build from any directory: `python3 ~/.agents/skills/report-html/build.py <report>.json /tmp/x.html` prints `lint: 0 findings`; the emitted `src`/`poster` point at existing files relative to `/tmp`; the track is inlined as a `data:text/vtt` URI.
+- Built page at 1280 px and 390 px: `scrollWidth == 390`, no console errors; `<video>` `readyState ≥ 1` after `load()`; `video.textTracks[0].cues.length` = the vtt cue count (also from `file://`); a click on the second chapter button sets `currentTime` to its `t` and starts playback.
 - Build errors fire on a missing `src`, a missing file, and a `chapters` entry without `t`.

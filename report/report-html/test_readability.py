@@ -372,10 +372,25 @@ class VideoBlock(unittest.TestCase):
         msg = self.fails(chapters=[{"t": 5, "label": "x"}, {"t": 2, "label": "y"}])
         self.assertIn("video demo: chapters[1] needs numeric ascending t and a label", msg)
 
-    def test_track_uses_report_language(self):
+    def test_track_is_inlined_with_report_language(self):
+        import base64, re
+        (self.dir / "v.vtt").write_text("WEBVTT\n\n00:00.000 --> 00:01.000\nHällo\n", encoding="utf-8")
         out = self.video(lang="de", track="v.vtt")
-        self.assertIn('<track kind="captions" src="v.vtt" srclang="de" label="DE" default>', out)
+        m = re.search(r'<track kind="captions" src="data:text/vtt;base64,([A-Za-z0-9+/=]+)" srclang="de" label="DE" default>', out)
+        self.assertIsNotNone(m)
+        self.assertEqual(base64.b64decode(m.group(1)), (self.dir / "v.vtt").read_bytes())
         self.assertTrue(out.index("<track ") < out.index("</video>"))
+
+    def test_track_found_next_to_report_json_is_inlined(self):
+        import base64
+        src_dir = self.dir / "src"
+        src_dir.mkdir()
+        (src_dir / "r.json").write_text("{}")
+        (src_dir / "c.vtt").write_bytes(b"WEBVTT\n")
+        r = report()
+        r.out_dir, r.src = self.dir, src_dir / "r.json"
+        out = r.b_video({"type": "video", "id": "demo", "src": "v.mp4", "track": "c.vtt"})
+        self.assertIn("base64," + base64.b64encode(b"WEBVTT\n").decode(), out)
 
     def test_no_track_no_element(self):
         self.assertNotIn("<track", self.video())

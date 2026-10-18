@@ -10,6 +10,7 @@ and drill-down links (from a diagram's `parent`) are computed here, so the data
 states each link once.
 """
 import os
+import base64
 import hashlib
 import html
 import re
@@ -1415,8 +1416,9 @@ class Report:
 
     def b_video(self, b):
         """Explainer video (`report-video`): `src`/`poster`/`track` resolve next to the output HTML, else next to report.json
-        (the emitted path is then rewritten relative to the output HTML).
-        Fields: `src` (required), `poster`, `track` (WebVTT captions, emitted as a default `<track>` in the report's `lang`),
+        (the emitted `src`/`poster` path is then rewritten relative to the output HTML).
+        Fields: `src` (required), `poster`, `track` (WebVTT captions, emitted as a default `<track>` in the report's `lang`;
+        the file is inlined as a `data:text/vtt;base64` URI because browsers block file:// tracks),
         `chapters` (`[{t, label}]`, `t` seconds ascending: a button list under the player that seeks it), `caption`, `at`."""
         gid = b["id"]
         out_dir = Path(self.out_dir) if self.out_dir is not None else Path(".")
@@ -1441,8 +1443,11 @@ class Report:
             prev = t
         lang = str(self.d.get("lang", "de"))[:2]
         poster = f' poster="{E(b["poster"])}"' if b.get("poster") else ""
-        track = (f'<track kind="captions" src="{E(b["track"])}" srclang="{E(lang)}" label="{E(lang.upper())}" default>'
-                 if b.get("track") else "")
+        track = ""
+        if b.get("track"):
+            vtt = base64.b64encode((out_dir / b["track"]).read_bytes()).decode("ascii")
+            track = (f'<track kind="captions" src="data:text/vtt;base64,{vtt}" srclang="{E(lang)}" '
+                     f'label="{E(lang.upper())}" default>')
         el = (f'<video controls preload="metadata"{poster} src="{E(b["src"])}" '
               f'style="width:100%;max-height:70vh">{track}</video>')
         after = ""
