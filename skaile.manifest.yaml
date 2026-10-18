@@ -5,12 +5,12 @@ assets:
     root: report/report-html
     version: 0.1.0
     dependencies:
-      - skill:report-asd-ste100
-      - skill:report-table
-      - skill:report-flow
-      - skill:report-diagram
-      - skill:report-charts
-      - skill:report-video
+      - skill:@skaile-ai/report-asd-ste100
+      - skill:@skaile-ai/report-table
+      - skill:@skaile-ai/report-flow
+      - skill:@skaile-ai/report-diagram
+      - skill:@skaile-ai/report-charts
+      - skill:@skaile-ai/report-video
   - kind: skill
     name: report-asd-ste100
     root: report/report-asd-ste100
