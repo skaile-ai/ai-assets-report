@@ -301,5 +301,22 @@ class Provenance(unittest.TestCase):
         self.assertTrue(page.index('<details class="provenance">') < page.index("</header>") < page.index("<section"))
 
 
+class ChoiceCheck(unittest.TestCase):
+    def check(self, features):
+        import json, tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".choice.json", delete=False) as f:
+            json.dump({"profile": "critique", "features": features}, f)
+        build.check_choice({"sections": [section("Answer")]}, f.name)
+
+    def test_none_is_a_known_feature(self):
+        self.check(["none", "find"])
+
+    def test_unknown_feature_still_fails(self):
+        with self.assertRaises(SystemExit) as cm:
+            self.check(["none", "sparkles"])
+        self.assertIn("unknown feature keys sparkles", str(cm.exception))
+
+
+
 if __name__ == "__main__":
     unittest.main()

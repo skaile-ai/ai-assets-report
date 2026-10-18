@@ -1743,7 +1743,7 @@ def check_choice(data, path):
     feats = choice.get("features") if isinstance(choice, dict) else None
     if not isinstance(feats, list):
         fail(f'--check-choice {path}: expected {{"profile": ..., "features": [...]}}')
-    unknown = [f for f in feats if f not in CHOICE_KEYS]
+    unknown = [f for f in feats if f not in CHOICE_KEYS and f != "none"]
     if unknown:
         fail(f"--check-choice {path}: unknown feature keys {', '.join(map(str, unknown))}")
     used = set()
