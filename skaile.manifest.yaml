@@ -35,4 +35,4 @@ assets:
   - kind: skill
     name: report-video
     root: report/report-video
-    version: 0.2.1
+    version: 0.2.2
