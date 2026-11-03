@@ -42,7 +42,10 @@ ALWAYS_TONES = {"safety", "action"}  # callouts that no reader depth hides
 SRC_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")  # a `sources` id: a safe URL fragment
 SRC_LIKE = re.compile(r"^[A-Za-z]{1,4}-?\d{1,4}$")  # a citation text that reads as a source id (S1, R12): unknown ones fail
 NOT_LOCAL = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:|//)")  # URL scheme or protocol-relative: not a local media path
-LINT_PROSE_WORDS = 60  # a p/bullets/steps block longer than this needs one [[id]] link
+PROSE_TYPES = ("p", "bullets", "steps", "callout", "argument", "example", "compare")  # blocks whose inline text is prose
+LINT_LINKS_BLOCK = 3  # max [[id]] links in one prose block
+LINT_LIST_MIN = 4  # list items in a section before the list-vs-prose balance is checked
+LINK_ID = re.compile(r"\[\[([^\]|]+)")
 LINT_KIND_MIN = 5  # entities of one kind needed before a missing meta key is reported
 HEAD = {}  # block type -> HTML for <head> (CDN tags); added once when a block of that type is in the report
 HEAD["mermaid"] = (
@@ -208,6 +211,39 @@ def sentences(text):
     or precedes whitespace counts; non-empty text counts at least 1."""
     s = CITE.sub("", re.sub(r"`[^`]*`", "", str(text)))
     return max(1, len(re.findall(r"[.!?](?=\s|$)", s))) if s.strip() else 0
+
+
+def prose_text(b):
+    """The inline texts of a prose block (PROSE_TYPES); list items may be strings or {text, change}."""
+    def items(v):
+        return [x["text"] if isinstance(x, dict) else x for x in v or []]
+    t = b.get("type")
+    if t == "p":
+        return [b.get("text", "")]
+    if t in ("bullets", "steps"):
+        return items(b.get("items"))
+    if t == "callout":
+        return [b.get("text", "")] + items(b.get("items"))
+    if t == "argument":
+        return [b.get("claim", "")] + items(b.get("reasons")) + [b.get("conclusion", "")]
+    if t == "example":
+        return [b.get("setup", "")] + items(b.get("steps")) + [b.get("result", "")]
+    if t == "compare":
+        out = [b.get("verdict", "")]
+        for c in b.get("columns", []):
+            out += [c.get("text", "")] + items(c.get("items"))
+        return out
+    return []
+
+
+def containers(blocks, led=False):
+    """(block list, led_first) pairs: the list itself, then the blocks of every tab of each `tabs` block, recursively.
+    A tab's first block is led when the tab has a `summary` or an `entity`."""
+    yield blocks, led
+    for b in blocks:
+        if b.get("type") == "tabs":
+            for t in b.get("tabs", []):
+                yield from containers(t.get("blocks", []), bool(t.get("summary") or t.get("entity")))
 
 
 class Report:
@@ -2113,52 +2149,6 @@ class Report:
             fail(f'stat "{label}": bare number {v}; write {{count: "<collection>"}} against <stem>.data/ or {{value, source}}')
         return str(v)
 
-    def incoming(self):
-        """Entity ids that something links to: `refs`, [[id]] in any text, {ref}/{refs} cells, node `ref`, tab `entity`, bars labels,
-        `key` column values of `data` rows, mermaid `click … "#e-<id>"` targets.
-        A link from an entity to itself does not count; `parent` is structure, not a link."""
-        known = {str(k): k for k in self.ents}
-        inc = set()
-
-        def add(x, owner):
-            k = known.get(str(x))
-            if k is not None and k != owner:
-                inc.add(k)
-
-        def scan(x, owner):
-            if isinstance(x, str):
-                for m in re.finditer(r"\[\[([^\]|]+)", x):
-                    add(m.group(1), owner)
-            elif isinstance(x, list):
-                for v in x:
-                    scan(v, owner)
-            elif isinstance(x, dict):
-                if x.get("type") == "data" and isinstance(x.get("key"), str) and isinstance(x.get("rows"), list):
-                    for r in x["rows"]:
-                        if isinstance(r, dict) and isinstance(r.get(x["key"]), (str, int)) and not isinstance(r[x["key"]], bool):
-                            add(r[x["key"]], owner)
-                elif x.get("type") == "mermaid" and isinstance(x.get("code"), str):
-                    for h in MERMAID_HREF.findall(x["code"]):
-                        if h.startswith("e-"):
-                            add(h[2:], owner)
-                for k, v in x.items():
-                    if k == "ref" and not isinstance(v, (dict, list)):
-                        add(v, owner)
-                    elif k == "refs" and isinstance(v, list):
-                        for r in v:
-                            add(r, owner)
-                    elif k == "entity" and "blocks" in x:
-                        add(v, owner)
-                    elif k == "items" and x.get("type") == "bars" and x.get("link", True):
-                        for it in v:
-                            add(it[0], owner)
-                    scan(v, owner)
-
-        for e in self.d.get("entities", []):
-            scan(e, e["id"])
-        scan(self.d.get("sections", []), None)
-        return inc
-
     @staticmethod
     def meta_key(m):
         """Key of a `meta` line: the part before a colon, else the text without numbers and backticks."""
@@ -2177,18 +2167,29 @@ class Report:
         elif d.get("profile") == "web-research":
             out.append("web-research: no top-level `sources`")
         secs = d.get("sections", [])
-        inc = self.incoming()
-        for e in d.get("entities", []):
-            if e.get("tree", True) is not False and e["id"] not in inc:
-                out.append(f"orphan {e['id']}: no incoming link")
         for sec in secs:
-            for b in walk(sec.get("blocks", [])):
-                if b.get("type") in ("p", "bullets", "steps"):
-                    text = b["text"] if b["type"] == "p" else " ".join(x["text"] if isinstance(x, dict) else x for x in b["items"])
-                    if "[[" not in text:
-                        n = len(text.split())
-                        if n > LINT_PROSE_WORDS:
-                            out.append(f'prose: section "{sec["title"]}" has {n} words and 0 links')
+            title, blocks = sec["title"], sec.get("blocks", [])
+            ids = {}
+            for b in walk(blocks):
+                if b.get("type") in PROSE_TYPES:
+                    texts = [str(x) for x in prose_text(b)]
+                    n = sum(x.count("[[") for x in texts)
+                    if n > LINT_LINKS_BLOCK:
+                        out.append(f'links: section "{title}": a {b["type"]} block has {n} links (max 3)')
+                    for x in texts:
+                        for m in LINK_ID.finditer(x):
+                            ids[m.group(1)] = ids.get(m.group(1), 0) + 1
+            out += [f'links: section "{title}": [[{k}]] is linked {n} times (link once, then name it)' for k, n in ids.items() if n >= 2]
+            for lst, led in containers(blocks):
+                for i, b in enumerate(lst):
+                    if b.get("type") in ("bullets", "steps"):
+                        if (i == 0 and not led) or (i > 0 and lst[i - 1].get("type") != "p"):
+                            out.append(f'lists: section "{title}": a {b["type"]} block has no lead sentence (put a p before it)')
+            all_b = list(walk(blocks))
+            items = sum(len(b.get("items", [])) for b in all_b if b.get("type") in ("bullets", "steps"))
+            sents = sum(sentences(b.get("text", "")) for b in all_b if b.get("type") == "p")
+            if items >= LINT_LIST_MIN and items > sents:
+                out.append(f'lists: section "{title}" has {items} list items and {sents} sentences of prose')
         if self.size:
             cap = SIZE_SENTENCES.get(self.size, SIZE_SENTENCES_DEFAULT)
             for sec in secs:

@@ -1003,5 +1003,43 @@ class BoardBlock(unittest.TestCase):
 
 
 
+class LinkAndListLints(unittest.TestCase):
+    ENTS = [{"id": k, "title": k.upper(), "label": k} for k in "abcd"]
+
+    def lints(self, *blocks):
+        return report(entities=self.ENTS, sections=[{"title": "S", "blocks": list(blocks)}]).lint()
+
+    def has(self, lints, prefix):
+        return [x for x in lints if x.startswith(prefix)]
+
+    def test_links_per_block(self):
+        four = self.lints({"type": "p", "text": "See [[a]], [[b]], [[c]] and [[d]]."})
+        self.assertIn('links: section "S": a p block has 4 links (max 3)', four)
+        three = self.lints({"type": "p", "text": "See [[a]], [[b]] and [[c]]."})
+        self.assertEqual(self.has(three, "links:"), [])
+
+    def test_same_id_twice(self):
+        twice = self.lints({"type": "p", "text": "See [[a]]."}, {"type": "p", "text": "Again [[a|A]]."})
+        self.assertIn('links: section "S": [[a]] is linked 2 times (link once, then name it)', twice)
+        once = self.lints({"type": "p", "text": "See [[a]]."}, {"type": "p", "text": "Again A."})
+        self.assertEqual(self.has(once, "links:"), [])
+
+    def test_list_without_lead(self):
+        first = self.lints({"type": "bullets", "items": ["x", "y"]})
+        self.assertIn('lists: section "S": a bullets block has no lead sentence (put a p before it)', first)
+        led = self.lints({"type": "p", "text": "Two things."}, {"type": "bullets", "items": ["x", "y"]})
+        self.assertEqual(self.has(led, "lists:"), [])
+
+    def test_list_heavy_section(self):
+        heavy = self.lints({"type": "p", "text": "Five things."}, {"type": "bullets", "items": list("vwxyz")})
+        self.assertIn('lists: section "S" has 5 list items and 1 sentences of prose', heavy)
+        light = self.lints({"type": "p", "text": "Three things."}, {"type": "bullets", "items": list("xyz")})
+        self.assertEqual(self.has(light, "lists:"), [])
+
+    def test_long_paragraph_without_link_is_fine(self):
+        lints = self.lints({"type": "p", "text": " ".join(["word"] * 80) + "."})
+        self.assertEqual([x for x in lints if "0 links" in x or x.startswith("orphan")], [])
+
+
 if __name__ == "__main__":
     unittest.main()
