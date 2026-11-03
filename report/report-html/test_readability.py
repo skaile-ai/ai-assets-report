@@ -819,7 +819,11 @@ class WebResearchPage(unittest.TestCase):
         secs = [
             {"title": "Antwort", "blocks": [
                 {"type": "p", "text": "Antwort [@S1]."},
-                {"type": "callout", "tone": "answer", "title": "Kurz", "text": "Meist harmlos."}]},
+                {"type": "callout", "tone": "answer", "title": "Kurz", "text": "Meist harmlos."},
+                {"type": "argument", "claim": "Meist harmlos", "reasons": ["Weil A.", "Weil B."], "conclusion": "Also abwarten."},
+                {"type": "example", "title": "Kind, 6", "setup": "Ein Fall.", "steps": ["Schritt 1."], "result": "Gut."},
+                {"type": "compare", "title": "Einlage oder Übung", "columns": [{"label": "Einlage", "text": "Teuer."},
+                 {"label": "Übung", "items": ["Billig.", "Wirksam."]}], "verdict": "Übung zuerst."}]},
             {"title": "Bilder", "blocks": [
                 {"type": "media", "items": [{"src": "a.jpg", "alt": "A", "caption": "C", "credit": "X"}]},
                 {"type": "resources", "items": [{"title": "T", "url": "https://x.org", "description": "D"}], "reader": "informed"},
@@ -828,6 +832,55 @@ class WebResearchPage(unittest.TestCase):
                 {"type": "table", "columns": ["Übung", "Dosis"], "rows": [["Zehenstand", "3×10"]], "caption": "Plan", "reader": "professional"}]}]
         page = build.Report(wr(secs).d, out_dir=d, src=d / "r.json").render()
         self.assertIn("<main", page)
+        for k in ('class="arg"', 'class="ex"', 'class="cmp"', "Kernaussage", "Beispiel", "Gegenüberstellung"):
+            self.assertIn(k, page)
+
+
+ARG = {"type": "argument", "claim": "Claim", "reasons": ["R1.", "R2."], "conclusion": "So this."}
+EXAMPLE = {"type": "example", "title": "One row", "setup": "Setup.", "steps": ["S1.", "S2.", "S3."], "result": "Done."}
+COMPARE = {"type": "compare", "title": "A or B", "columns": [{"label": "A", "text": "Cheap."}, {"label": "B", "items": ["Fast.", "Big."]}],
+           "verdict": "Take A."}
+
+
+class ExplainBlocks(unittest.TestCase):
+    def page(self, b, **extra):
+        extra.setdefault("profile", "explanation")
+        return body(report(sections=[{"title": "S", "blocks": [{"type": "p", "text": "Lead."}, b]}], **extra).render())
+
+    def test_argument_renders(self):
+        out = report().b_argument(ARG)
+        self.assertTrue(out.startswith('<div class="arg" role="group" aria-labelledby="ag-1"><p class="co-h"><span class="co-k">Key point</span> '
+                                       '<strong id="ag-1">Claim</strong></p><p class="arg-l">Because</p><ol class="ste">'))
+        self.assertIn('<p class="arg-s"><span class="co-k">So</span> So this.</p></div>', out)
+        self.assertEqual(out.count("<li>"), 2)
+        self.assertIn("Kernaussage", self.page(ARG, lang="de"))
+
+    def test_example_renders(self):
+        out = report().b_example(EXAMPLE)
+        self.assertIn('<span class="co-k">Example</span> <strong id="ex-1">One row</strong>', out)
+        self.assertIn('<p class="ex-r"><span class="co-k">Result</span> Done.</p>', out)
+        self.assertEqual(out.count("<li>"), 3)
+        self.assertIn('class="ex"', self.page(EXAMPLE))
+
+    def test_compare_renders(self):
+        out = report().b_compare(COMPARE)
+        self.assertIn('<span class="co-k">Comparison</span> <strong id="cp-1">A or B</strong></p><div class="cmp-g">', out)
+        self.assertIn('<p class="cmp-v"><span class="co-k">Verdict</span> Take A.</p></div>', out)
+        self.assertEqual(out.count('class="cmp-c"'), 2)
+        self.assertEqual(out.count("<li>"), 2)
+        self.assertIn('class="cmp"', self.page(COMPARE, profile="structure"))
+
+    def test_argument_with_four_reasons_fails(self):
+        self.assertIn("argument: `reasons` needs 1 to 3 non-empty items",
+                      fails(report().b_argument, dict(ARG, reasons=["a", "b", "c", "d"])))
+
+    def test_example_without_result_fails(self):
+        b = {k: v for k, v in EXAMPLE.items() if k != "result"}
+        self.assertIn("example: `result` is required and must not be empty", fails(report().b_example, b))
+
+    def test_compare_with_three_columns_fails(self):
+        self.assertIn("compare: `columns` needs exactly 2 columns",
+                      fails(report().b_compare, dict(COMPARE, columns=COMPARE["columns"] + [{"label": "C", "text": "x"}])))
 
 
 class ResponsiveTable(unittest.TestCase):

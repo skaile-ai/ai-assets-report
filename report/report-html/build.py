@@ -103,7 +103,9 @@ TXT = {
            "b_read": "Lesemodus", "b_enlarge": "Bild groß zeigen", "b_close": "Schließen",
            "b_hint": "Hintergrund ziehen: schwenken · ⌘/Strg + Mausrad oder zwei Finger: zoomen · ← →: Fläche · "
                      "+ − 0: Zoom · Bild klicken: groß · Lesemodus: alles untereinander",
-           "notes": "Belege", "note_n": "Beleg {n}"},
+           "notes": "Belege", "note_n": "Beleg {n}",
+           "arg_claim": "Kernaussage", "arg_why": "Gründe", "arg_so": "Folgerung", "ex": "Beispiel", "ex_result": "Ergebnis",
+           "cmp": "Gegenüberstellung", "cmp_verdict": "Fazit"},
     "en": {"ev": "Evidence", "el": "Element", "at": "Evidence", "from": "From", "to": "To", "fn": "Function",
            "note": "Change", "trigger": "Trigger", "guard": "Guard", "up": "Part of",
            "process": "process", "store": "data store", "external": "external", "boundary": "neighbour from parent level",
@@ -134,7 +136,9 @@ TXT = {
            "b_read": "Read mode", "b_enlarge": "Show image large", "b_close": "Close",
            "b_hint": "drag the background: pan · ⌘/Ctrl + wheel or two fingers: zoom · ← →: canvas · "
                      "+ − 0: zoom · click an image: enlarge · read mode: everything stacked",
-           "notes": "Notes", "note_n": "Note {n}"},
+           "notes": "Notes", "note_n": "Note {n}",
+           "arg_claim": "Key point", "arg_why": "Because", "arg_so": "So", "ex": "Example", "ex_result": "Result",
+           "cmp": "Comparison", "cmp_verdict": "Verdict"},
 }
 
 
@@ -1917,7 +1921,7 @@ class Report:
         return f'{label}<ul class="res">{"".join(cards)}</ul>'
 
     def b_callout(self, b):
-        """Highlighted block (`web-research`): `tone` answer|safety|action|note, `title`, `text`, optional `items`.
+        """Highlighted block: `tone` answer|safety|action|note, `title`, `text`, optional `items`.
         The tone name is printed, so the tone never relies on colour alone. Safety and action stay visible at every reader depth."""
         tone = b.get("tone")
         if tone not in CALLOUT_TONES:
@@ -1930,6 +1934,65 @@ class Report:
         items = f'<ul class="ste">{"".join(f"<li>{self.inline(x)}</li>" for x in b["items"])}</ul>' if b.get("items") else ""
         return (f'<div class="co co-{tone}" role="group" aria-labelledby="{cid}"><p class="co-h"><span class="co-k">{E(self.t["tone_" + tone])}</span> '
                 f'<strong id="{cid}">{E(b["title"])}</strong></p><p>{self.inline(b["text"])}</p>{items}</div>')
+
+    def lst(self, tag, xs):
+        return f'<{tag} class="ste">{"".join(f"<li>{self.inline(x)}</li>" for x in xs)}</{tag}>'
+
+    @staticmethod
+    def filled(x):
+        return isinstance(x, str) and bool(x.strip())
+
+    @staticmethod
+    def filled_list(xs, lo, hi):
+        return isinstance(xs, list) and lo <= len(xs) <= hi and all(Report.filled(x) for x in xs)
+
+    def b_argument(self, b):
+        """Argued conclusion: `claim`, `reasons` (1–3), `conclusion`, all inline."""
+        for k in ("claim", "conclusion"):
+            if not self.filled(b.get(k)):
+                fail(f"argument: `{k}` is required and must not be empty")
+        if not self.filled_list(b.get("reasons"), 1, 3):
+            fail("argument: `reasons` needs 1 to 3 non-empty items")
+        self.nco += 1
+        cid, t = f"ag-{self.nco}", self.t
+        return (f'<div class="arg" role="group" aria-labelledby="{cid}"><p class="co-h"><span class="co-k">{E(t["arg_claim"])}</span> '
+                f'<strong id="{cid}">{self.inline(b["claim"])}</strong></p><p class="arg-l">{E(t["arg_why"])}</p>{self.lst("ol", b["reasons"])}'
+                f'<p class="arg-s"><span class="co-k">{E(t["arg_so"])}</span> {self.inline(b["conclusion"])}</p></div>')
+
+    def b_example(self, b):
+        """Worked example: `title` (text), `setup`, `steps` (1–6), `result` (inline)."""
+        for k in ("title", "setup", "result"):
+            if not self.filled(b.get(k)):
+                fail(f"example: `{k}` is required and must not be empty")
+        if not self.filled_list(b.get("steps"), 1, 6):
+            fail("example: `steps` needs 1 to 6 non-empty items")
+        self.nco += 1
+        cid, t = f"ex-{self.nco}", self.t
+        return (f'<div class="ex" role="group" aria-labelledby="{cid}"><p class="co-h"><span class="co-k">{E(t["ex"])}</span> '
+                f'<strong id="{cid}">{E(b["title"])}</strong></p><p>{self.inline(b["setup"])}</p>{self.lst("ol", b["steps"])}'
+                f'<p class="ex-r"><span class="co-k">{E(t["ex_result"])}</span> {self.inline(b["result"])}</p></div>')
+
+    def b_compare(self, b):
+        """Two-column contrast: `title` (text), `columns` (exactly 2: `label`, `text?`, `items?`), `verdict` (inline)."""
+        cols = b.get("columns")
+        if not isinstance(cols, list) or len(cols) != 2:
+            fail("compare: `columns` needs exactly 2 columns")
+        for n, c in enumerate(cols, 1):
+            items = c.get("items") if isinstance(c, dict) else None
+            has_items = isinstance(items, list) and items and all(self.filled(x) for x in items)
+            if not (isinstance(c, dict) and self.filled(c.get("label")) and (self.filled(c.get("text")) or has_items)):
+                fail(f"compare: column {n} needs `label` and `text` or `items`")
+        for k in ("title", "verdict"):
+            if not self.filled(b.get(k)):
+                fail(f"compare: `{k}` is required and must not be empty")
+        self.nco += 1
+        cid, t = f"cp-{self.nco}", self.t
+        cells = "".join(f'<div class="cmp-c"><p class="cmp-h">{E(c["label"])}</p>'
+                        + (f'<p>{self.inline(c["text"])}</p>' if c.get("text") else "")
+                        + (self.lst("ul", c["items"]) if c.get("items") else "") + "</div>" for c in cols)
+        return (f'<div class="cmp" role="group" aria-labelledby="{cid}"><p class="co-h"><span class="co-k">{E(t["cmp"])}</span> '
+                f'<strong id="{cid}">{E(b["title"])}</strong></p><div class="cmp-g">{cells}</div>'
+                f'<p class="cmp-v"><span class="co-k">{E(t["cmp_verdict"])}</span> {self.inline(b["verdict"])}</p></div>')
 
     def vega_check(self, b):
         """Validate and normalise one `vega` block once (the spec stays inline, the dataset is named `rows` for the page script);
