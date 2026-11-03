@@ -490,5 +490,425 @@ class VideoBlock(unittest.TestCase):
         self.assertIn("video demo: `src` is required", str(cm.exception))
 
 
+READERS_CFG = {"default": "informed", "levels": [
+    {"id": "general", "label": "Kurz", "description": "Das Wichtigste."},
+    {"id": "informed", "label": "Mehr", "description": "Dazu die Gründe."},
+    {"id": "professional", "label": {"de": "Fach", "en": "Pro"}, "description": "Dazu die Belege."}]}
+SOURCES = [{"id": "S1", "title": "Leitlinie Knick-Senkfuß", "url": "https://example.org/a", "publisher": "AWMF", "year": 2023,
+            "kind": "guideline", "read": "2026-10-19", "note": "Konsens."},
+           {"id": "S2", "title": "Review", "url": "https://example.org/b"}]
+
+
+def wr(sections=None, **extra):
+    """A web-research report; the first section holds the answer paragraph."""
+    secs = sections if sections is not None else [
+        {"title": "Antwort", "blocks": [{"type": "p", "text": "Kurz gesagt: meist harmlos [@S1]."}]},
+        {"title": "Details", "blocks": [{"type": "p", "text": "Mehr."}]}]
+    return report(profile="web-research", lang="de", sources=SOURCES, readers=READERS_CFG, sections=secs, **extra)
+
+
+def body(page):
+    """The report markup: the page without the template's CSS and script."""
+    return page[page.index("<body>"):]
+
+
+def fails(fn, *args, **kw):
+    with unittest.TestCase().assertRaises(SystemExit) as cm:
+        fn(*args, **kw)
+    return str(cm.exception)
+
+
+class SourceLinks(unittest.TestCase):
+    def test_exact_id_links_to_the_bibliography_record(self):
+        out = wr().inline("Siehe [@S1] und [@S2].")
+        self.assertEqual(out, 'Siehe <a class="src cite" href="#src-S1" title="Leitlinie Knick-Senkfuß">[S1]</a> und '
+                              '<a class="src cite" href="#src-S2" title="Review">[S2]</a>.')
+
+    def test_other_citation_text_stays_a_literal_span(self):
+        r = wr()
+        for text in ("a.ts:1", "S1.pdf", "S1 S2", " S1 ", "alpha"):
+            with self.subTest(text=text):
+                self.assertEqual(r.inline(f"[@{text}]"), src(text.strip()))
+
+    def test_unknown_source_like_id_fails(self):
+        self.assertIn("names no source id", fails(wr().inline, "Beleg [@S9]"))
+
+    def test_without_sources_old_reports_keep_literal_ids(self):
+        self.assertEqual(report().inline("[@S9]"), src("S9"))
+
+    def test_source_records_are_validated(self):
+        ok = {"id": "S1", "title": "T", "url": "https://example.org"}
+        self.assertIn("duplicate source id S1", fails(report, sources=[ok, dict(ok)]))
+        self.assertIn("`title` is required", fails(report, sources=[{"id": "S1", "url": "https://x.org"}]))
+        self.assertIn("`url` is required", fails(report, sources=[{"id": "S1", "title": "T"}]))
+        self.assertIn("`url` must start with http", fails(report, sources=[dict(ok, url="ftp://x")]))
+        self.assertIn("`id` is required", fails(report, sources=[{"title": "T", "url": "https://x.org"}]))
+
+    def test_bibliography_follows_the_sections_and_links_out(self):
+        page = wr().render()
+        self.assertTrue(page.index("2 Details") < page.index('<section id="sources"'))
+        self.assertIn('<li id="src-S1" class="bi">', page)
+        self.assertIn('<a class="bi-t" href="https://example.org/a" rel="noopener noreferrer">Leitlinie Knick-Senkfuß</a>', page)
+        self.assertIn("AWMF · 2023", page)
+        self.assertIn("gelesen 2026-10-19", page)
+        self.assertIn("example.org", page)
+
+    def test_no_reader_depth_hides_the_bibliography(self):
+        section = re.search(r'<section id="sources".*?</section>', wr().render(), re.S).group(0)
+        self.assertNotIn("data-reader", section)
+
+    def test_uncited_source_is_linted(self):
+        lints = wr().lint()
+        self.assertIn("source S2: never cited", lints)
+        self.assertNotIn("source S1: never cited", lints)
+
+    def test_web_research_without_sources_is_linted(self):
+        r = report(profile="web-research", sections=[])
+        self.assertIn("web-research: no top-level `sources`", r.lint())
+
+
+class MediaBlock(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = Path(self.tmp.name)
+        (self.dir / "out").mkdir()
+        (self.dir / "r.media").mkdir()
+        (self.dir / "r.media" / "a.jpg").write_bytes(b"x")
+        (self.dir / "r.media" / "b.png").write_bytes(b"x")
+
+    def item(self, **extra):
+        return {"src": "r.media/a.jpg", "alt": "Fuß von der Seite", "caption": "Längsgewölbe [@S1].", "credit": "Max Muster", **extra}
+
+    def media(self, *items):
+        r = wr()
+        r.out_dir, r.src = self.dir / "out", self.dir / "r.json"
+        return r.b_media({"type": "media", "items": list(items)})
+
+    def test_figure_img_figcaption_with_credit_and_licence(self):
+        out = self.media(self.item(href="https://commons.example/File:a", license="CC BY 4.0", license_url="https://cc.example/4.0"))
+        self.assertIn('<figure class="mf"><img src="../r.media/a.jpg" alt="Fuß von der Seite" loading="lazy" decoding="async">', out)
+        self.assertIn("<figcaption>", out)
+        self.assertIn('<a href="https://commons.example/File:a" rel="noopener noreferrer">Max Muster</a>', out)
+        self.assertIn('<a href="https://cc.example/4.0" rel="noopener noreferrer">CC BY 4.0</a>', out)
+        self.assertIn('href="#src-S1"', out)  # captions use the inline grammar
+
+    def test_path_is_rewritten_relative_to_the_output(self):
+        self.assertIn('src="../r.media/b.png"', self.media(self.item(src="r.media/b.png")))
+        (self.dir / "out" / "c.png").write_bytes(b"x")
+        self.assertIn('src="c.png"', self.media(self.item(src="c.png")))  # next to the output: unchanged
+
+    def test_gallery_has_one_or_two_columns(self):
+        self.assertIn('class="gal" data-n="1"', self.media(self.item()))
+        self.assertIn('class="gal" data-n="2"', self.media(self.item(), self.item(src="r.media/b.png"), self.item()))
+
+    def test_missing_file_fails(self):
+        self.assertIn("media item 1: file not found r.media/none.jpg", fails(self.media, self.item(src="r.media/none.jpg")))
+
+    def test_alt_caption_credit_are_required(self):
+        for key in ("alt", "caption", "credit", "src"):
+            for bad in ("", "  "):
+                with self.subTest(key=key, bad=bad):
+                    self.assertIn(f"media item 1: `{key}` is required", fails(self.media, self.item(**{key: bad})))
+
+    def test_remote_src_and_bad_links_fail(self):
+        self.assertIn("local file", fails(self.media, self.item(src="https://x.org/a.jpg")))
+        self.assertIn("`href` must be an http(s) URL", fails(self.media, self.item(href="javascript:1")))
+        self.assertIn("`license_url` needs `license`", fails(self.media, self.item(license_url="https://cc.example")))
+
+    def test_empty_items_fail(self):
+        self.assertIn("`items` must be a non-empty list", fails(self.media))
+
+
+class ResourcesAndCallouts(unittest.TestCase):
+    def test_resources_render_external_cards(self):
+        out = wr().b_resources({"type": "resources", "items": [
+            {"title": "NHS", "url": "https://www.nhs.uk/x", "description": "Überblick [@S1].", "audience": "Eltern", "kind": "Patienteninfo"}]})
+        self.assertIn('<a class="rc-t" href="https://www.nhs.uk/x" rel="noopener noreferrer">NHS</a>', out)
+        self.assertIn("Für Eltern", out)
+        self.assertIn("Patienteninfo", out)
+        self.assertIn("www.nhs.uk", out)
+        self.assertIn('href="#src-S1"', out)
+
+    def test_resources_validate(self):
+        item = {"title": "T", "url": "https://x.org", "description": "D"}
+        r = wr()
+        self.assertIn("`url` must start with http", fails(r.b_resources, {"items": [dict(item, url="/local")]}))
+        self.assertIn("`description` is required", fails(r.b_resources, {"items": [dict(item, description="")]}))
+        self.assertIn("`title` is required", fails(r.b_resources, {"items": [{k: v for k, v in item.items() if k != "title"}]}))
+        self.assertIn("non-empty list", fails(r.b_resources, {"items": []}))
+
+    def test_callout_names_its_tone_and_labels_itself(self):
+        out = wr().b_callout({"type": "callout", "tone": "safety", "title": "Arzt aufsuchen", "text": "Bei Schmerz.", "items": ["Fieber", "Rötung [@S1]"]})
+        self.assertIn('class="co co-safety" role="group" aria-labelledby="co-1"', out)
+        self.assertIn('<span class="co-k">Sicherheit</span> <strong id="co-1">Arzt aufsuchen</strong>', out)
+        self.assertEqual(out.count("<li>"), 2)
+
+    def test_callout_ids_are_unique(self):
+        r = wr()
+        a = r.b_callout({"tone": "note", "title": "A", "text": "x"})
+        b = r.b_callout({"tone": "action", "title": "B", "text": "x"})
+        self.assertIn('id="co-1"', a)
+        self.assertIn('id="co-2"', b)
+
+    def test_callout_validation(self):
+        r = wr()
+        self.assertIn("tone must be one of", fails(r.b_callout, {"tone": "loud", "title": "T", "text": "x"}))
+        self.assertIn("`title` is required", fails(r.b_callout, {"tone": "note", "title": " ", "text": "x"}))
+        self.assertIn("`text` is required", fails(r.b_callout, {"tone": "note", "title": "T"}))
+
+
+class ReaderDepth(unittest.TestCase):
+    def sections(self, *blocks, **sec):
+        return [{"title": "Antwort", "blocks": [{"type": "p", "text": "Antwort."}]}, dict({"title": "Mehr", "blocks": list(blocks)}, **sec)]
+
+    def test_block_wrapper_carries_the_minimum_depth(self):
+        page = wr(self.sections({"type": "p", "text": "Allgemein."}, {"type": "p", "text": "Fach.", "reader": "professional"},
+                                {"type": "p", "text": "Mehr.", "reader": "informed"})).render()
+        self.assertIn('<div class="rd" data-reader="professional"><p>Fach.</p></div>', page)
+        self.assertIn('<div class="rd" data-reader="informed"><p>Mehr.</p></div>', page)
+        self.assertIn("<p>Allgemein.</p>", page)
+        self.assertNotIn('data-reader="general"', page)
+
+    def test_section_and_contents_entry_carry_the_depth(self):
+        page = wr(self.sections({"type": "p", "text": "x"}, reader="professional")).render()
+        self.assertIn('<section id="s-2" data-reader="professional" aria-labelledby="s-2-h">', page)
+        self.assertIn('<li data-reader="professional"><a href="#s-2">2 Mehr</a></li>', page)
+
+    def test_control_is_three_toggle_buttons_with_json_labels(self):
+        page = wr().render()
+        ctl = re.search(r'<div class="rdc".*?</div>', page, re.S).group(0)
+        self.assertIn('role="group" aria-labelledby="rdl"', ctl)
+        self.assertIn('data-default="informed"', ctl)
+        self.assertEqual(re.findall(r'<button type="button" data-depth="(\w+)" data-desc="[^"]*" aria-pressed="false">([^<]+)</button>', ctl),
+                         [("general", "Kurz"), ("informed", "Mehr"), ("professional", "Fach")])
+        self.assertIn('<span id="rdl" class="rdl">Lesetiefe</span>', ctl)
+
+    def test_label_object_follows_the_report_language(self):
+        page = report(profile="web-research", lang="en", sources=SOURCES, readers=READERS_CFG, sections=[]).render()
+        self.assertIn(">Pro</button>", page)
+        self.assertIn('<span id="rdl" class="rdl">Reading depth</span>', page)
+
+    def test_screen_rule_hides_deeper_levels_and_print_is_untouched(self):
+        css = Path(build.__file__).with_name("template.html").read_text()
+        rule = re.search(r"@media screen\{([^{}]*\[data-reader[^{}]*)\{display:none!important\}\}", css)
+        self.assertIsNotNone(rule)
+        self.assertIn("html[data-depth=informed] [data-reader=professional]", rule.group(1))
+        self.assertIn("html[data-depth=general] [data-reader=informed]", rule.group(1))
+        self.assertNotIn("html[data-depth=professional]", rule.group(1))
+
+    def test_answer_paragraph_never_hides(self):
+        secs = [{"title": "Antwort", "blocks": [{"type": "p", "text": "A.", "reader": "professional"}]}]
+        self.assertIn("answer paragraph stays visible", fails(wr, secs))
+        secs = [{"title": "Antwort", "reader": "informed", "blocks": [{"type": "p", "text": "A."}]}]
+        self.assertIn("first section", fails(wr, secs))
+
+    def test_safety_and_action_callouts_never_hide(self):
+        for tone in ("safety", "action"):
+            callout = {"type": "callout", "tone": tone, "title": "T", "text": "x"}
+            with self.subTest(tone=tone):
+                self.assertIn("would hide a safety or action callout", fails(wr, self.sections(dict(callout, reader="professional"))))
+                self.assertIn("would hide a safety or action callout", fails(wr, self.sections(callout, reader="professional")))
+                tabs = {"type": "tabs", "reader": "informed", "tabs": [{"label": "t", "blocks": [callout]}]}
+                self.assertIn("would hide a safety or action callout", fails(wr, self.sections(tabs)))
+        note = {"type": "callout", "tone": "note", "title": "T", "text": "x", "reader": "professional"}
+        self.assertIn('data-reader="professional"', wr(self.sections(note)).render())
+
+    def test_reader_needs_config_and_a_known_level(self):
+        secs = self.sections({"type": "p", "text": "x", "reader": "professional"})
+        self.assertIn("needs a top-level `readers`", fails(report, sections=secs))
+        self.assertIn("reader must be one of", fails(wr, self.sections({"type": "p", "text": "x", "reader": "expert"})))
+
+    def test_readers_config_is_validated(self):
+        cfg = lambda **kw: dict(READERS_CFG, **kw)
+        self.assertIn("exactly one entry", fails(report, readers=cfg(levels=READERS_CFG["levels"][:2])))
+        self.assertIn("default must be one of", fails(report, readers=cfg(default="expert")))
+        levels = [dict(READERS_CFG["levels"][0], label=""), *READERS_CFG["levels"][1:]]
+        self.assertIn("level general needs a `label`", fails(report, readers=cfg(levels=levels)))
+
+    def test_no_config_no_control_for_old_reports(self):
+        page = body(report(sections=[section("Answer")]).render())
+        self.assertNotIn("rdc", page)
+        self.assertNotIn("data-reader", page)
+
+
+class WebResearchPage(unittest.TestCase):
+    def test_landmarks_skip_link_and_contents(self):
+        page = wr().render()
+        self.assertTrue(page.index('<a class="skip" href="#main">Zum Inhalt springen</a>') < page.index("<header>"))
+        self.assertIn('<main id="main" class="wr" tabindex="-1" data-find-scope>', page)
+        self.assertIn('<nav class="toc" aria-label="Inhalt">', page)
+        nav = re.search(r"<nav.*?</nav>", page, re.S).group(0)
+        self.assertEqual(re.findall(r'<a href="#([^"]+)">', nav), ["s-1", "s-2", "sources"])
+        for target in ("s-1", "s-2", "sources"):
+            self.assertIn(f'id="{target}"', page)
+        self.assertIn('<section id="s-1" aria-labelledby="s-1-h"><h2 id="s-1-h">1 Antwort', page)
+
+    def test_contents_uses_author_section_ids(self):
+        secs = [dict(section("Answer"), id="ans"), dict(section("Rest"), id="rest")]
+        self.assertIn('<a href="#ans">1 Answer</a>', wr(secs).render())
+
+    def test_find_box_has_live_count_clear_and_scope(self):
+        page = body(wr().render())
+        self.assertRegex(page, r'<input id="find" type="search" placeholder="[^"]+" aria-label="Im Bericht suchen" aria-controls="main" '
+                               r'data-hits="Treffer" data-hidden="\+\{n\} ausgeblendet">')
+        self.assertIn('<button type="button" id="findx" class="fclr">Suche zurücksetzen</button>', page)
+        self.assertIn('<span id="findn" role="status" aria-live="polite"></span>', page)
+        self.assertTrue(page.index('id="find"') < page.index("<main"))
+        # the sources are inside the searched region
+        self.assertTrue(page.index("<main") < page.index('id="src-S1"') < page.index("</main>"))
+
+    def test_other_profiles_keep_their_structure(self):
+        page = body(report(sections=[section("Answer")]).render())
+        for marker in ("<main", 'class="skip"', '<nav class="toc"', "data-find-scope", 'id="find"'):
+            self.assertNotIn(marker, page)
+        self.assertIn('<section><h2>1 Answer', page)
+
+    def test_tree_find_box_keeps_its_markup_without_the_profile(self):
+        r = report(badges={}, sections=[{"title": "S", "blocks": [{"type": "data", "id": "d", "columns": [{"key": "a"}], "rows": [{"a": "x"}]}]}])
+        page = body(r.render())
+        self.assertIn('<input id="find" type="search" placeholder="Find…" aria-label="Find…">', page)
+        self.assertNotIn("data-find-scope", page)
+        self.assertNotIn("findx", page)
+
+    def test_whole_page_with_every_new_block_builds(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        d = Path(tmp.name)
+        (d / "a.jpg").write_bytes(b"x")
+        secs = [
+            {"title": "Antwort", "blocks": [
+                {"type": "p", "text": "Antwort [@S1]."},
+                {"type": "callout", "tone": "answer", "title": "Kurz", "text": "Meist harmlos."}]},
+            {"title": "Bilder", "blocks": [
+                {"type": "media", "items": [{"src": "a.jpg", "alt": "A", "caption": "C", "credit": "X"}]},
+                {"type": "resources", "items": [{"title": "T", "url": "https://x.org", "description": "D"}], "reader": "informed"},
+                {"type": "flow", "id": "f", "dir": "down", "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
+                 "edges": [{"from": "a", "to": "b"}]},
+                {"type": "table", "columns": ["Übung", "Dosis"], "rows": [["Zehenstand", "3×10"]], "caption": "Plan", "reader": "professional"}]}]
+        page = build.Report(wr(secs).d, out_dir=d, src=d / "r.json").render()
+        self.assertIn("<main", page)
+
+
+class ResponsiveTable(unittest.TestCase):
+    def table(self, **extra):
+        return report().b_table({"type": "table", "columns": ["Übung", "Dosis", "n"], "numeric": [2],
+                                 "rows": [["Zehenstand", "3×10", 4], {"cells": ["Ball rollen", "2 min", 0], "anchor": "rowa"}], **extra})
+
+    def test_every_cell_names_its_column(self):
+        out = self.table()
+        self.assertEqual(re.findall(r'<td role="cell" class="[^"]*" data-label="([^"]*)">', out), ["Übung", "Dosis", "n"] * 2)
+
+    def test_semantics_stay_in_the_markup(self):
+        out = self.table()
+        self.assertIn('<table class="rsp" role="table">', out)
+        self.assertIn('<thead role="rowgroup"><tr role="row"><th role="columnheader" class="">Übung</th>', out)
+        self.assertIn('<tbody role="rowgroup">', out)
+        self.assertIn('<tr role="row" id="e-rowa">', out)
+        self.assertIn('class="n zero"', out)
+
+    def test_caption_only_when_supplied(self):
+        self.assertNotIn("<caption>", self.table())
+        self.assertIn("<caption>Plan [@a.ts:1]</caption>".replace("[@a.ts:1]", src("a.ts:1")), self.table(caption="Plan [@a.ts:1]"))
+
+    def test_narrow_screens_switch_rows_to_labelled_cards(self):
+        css = Path(build.__file__).with_name("template.html").read_text()
+        narrow = css[css.index("@media(max-width:640px){\n .tw:has(>table.rsp)"):]
+        narrow = narrow[:narrow.index("\n}\n")]
+        self.assertIn("table.rsp td::before{content:attr(data-label)", narrow)
+        self.assertIn("table.rsp tr{", narrow)
+
+    def test_data_tables_stay_plain(self):
+        data = {"type": "data", "id": "d", "columns": [{"key": "a"}], "rows": [{"a": "x"}]}
+        self.assertNotIn("rsp", report().b_data(data))
+
+
+class VerticalFlow(unittest.TestCase):
+    def flow(self, **extra):
+        b = {"type": "flow", "id": "f", "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "edges": [{"from": "a", "to": "b"}], **extra}
+        return report().b_flow(b)
+
+    def test_down_flow_fits_the_column(self):
+        svg = re.search(r"<svg [^>]*>", self.flow(dir="down")).group(0)
+        self.assertIn('class="dg dgv"', svg)
+        self.assertRegex(svg, r'style="width:min\(100%,\d+px\);height:auto"')
+
+    def test_right_flow_is_unchanged(self):
+        svg = re.search(r"<svg [^>]*>", self.flow()).group(0)
+        self.assertIn('class="dg"', svg)
+        self.assertIn("width:clamp(", svg)
+
+
+class BoardBlock(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = Path(self.tmp.name)
+        (self.dir / "out").mkdir()
+        (self.dir / "r.media").mkdir()
+        (self.dir / "r.media" / "a.jpg").write_bytes(b"x")
+
+    def board(self, cards=None, changes=None, more=None):
+        """A board with a today canvas (cards a, b + `changes`) and a proposed canvas (card c + `more` cards)."""
+        return {"type": "board", "id": "mb", "label": "Screens", "canvases": [
+            {"id": "today", "label": "Today", "lanes": [
+                {"tone": "today", "cards": cards or [{"id": "a", "title": "List"}, {"id": "b", "title": "Preview"}],
+                 "changes": changes or []}]},
+            {"id": "next", "label": "Next", "lanes": [
+                {"tone": "proposed", "cards": [{"id": "c", "title": "Editor"}] + (more or [])}]}]}
+
+    def page(self, b):
+        data = {"title": "T", "lang": "en", "entities": [{"id": "alpha", "title": "Alpha", "label": "A"}],
+                "sections": [{"title": "Answer", "blocks": [{"type": "tree"}, b]}]}
+        return build.Report(data, out_dir=self.dir / "out", src=self.dir / "r.json").render()
+
+    def test_unknown_mark_kind_fails(self):
+        msg = fails(self.page, self.board(cards=[{"id": "a", "title": "List", "marks": ["shuffle"]}]))
+        self.assertIn("mark kind must be one of", msg)
+        self.assertIn("shuffle", msg)
+
+    def test_change_to_a_missing_card_fails(self):
+        for key in ("from", "to"):
+            msg = fails(self.page, self.board(changes=[{"mark": "move", "text": "Moves.", key: "zzz"}]))
+            self.assertIn(f"`{key}` zzz is not a card id of board mb", msg)
+
+    def test_duplicate_card_id_fails(self):
+        self.assertIn("duplicate id a", fails(self.page, self.board(more=[{"id": "a", "title": "Again"}])))
+
+    def test_missing_local_image_fails(self):
+        card = {"id": "a", "title": "List", "image": {"src": "r.media/none.jpg", "alt": "List"}}
+        self.assertIn("not found r.media/none.jpg", fails(self.page, self.board(cards=[card])))
+
+    def test_image_is_rewritten_relative_to_the_output(self):
+        card = {"id": "a", "title": "List", "image": {"src": "r.media/a.jpg", "alt": "List"}}
+        self.assertIn('<img src="../r.media/a.jpg" alt="List"', self.page(self.board(cards=[card])))
+
+    def test_mark_renders_kind_class_and_qualifier(self):
+        out = body(self.page(self.board(cards=[{"id": "a", "title": "List", "marks": ["reuse picker", "new"]}])))
+        self.assertRegex(out, r'<span class="bom bom-reuse">[^<]+ <span class="boq">picker</span></span>')
+        self.assertRegex(out, r'<span class="bom bom-new">[^<]+</span>')
+
+    def test_change_links_a_card_on_the_other_canvas(self):
+        out = body(self.page(self.board(changes=[{"mark": "move", "text": "Moves.", "from": "a", "to": "c"}])))
+        self.assertIn('<a href="#f-mb-a">List</a>', out)
+        self.assertIn('<a href="#f-mb-c">Editor</a>', out)
+        self.assertIn('id="f-mb-c"', out)
+        self.assertIn('id="f-mb-next"', out)
+
+    def test_card_ref_links_the_entity(self):
+        out = body(self.page(self.board(cards=[{"id": "a", "title": "List", "ref": "alpha"}])))
+        self.assertRegex(out, r'<p class="bok-e"><a [^>]*href="#e-alpha"')
+
+    def test_choice_check_fails_when_board_is_not_chosen(self):
+        data = {"sections": [section("Answer"), {"title": "Screens", "blocks": [self.board()]}]}
+        with tempfile.NamedTemporaryFile("w", suffix=".choice.json", delete=False) as f:
+            json.dump({"profile": "critique", "features": ["none"]}, f)
+        self.assertIn("board", fails(build.check_choice, data, f.name))
+        with tempfile.NamedTemporaryFile("w", suffix=".choice.json", delete=False) as f:
+            json.dump({"profile": "critique", "features": ["board"]}, f)
+        self.assertEqual(build.check_choice(data, f.name), "medium")
+
+
+
 if __name__ == "__main__":
     unittest.main()

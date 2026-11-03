@@ -1,6 +1,6 @@
 ---
 name: report-diagram
-description: "Dependency `map` canvases and mermaid notations (sequence, class, ER, C4, gantt, mindmap, sankey, railroad) with the notation-choice table. Use for 'what depends on what', 'who calls whom in which order', 'draw this as a diagram'."
+description: "Dependency `map` canvases, `board` moodboards (screens today vs. proposed, changes marked) and mermaid notations (sequence, class, ER, C4, gantt, mindmap, sankey, railroad) with the notation-choice table. Use for 'what depends on what', 'who calls whom in which order', 'moodboard', 'before/after of screens', 'draw this as a diagram'."
 license: MIT
 metadata:
   version: 0.1.1
@@ -9,7 +9,7 @@ metadata:
 
 # report-diagram <question>
 
-Answer `<question>` about dependencies, call order or structure with one `map` or `mermaid` block. Read the relations from the code or the dump first, draw second. Never draw an edge you did not read.
+Answer `<question>` about dependencies, call order, structure or a planned change of screens with one `map`, `board` or `mermaid` block. Read the relations from the code or the dump first, draw second. Never draw an edge you did not read.
 
 Reading contract: follow `skill://report-html` (citations, labels, answer-first).
 
@@ -27,6 +27,7 @@ Reading contract: follow `skill://report-html` (citations, labels, answer-first)
 | How much flows where, real numbers only | `mermaid` `sankey-beta` (3 columns: source,target,value) |
 | Which input is valid (grammar) | `mermaid` `railroad-beta` |
 | C4 context or container | `mermaid` `C4Context`, only when the user asks (experimental syntax) |
+| Screens or parts today vs. proposed, side by side, the changes marked (moodboard, before/after) | `board` |
 
 A levelled DFD stays native (`flow` in `report-flow`): mermaid has no balancing, no `drives` and no evidence table per edge.
 
@@ -48,6 +49,27 @@ map: id, label, height?, nodes: [{id, label?, sub?, lines?: [text], shape?: proc
 - Keep node labels readable: the name as in the code or a short human term, no `path:line`. Put the source in `at`. A path is a label only when it is the object being drawn (a file dependency web).
 - A `tree` with `drives: ["<map id>"]` above the map filters it: boxes whose `ref` the badges filter out disappear with their edges. Set `ref` on every box that is an entity. Tree first, map right after it.
 - Start layout: ranks by longest path, barycentre order, long ranks wrapped. "Copy layout" puts `{"pos": …, "off": […]}` on the clipboard; paste both into the block to ship the reader's arrangement.
+
+## `board`: moodboard canvas
+
+A `board` lays screens out as on a moodboard: one canvas per area, lanes of cards side by side (today, proposed), and between two lanes a gutter that lists what changes, with arrows. The reader pans, zooms and steps through the canvases; read mode stacks everything in page flow. Cards have no x/y and no drawn connectors.
+
+```
+board: id, label, height?: px (240-2400, default 640), legend?: bool (default true),
+  canvases: [{ id, label, title?, lead?: inline, change?,
+     lanes: [{ label?, tone?: today|proposed|plain, cols?: 1-4, change?, cards: [card],
+               changes?: [{ mark, text: inline, from?: card id, to?: card id, change? }] }] }]
+card: { id?, title, kicker?, ref?: entity id, marks?: ["<kind>[ qualifier]"], image?: {src, alt, caption?},
+        text?: inline, items?: [inline], blocks?: [block], at?, change? }
+```
+
+- Mark kinds: `move`, `merge`, `new`, `reuse`, `keep`, `later`, `remove`, `optional`; any other kind fails. A qualifier after the kind names the detail (`reuse picker`). The kind is printed, colour only backs it up; the legend lists the kinds in use.
+- A lane's `changes` render as a gutter after that lane: mark, text, then `from` → `to` as links. `from`/`to` name a card `id` on any canvas of the same board, else the build fails. A link opens the card's canvas and focuses the card.
+- Anchors: canvases and cards share `#f-<board>-<id>`; ids are unique per board. A page hash to a card opens its canvas.
+- `ref` links the card to its entity (↗) and counts as an incoming link. `image.src` is a local file next to the output HTML or `report.json`, rewritten relative to the output; a missing file or a URL fails. A click on the image opens it large, Esc closes.
+- `blocks` take any report block except `board` (a wireframe as `table`/`bullets`/`html`). `at` renders the source next to the card.
+- `tone` labels the lane (`today`, `proposed`) when it has no `label`. `cols` sets the card columns of a lane in canvas mode.
+- Keep one canvas per area or screen group, at most ~4 lanes per canvas. Screenshots go in `<stem>.media/`; never inline them.
 
 ## `mermaid`
 
@@ -79,9 +101,9 @@ The browser renders `code` from the pinned CDN module `mermaid@11`. The build ch
 ## Under report-html
 
 1. Do steps 1 to 3 of Alone for the selected blocks only; the `tree` in step 2 and the "only the block, its entities, the tree" list in step 3 apply only when the plan selected a tree. Hand the blocks and entities back to the orchestrator's section plan instead of building.
-2. Return only the `map` or `mermaid` blocks the section plan selected, plus the entities that their `ref` and `click` targets need. Add the `tree` of the nodes only when the plan selected it; a `ref`/`click` target can also be an entity that another selected block (table row `anchor`, tab `entity`) already owns. The standalone recipe uses a tree; the orchestration does not force one.
+2. Return only the `map`, `board` or `mermaid` blocks the section plan selected, plus the entities that their `ref` and `click` targets need. Add the `tree` of the nodes only when the plan selected it; a `ref`/`click` target can also be an entity that another selected block (table row `anchor`, tab `entity`) already owns. The standalone recipe uses a tree; the orchestration does not force one.
 3. Size: under `technical` every `map` edge carries `path:line` in `at` (the build fails without it). `small` never reaches this skill.
-4. Order inside a section: the prose first, then the selected `tree` (if any), then the `map` it `drives`, then `mermaid` figures.
+4. Order inside a section: the prose first, then the selected `tree` (if any), then the `map` it `drives`, then `mermaid` figures, then a `board`.
 5. The orchestrator builds and runs the full checks. Run the Verify list for your blocks.
 
 ## Verify
@@ -90,4 +112,5 @@ The browser renders `code` from the pinned CDN module `mermaid@11`. The build ch
 - `map`: dragging a box moves its edges. A click greys the box out and changes the counter. Both survive a reload. "Reset layout" restores the start layout.
 - `map` with a `tree`: a badge toggle removes boxes and their edges and changes the counter.
 - `mermaid`: the figure contains an `svg.dg`; ⤢ opens the zoom dialog with it; a click on a linked node jumps to the entity and highlights it. Without network the source text shows.
+- `board`: the select and ‹ › change the visible canvas; ⌘/Ctrl + wheel changes the zoom %; a plain wheel scrolls the page; a change arrow's link opens the other canvas and focuses its card; a hash to a card on canvas 2 opens canvas 2; "Read mode" stacks the canvases; at 390 px it starts in read mode; an image click opens the large view, Esc closes it.
 - Screenshot every diagram. Overlapping labels: shorten them or split the diagram.

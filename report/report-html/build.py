@@ -19,6 +19,7 @@ import math
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
+from urllib.parse import urlparse
 
 E = html.escape
 CITE = re.compile(r"\[@([^\[\]`\n]*)\]")  # inline citation: text without brackets, backticks or newlines
@@ -27,15 +28,21 @@ LINKS_SHOWN = 12  # per direction and tree row; the rest is counted
 COLORS = {"purple", "blue", "green", "gray", "orange", "pink", "teal", "yellow", "red", "navy", "brown", "ink"}
 CHANGE = {"new": "green", "changed": "orange", "removed": "red"}  # `change` value -> mark colour
 DIAGRAMS = {"flow", "lineage", "states", "map"}
-ID_FIGURES = {"mermaid", "vega", "video"}  # figures with an id and a `#f-<id>` anchor but no nodes; their renderers register below
+ID_FIGURES = {"mermaid", "vega", "video", "board"}  # figures with an id and a `#f-<id>` anchor but no nodes; their renderers register below
 FIND_TYPES = {"tree", "data"}  # block types that switch on the header find box
-PROFILES = {"explanation", "structure", "inventory", "critique", "comparison", "exploration", "change"}  # top-level `profile`
+PROFILES = {"explanation", "structure", "inventory", "critique", "comparison", "exploration", "change", "web-research"}  # top-level `profile`
 AT_REQUIRED = {"explanation", "structure"}  # profiles in which every flow/map edge needs `at`
 SIZES = ("small", "medium", "detailed", "technical")  # `size` in <stem>.choice.json; SKILL.md "Sizes"
 SIZE_QUESTIONS = {"small": 2, "medium": 6}  # max chosen questions; detailed and technical have no cap
 SIZE_FEATURES = {"small": {"none", "tree", "charts", "find"}}  # feature keys a size allows; other sizes allow all
 SIZE_SENTENCES = {"small": 2}  # max sentences in a section's opening `p`; other sizes 3
 SIZE_SENTENCES_DEFAULT = 3
+READERS = ("general", "informed", "professional")  # reader depths, shallow to deep; a block's `reader` is the minimum depth that shows it
+CALLOUT_TONES = ("answer", "safety", "action", "note")
+ALWAYS_TONES = {"safety", "action"}  # callouts that no reader depth hides
+SRC_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")  # a `sources` id: a safe URL fragment
+SRC_LIKE = re.compile(r"^[A-Za-z]{1,4}-?\d{1,4}$")  # a citation text that reads as a source id (S1, R12): unknown ones fail
+NOT_LOCAL = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:|//)")  # URL scheme or protocol-relative: not a local media path
 LINT_PROSE_WORDS = 60  # a p/bullets/steps block longer than this needs one [[id]] link
 LINT_KIND_MIN = 5  # entities of one kind needed before a missing meta key is reported
 HEAD = {}  # block type -> HTML for <head> (CDN tags); added once when a block of that type is in the report
@@ -64,6 +71,8 @@ SHAPES = {"process", "store", "external", "decision", "data", "state"}
 EDGE_KINDS = {"flow", "error", "opt"}
 PSEUDO = "[*]"  # UML initial (as source) / final (as target) pseudo-state, as in Mermaid
 CH = {13: 7.8, 12: 7.2, 11: 6.6}  # advance width of the mono font per px size
+BOARD_MARKS = ("move", "merge", "new", "reuse", "keep", "later", "remove", "optional")  # `board` mark kinds, legend order
+BOARD_TONES = ("today", "proposed", "plain")  # `board` lane tones
 TXT = {
     "de": {"ev": "Belege", "el": "Element", "at": "Beleg", "from": "Von", "to": "Nach", "fn": "Funktion",
            "note": "Änderung", "trigger": "Auslöser", "guard": "Bedingung", "up": "Teil von",
@@ -80,7 +89,21 @@ TXT = {
                      "Anordnung und Ausgegrautes bleiben in diesem Browser",
            "find": "Suchen…", "csv": "CSV", "chart_cdn": "Diagramm braucht das vega-CDN",
            "t_hint": "Klicken Sie auf ein Badge: Es schaltet den Wert ein oder aus.",
-           "t_reset": "Zurücksetzen", "t_count": "sichtbar", "sources": "Quellen und Laufdetails"},
+           "t_reset": "Zurücksetzen", "t_count": "sichtbar", "sources": "Quellen und Laufdetails",
+           "toc": "Inhalt", "skip": "Zum Inhalt springen", "bib": "Quellen", "depth": "Lesetiefe",
+           "find_label": "Im Bericht suchen", "find_clear": "Suche zurücksetzen", "find_hits": "Treffer",
+           "find_hidden": "+{n} ausgeblendet", "read": "gelesen", "for": "Für",
+           "tone_answer": "Antwort", "tone_safety": "Sicherheit", "tone_action": "Was tun", "tone_note": "Hinweis",
+           "bm_move": "VERSCHIEBEN", "bm_merge": "ZUSAMMENFÜHREN", "bm_new": "NEU", "bm_reuse": "WIEDERVERWENDEN",
+           "bm_keep": "BLEIBT", "bm_later": "SPÄTER", "bm_remove": "ENTFÄLLT", "bm_optional": "OPTIONAL",
+           "bmd_move": "zieht an einen anderen Ort", "bmd_merge": "geht in etwas anderem auf", "bmd_new": "kommt neu dazu",
+           "bmd_reuse": "nutzt etwas Vorhandenes", "bmd_keep": "bleibt wie es ist", "bmd_later": "kommt später",
+           "bmd_remove": "fällt weg", "bmd_optional": "kann, muss nicht",
+           "b_today": "Heute", "b_proposed": "Vorschlag", "b_changes": "Was sich ändert", "b_canvas": "Fläche",
+           "b_prev": "Vorherige Fläche", "b_next": "Nächste Fläche", "b_zin": "Vergrößern", "b_zout": "Verkleinern",
+           "b_read": "Lesemodus", "b_enlarge": "Bild groß zeigen", "b_close": "Schließen",
+           "b_hint": "Hintergrund ziehen: schwenken · ⌘/Strg + Mausrad oder zwei Finger: zoomen · ← →: Fläche · "
+                     "+ − 0: Zoom · Bild klicken: groß · Lesemodus: alles untereinander"},
     "en": {"ev": "Evidence", "el": "Element", "at": "Evidence", "from": "From", "to": "To", "fn": "Function",
            "note": "Change", "trigger": "Trigger", "guard": "Guard", "up": "Part of",
            "process": "process", "store": "data store", "external": "external", "boundary": "neighbour from parent level",
@@ -96,7 +119,21 @@ TXT = {
                      "layout and greyed boxes stay in this browser",
            "find": "Find…", "csv": "CSV", "chart_cdn": "Chart needs the vega CDN",
            "t_hint": "Click a badge to switch the value on or off.",
-           "t_reset": "Reset", "t_count": "visible", "sources": "Sources and run details"},
+           "t_reset": "Reset", "t_count": "visible", "sources": "Sources and run details",
+           "toc": "Contents", "skip": "Skip to content", "bib": "Sources", "depth": "Reading depth",
+           "find_label": "Search the report", "find_clear": "Clear search", "find_hits": "matches",
+           "find_hidden": "+{n} hidden", "read": "read", "for": "For",
+           "tone_answer": "Answer", "tone_safety": "Safety", "tone_action": "Action", "tone_note": "Note",
+           "bm_move": "MOVE", "bm_merge": "MERGE", "bm_new": "NEW", "bm_reuse": "REUSE",
+           "bm_keep": "KEEP", "bm_later": "LATER", "bm_remove": "REMOVE", "bm_optional": "OPTIONAL",
+           "bmd_move": "moves to another place", "bmd_merge": "merges into something else", "bmd_new": "is added",
+           "bmd_reuse": "reuses something that exists", "bmd_keep": "stays as it is", "bmd_later": "comes later",
+           "bmd_remove": "goes away", "bmd_optional": "may, need not",
+           "b_today": "Today", "b_proposed": "Proposed", "b_changes": "What changes", "b_canvas": "Canvas",
+           "b_prev": "Previous canvas", "b_next": "Next canvas", "b_zin": "Zoom in", "b_zout": "Zoom out",
+           "b_read": "Read mode", "b_enlarge": "Show image large", "b_close": "Close",
+           "b_hint": "drag the background: pan · ⌘/Ctrl + wheel or two fingers: zoom · ← →: canvas · "
+                     "+ − 0: zoom · click an image: enlarge · read mode: everything stacked"},
 }
 
 
@@ -120,11 +157,22 @@ def edge_of(e):
 
 
 def walk(blocks):
-    """Every block, including the ones nested in `tabs`."""
+    """Every block, including the ones nested in `tabs` and in `board` cards."""
     for b in blocks:
         yield b
-        for t in b.get("tabs", []) if b.get("type") == "tabs" else []:
-            yield from walk(t.get("blocks", []))
+        if b.get("type") == "tabs":
+            for t in b.get("tabs", []):
+                yield from walk(t.get("blocks", []))
+        elif b.get("type") == "board":
+            yield from walk(board_blocks(b))
+
+
+def board_blocks(b):
+    """The blocks of every card of a `board`, in order; tolerant of malformed data (b_board validates)."""
+    def dicts(v):
+        return [x for x in v if isinstance(x, dict)] if isinstance(v, list) else []
+    return [x for c in dicts(b.get("canvases")) for l in dicts(c.get("lanes")) for k in dicts(l.get("cards"))
+            for x in dicts(k.get("blocks"))]
 
 
 def changes(x):
@@ -185,6 +233,9 @@ class Report:
                 if val.get("color", "gray") not in COLORS:
                     fail(f"badge {c}:{k}: colour must be one of {sorted(COLORS)}")
         self.t = TXT.get(str(data.get("lang", "de"))[:2], TXT["en"])
+        self.nco = 0  # callout counter: unique ids for aria-labelledby
+        self.load_sources()
+        self.load_readers()
         self.ntabs, self.tab_entity = 0, None
         bad = sorted({str(v) for v in changes(data)} - set(CHANGE))
         if bad:
@@ -199,6 +250,109 @@ class Report:
         if size is not None and size not in SIZES:
             fail(f"size must be one of {', '.join(SIZES)}, not {size}")
         self.require_at()
+        self.check_reader()
+
+    # -- sources, reader depth, media paths ------------------------------
+    @staticmethod
+    def web_url(v):
+        return isinstance(v, str) and bool(re.match(r"^https?://[^\s/]+", v))
+
+    def loc(self, v):
+        """Text from a JSON value that is a string or a {de, en} object, in the report language."""
+        if isinstance(v, str):
+            return v.strip()
+        if isinstance(v, dict):
+            vals = [x for x in v.values() if isinstance(x, str) and x.strip()]
+            return str(v.get(str(self.d.get("lang", "de"))[:2]) or v.get("en") or (vals[0] if vals else "")).strip()
+        return ""
+
+    def load_sources(self):
+        """Top-level `sources`: [{id, title, url, publisher?, year?, kind?, read?, note?}]; `[@<id>]` links to the record."""
+        raw = self.d.get("sources")
+        self.sources = {}
+        if raw is None:
+            return
+        if not isinstance(raw, list):
+            fail("sources must be a list of records")
+        for i, s in enumerate(raw, 1):
+            if not isinstance(s, dict):
+                fail(f"sources[{i}]: must be an object")
+            sid = s.get("id")
+            if not isinstance(sid, str) or not SRC_ID.match(sid):
+                fail(f"sources[{i}]: `id` is required (letters, digits, . _ -)")
+            if sid in self.sources:
+                fail(f"duplicate source id {sid}")
+            for k in ("title", "url"):
+                if not isinstance(s.get(k), str) or not s[k].strip():
+                    fail(f"source {sid}: `{k}` is required")
+            if not self.web_url(s["url"]):
+                fail(f"source {sid}: `url` must start with http:// or https://")
+            self.sources[sid] = s
+
+    def load_readers(self):
+        """Top-level `readers`: {default?, label?, levels: [{id, label, description?}]} with the three ids of READERS.
+        Labels are a string or a {de, en} object."""
+        raw = self.d.get("readers")
+        self.readers = None
+        if raw is None:
+            return
+        levels = raw.get("levels") if isinstance(raw, dict) else None
+        if not isinstance(levels, list) or sorted(str(l.get("id")) if isinstance(l, dict) else "" for l in levels) != sorted(READERS):
+            fail(f"readers: `levels` must hold exactly one entry for each of {', '.join(READERS)}")
+        out = []
+        for l in levels:
+            label = self.loc(l.get("label"))
+            if not label:
+                fail(f"readers: level {l['id']} needs a `label`")
+            out.append({"id": l["id"], "label": label, "description": self.loc(l.get("description"))})
+        default = raw.get("default", "informed")
+        if default not in READERS:
+            fail(f"readers: default must be one of {', '.join(READERS)}, not {default}")
+        self.readers = {"default": default, "label": self.loc(raw.get("label")) or self.t["depth"], "levels": out}
+
+    def reader_rank(self, x, where):
+        """Depth index of x's `reader` (0 = always shown); fails on an unknown value or on a report without `readers`."""
+        r = x.get("reader")
+        if r is None:
+            return 0
+        if r not in READERS:
+            fail(f"{where}: reader must be one of {', '.join(READERS)}, not {r}")
+        if self.readers is None:
+            fail(f"{where}: `reader` needs a top-level `readers`")
+        return READERS.index(r)
+
+    @staticmethod
+    def always_shown(b):
+        return b.get("type") == "callout" and b.get("tone") in ALWAYS_TONES
+
+    def check_reader(self):
+        """No reader depth hides the first section's first paragraph or a safety/action callout."""
+        secs = self.d.get("sections", [])
+        self.answer = next((b for b in secs[0].get("blocks", []) if b.get("type") == "p"), None) if secs else None
+        for n, sec in enumerate(secs):
+            name = f'section "{sec.get("title", n + 1)}"'
+            if self.reader_rank(sec, name):
+                if n == 0:
+                    fail(f"{name}: the first section answers the question and stays visible; remove `reader`")
+                if any(self.always_shown(b) for b in walk(sec.get("blocks", []))):
+                    fail(f"{name}: `reader` would hide a safety or action callout; those stay visible")
+            for b in walk(sec.get("blocks", [])):
+                where = f'{name}: {b.get("type")} block'
+                if self.reader_rank(b, where):
+                    if b is self.answer:
+                        fail(f"{where}: the answer paragraph stays visible; remove `reader`")
+                    if any(self.always_shown(x) for x in walk([b])):
+                        fail(f"{where}: `reader` would hide a safety or action callout; those stay visible")
+
+    def media_path(self, where, rel):
+        """Local file `rel` next to the output HTML, else next to report.json; the path as the HTML must write it.
+        Fails when neither exists."""
+        out_dir = Path(self.out_dir) if self.out_dir is not None else Path(".")
+        bases = [out_dir] + ([Path(self.src).parent] if self.src is not None else [])
+        found = next((x / rel for x in bases if (x / rel).is_file()), None)
+        if found is None:
+            fail(f"{where}: file not found {rel}")
+        return rel if found == out_dir / rel else Path(os.path.relpath(found.resolve(), out_dir.resolve())).as_posix()
 
     # -- change document -------------------------------------------------
     def changed(self, x):
@@ -347,6 +501,15 @@ class Report:
         """A source reference as literal text in muted grey brackets: not HTML, not a URL, not an entity ref."""
         return f'<span class="src">[{E(str(value))}]</span>'
 
+    def cite(self, raw):
+        """A `[@text]` citation. The exact id of a `sources` record links to its bibliography entry; any other text stays a
+        literal span. With sources declared (or profile web-research), text that reads as a source id but names none fails."""
+        if raw in self.sources:
+            return (f'<a class="src cite" href="#src-{E(raw)}" title="{E(self.sources[raw]["title"])}">[{E(raw)}]</a>')
+        if (self.sources or self.d.get("profile") == "web-research") and SRC_LIKE.match(raw):
+            fail(f"citation [@{raw}] names no source id (known: {', '.join(self.sources) or 'none'})")
+        return self.source(raw.strip())
+
     def inline(self, text):
         """Plain text with `code` spans, [[entity-id]] / [[entity-id|label]] links and [@source text] citations.
         A citation is `[@` + text + `]`; the text is non-empty, one line, and has no `[`, `]` or backtick.
@@ -361,7 +524,7 @@ class Report:
                 out.append(self.link(eid, label or None))
                 i = j + 2
             elif s.startswith("[@", i) and (m := CITE.match(s, i)) and m.group(1).strip():
-                out.append(self.source(m.group(1).strip()))
+                out.append(self.cite(m.group(1)))
                 i = m.end()
             elif s[i] == "`" and "`" in s[i + 1:]:
                 j = s.index("`", i + 1)
@@ -418,9 +581,11 @@ class Report:
         return self.inline(c) if c not in (None, "") else "—"
 
     def b_table(self, b):
+        """Static table. Every cell carries `data-label` (its column header) so a narrow screen can show each row as a labelled card;
+        explicit roles keep the table semantics when the CSS switches the table elements to blocks. `caption` is optional."""
         cols = b["columns"]
         num = set(b.get("numeric", []))
-        head = "".join(f'<th class="{"n" if i in num else ""}">{E(c)}</th>' for i, c in enumerate(cols))
+        head = "".join(f'<th role="columnheader" class="{"n" if i in num else ""}">{E(c)}</th>' for i, c in enumerate(cols))
         rows, scope = [], self.scope(b["rows"])
         for r in b["rows"]:
             cells, rid, rcls, mk = r, None, "", ""
@@ -438,11 +603,14 @@ class Report:
                         cls.append("zero")
                 if i == 0:
                     cls.append("nw")
-                tds.append(f'<td class="{" ".join(cls)}">{mk if i == 0 else ""}{self.cell(c)}</td>')
+                label = E(str(cols[i])) if i < len(cols) else ""
+                tds.append(f'<td role="cell" class="{" ".join(cls)}" data-label="{label}">{mk if i == 0 else ""}{self.cell(c)}</td>')
             idattr = f' id="{E(self.anchor(rid))}"' if rid is not None else ""
             clsattr = f' class="{rcls.strip()}"' if rcls else ""
-            rows.append(f"<tr{idattr}{clsattr}>{''.join(tds)}</tr>")
-        return f'<div class="tw"><table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>'
+            rows.append(f'<tr role="row"{idattr}{clsattr}>{"".join(tds)}</tr>')
+        cap = f"<caption>{self.inline(b['caption'])}</caption>" if b.get("caption") else ""
+        return (f'<div class="tw"><table class="rsp" role="table">{cap}<thead role="rowgroup"><tr role="row">{head}</tr></thead>'
+                f'<tbody role="rowgroup">{"".join(rows)}</tbody></table></div>')
 
     def b_data(self, b):
         """Interactive table: a plain `<table class="dt">` that the template upgrades with simple-datatables
@@ -871,8 +1039,9 @@ class Report:
         marks = "".join(f'<marker id="m-{E(gid)}-{k}" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">'
                         f'<path d="M0,0 L8,4 L0,8" class="mk {self.kind_style(kinds, k)[0]}"{self.kind_style(kinds, k)[1]}/></marker>'
                         for k in sorted(used & (EDGE_KINDS | set(kinds))))
-        svg = (f'<svg viewBox="{x0:.1f} {y0:.1f} {wd} {ht}" width="{wd}" height="{ht}" class="dg" role="img" '
-               f'style="width:clamp({int(wd * .8)}px,100%,{wd}px);height:auto" '
+        fit = f"min(100%,{wd}px)" if not right else f"clamp({int(wd * .8)}px,100%,{wd}px)"  # down: always inside the column, no sideways scroll
+        svg = (f'<svg viewBox="{x0:.1f} {y0:.1f} {wd} {ht}" width="{wd}" height="{ht}" class="dg{"" if right else " dgv"}" role="img" '
+               f'style="width:{fit};height:auto" '
                f'aria-label="{E(b.get("label") or b["id"])}"><defs>{marks}</defs>'
                + "".join(svg_edges + svg_nodes + svg_labels) + "</svg>")
         return svg, used
@@ -1285,6 +1454,201 @@ class Report:
                  + "</span>")
         return self.figure(b, svg, used, after=f'<p class="mh">{E(t["m_hint"])}</p>' + self.evidence(rows), tools=tools)
 
+    def board_mark(self, where, m):
+        """One `board` mark `<kind>[ qualifier]` -> (kind, tag html); an unknown kind fails."""
+        if not isinstance(m, str) or not m.strip():
+            fail(f"{where}: a mark is a string `<kind>[ qualifier]`, not {m!r}")
+        kind, _, q = m.strip().partition(" ")
+        if kind not in BOARD_MARKS:
+            fail(f"{where}: mark kind must be one of {', '.join(BOARD_MARKS)}, not {kind}")
+        qual = f' <span class="boq">{E(q.strip())}</span>' if q.strip() else ""
+        return kind, f'<span class="bom bom-{kind}">{E(self.t["bm_" + kind])}{qual}</span>'
+
+    def board_card(self, b, card, cls, mk, where, used):
+        """One card: kicker, title, entity link, marks, image (click: large view), text, items, nested blocks, `at`."""
+        gid, t = b["id"], self.t
+        out = [mk]
+        if card.get("kicker"):
+            out.append(f'<p class="bok-k">{E(str(card["kicker"]))}</p>')
+        out.append(f'<h4 class="bok-t">{E(card["title"])}</h4>')
+        if card.get("ref") is not None:
+            ref = card["ref"]
+            if ref not in self.ents:
+                fail(f"{where}: unknown ref {ref}")
+            e = self.ents[ref]
+            out.append(f'<p class="bok-e">{self.link(ref, "↗ " + str(e.get("label") or e.get("title") or ref))}</p>')
+        marks = card.get("marks", [])
+        if not isinstance(marks, list):
+            fail(f"{where}: `marks` must be a list of `<kind>[ qualifier]` strings")
+        if marks:
+            tags = []
+            for m in marks:
+                kind, tag = self.board_mark(where, m)
+                used.add(kind)
+                tags.append(tag)
+            out.append(f'<p class="bok-m">{" ".join(tags)}</p>')
+        img = card.get("image")
+        if img is not None:
+            if not isinstance(img, dict):
+                fail(f"{where}: `image` must be an object {{src, alt, caption?}}")
+            for k in ("src", "alt"):
+                if not isinstance(img.get(k), str) or not img[k].strip():
+                    fail(f"{where}: image `{k}` is required and must not be empty")
+            if NOT_LOCAL.match(img["src"]):
+                fail(f"{where}: image `src` must be a local file next to the report, not a URL")
+            path = self.media_path(where, img["src"])
+            cap = f'<figcaption>{self.inline(img["caption"])}</figcaption>' if img.get("caption") else ""
+            out.append(f'<figure class="boi"><a class="boi-b" href="{E(path)}" title="{E(t["b_enlarge"])}">'
+                       f'<img src="{E(path)}" alt="{E(img["alt"])}" loading="lazy" decoding="async"></a>{cap}</figure>')
+        if card.get("text"):
+            out.append(f'<p>{self.inline(card["text"])}</p>')
+        if card.get("items"):
+            if not isinstance(card["items"], list):
+                fail(f"{where}: `items` must be a list of inline texts")
+            out.append(self.items("ul", {"items": card["items"]}))
+        blocks = card.get("blocks", [])
+        if not isinstance(blocks, list) or not all(isinstance(x, dict) and x.get("type") for x in blocks):
+            fail(f"{where}: `blocks` must be a list of report blocks")
+        if any(x.get("type") == "board" for x in walk(blocks)):
+            fail(f"{where}: a card cannot hold a board")
+        bscope = self.scope(blocks)
+        out += [self.block(x, where, bscope) for x in blocks]
+        if card.get("at"):
+            out.append(f'<p class="bok-at">{self.source(card["at"])}</p>')
+        aid = f' id="{E(self.danchor(gid, card["id"]))}" tabindex="-1"' if card.get("id") is not None else ""
+        return f'<article class="bok{cls}"{aid}>{"".join(out)}</article>'
+
+    def board_lane(self, b, lane, cls, mk, where, cards, used):
+        """One lane (a grid of `cols` card columns) and, after it, the gutter of its `changes`."""
+        gid, t = b["id"], self.t
+        tone = lane.get("tone", "plain")
+        label = lane.get("label") or (t["b_" + tone] if tone != "plain" else "")
+        head = f'<p class="bol-l">{mk}{E(str(label))}</p>' if label or mk else ""
+        cs = self.scope(lane["cards"])
+        body = []
+        for k, card in enumerate(lane["cards"], 1):
+            ck, ccls, cmk = self.state(card, cs)
+            body.append(self.inside(ck, self.board_card, b, card, ccls, cmk, f"{where} card {card.get('id', k)}", used))
+        out = f'<div class="bol bol-{tone}{cls}" style="--cols:{lane.get("cols", 1)}">{head}<div class="bog">{"".join(body)}</div></div>'
+        chs = lane.get("changes", [])
+        if not chs:
+            return out
+        xs, items = self.scope(chs), []
+        for n, x in enumerate(chs, 1):
+            xw = f"{where} change {n}"
+            if not isinstance(x, dict):
+                fail(f"{xw}: must be an object {{mark, text, from?, to?}}")
+            kind, tag = self.board_mark(xw, x.get("mark"))
+            used.add(kind)
+            if not isinstance(x.get("text"), str) or not x["text"].strip():
+                fail(f"{xw}: `text` is required")
+            ends = []
+            for key in ("from", "to"):
+                v = x.get(key)
+                if v is None:
+                    continue
+                if v not in cards:
+                    fail(f"{xw}: `{key}` {v} is not a card id of board {gid}")
+                ends.append((key, f'<a href="#{E(self.danchor(gid, v))}">{E(cards[v]["title"])}</a>'))
+            a = dict(ends)
+            route = (f'<span class="boa-r">{" ".join(s for s in (a.get("from"), "→", a.get("to")) if s)}</span>' if ends else "")
+            _, xcls, xmk = self.state(x, xs)
+            items.append(f'<li class="boa{xcls}">{xmk}{tag} <span class="boa-t">{self.inline(x["text"])}</span>{route}'
+                         f'<span class="boa-l" aria-hidden="true"></span></li>')
+        return (out + f'<div class="bou" role="group" aria-label="{E(t["b_changes"])}"><p class="bou-l">{E(t["b_changes"])}</p>'
+                f'<ol>{"".join(items)}</ol></div>')
+
+    def board_canvas(self, b, c, cls, mk, where, cards, used):
+        """One canvas: heading, lead, then its lanes and gutters side by side (canvas mode) or stacked (read mode)."""
+        ls, parts = self.scope(c["lanes"]), []
+        for j, lane in enumerate(c["lanes"], 1):
+            lk, lcls, lmk = self.state(lane, ls)
+            parts.append(self.inside(lk, self.board_lane, b, lane, lcls, lmk, f"{where} lane {j}", cards, used))
+        lead = f'<p class="boh-l">{self.inline(c["lead"])}</p>' if c.get("lead") else ""
+        return (f'<div class="boc{cls}" id="{E(self.danchor(b["id"], c["id"]))}" tabindex="-1" role="group" aria-label="{E(c["label"])}">'
+                f'<div class="boh"><h3>{mk}{E(str(c.get("title") or c["label"]))}</h3>{lead}</div><div class="bor">{"".join(parts)}</div></div>')
+
+    def b_board(self, b):
+        """Moodboard canvas (`report-diagram`): canvases of lanes of cards; a lane's `changes` render as a gutter of marked
+        arrows after it. The template shows one canvas at a time on a pannable, zoomable dot grid; read mode (no JS, print,
+        narrow screens) stacks everything in page flow. Canvases and cards with an `id` are anchors `#f-<board>-<id>`."""
+        gid, t = b["id"], self.t
+        where = f"board {gid}"
+        if not isinstance(b.get("label"), str) or not b["label"].strip():
+            fail(f"{where}: `label` is required")
+        h = b.get("height", 640)
+        if not isinstance(h, int) or isinstance(h, bool) or not 240 <= h <= 2400:
+            fail(f"{where}: height must be whole pixels from 240 to 2400, not {h!r}")
+        if not isinstance(b.get("legend", True), bool):
+            fail(f"{where}: legend must be true or false")
+        canvases = b.get("canvases")
+        if not isinstance(canvases, list) or not canvases:
+            fail(f"{where}: `canvases` must be a non-empty list")
+        # pass 1: shapes and ids, so a change's `from`/`to` can name a card on any canvas of the board
+        ids, cards = set(), {}
+        for i, c in enumerate(canvases, 1):
+            if not isinstance(c, dict):
+                fail(f"{where}: canvases[{i}] must be an object")
+            cid = c.get("id")
+            if not isinstance(cid, str) or not SRC_ID.match(cid):
+                fail(f"{where}: canvases[{i}]: `id` is required (letters, digits, . _ -)")
+            if cid in ids:
+                fail(f"{where}: duplicate id {cid} (canvases and cards share the anchors #f-{gid}-<id>)")
+            ids.add(cid)
+            if not isinstance(c.get("label"), str) or not c["label"].strip():
+                fail(f"{where}: canvas {cid}: `label` is required")
+            if not isinstance(c.get("lanes"), list) or not c["lanes"]:
+                fail(f"{where}: canvas {cid}: `lanes` must be a non-empty list")
+            for j, lane in enumerate(c["lanes"], 1):
+                lw = f"{where} canvas {cid} lane {j}"
+                if not isinstance(lane, dict):
+                    fail(f"{lw}: must be an object")
+                if lane.get("tone", "plain") not in BOARD_TONES:
+                    fail(f"{lw}: tone must be one of {', '.join(BOARD_TONES)}, not {lane['tone']}")
+                cols = lane.get("cols", 1)
+                if not isinstance(cols, int) or isinstance(cols, bool) or not 1 <= cols <= 4:
+                    fail(f"{lw}: cols must be 1 to 4, not {cols!r}")
+                if not isinstance(lane.get("cards"), list):
+                    fail(f"{lw}: `cards` must be a list")
+                if not isinstance(lane.get("changes", []), list):
+                    fail(f"{lw}: `changes` must be a list")
+                for k, card in enumerate(lane["cards"], 1):
+                    if not isinstance(card, dict):
+                        fail(f"{lw}: cards[{k}] must be an object")
+                    if not isinstance(card.get("title"), str) or not card["title"].strip():
+                        fail(f"{lw}: cards[{k}]: `title` is required")
+                    kid = card.get("id")
+                    if kid is None:
+                        continue
+                    if not isinstance(kid, str) or not SRC_ID.match(kid):
+                        fail(f"{lw}: cards[{k}]: `id` must be letters, digits, . _ -")
+                    if kid in ids:
+                        fail(f"{where}: duplicate id {kid} (canvases and cards share the anchors #f-{gid}-<id>)")
+                    ids.add(kid)
+                    cards[kid] = card
+        used, out, opts = set(), [], []
+        cs = self.scope(canvases)
+        for i, c in enumerate(canvases, 1):
+            k, cls, mk = self.state(c, cs)
+            out.append(self.inside(k, self.board_canvas, b, c, cls, mk, f"{where} canvas {c['id']}", cards, used))
+            opts.append(f'<option value="{E(self.danchor(gid, c["id"]))}">{i} / {len(canvases)} · {E(c["label"])}</option>')
+        btn = lambda key, label, txt, cls="": (f'<button type="button"{cls} data-b="{key}" aria-label="{E(label)}" '
+                                              f'title="{E(label)}">{txt}</button>')
+        tools = ('<span class="mtb bot">' + btn("prev", t["b_prev"], "‹") + f'<select aria-label="{E(t["b_canvas"])}">{"".join(opts)}</select>'
+                 + btn("next", t["b_next"], "›") + btn("out", t["b_zout"], "−", ' class="boz"')
+                 + '<output class="mc boz" aria-live="polite">100%</output>' + btn("in", t["b_zin"], "+", ' class="boz"')
+                 + btn("fit", t["m_fit"], E(t["m_fit"]), ' class="boz"')
+                 + f'<button type="button" data-b="read" aria-pressed="false">{E(t["b_read"])}</button>'
+                 + btn("full", t["m_full"], E(t["m_full"])) + "</span>")
+        inner = (f'<div class="bov" style="--bo-h:{h}px" tabindex="0" role="region" aria-label="{E(b["label"])}" '
+                 f'data-close="{E(t["b_close"])}"><div class="bow">{"".join(out)}</div></div>')
+        legend = ""
+        if used and b.get("legend", True):
+            legend = '<div class="lg bolg">' + "".join(
+                f'<span><span class="bom bom-{k}">{E(t["bm_" + k])}</span>{E(t["bmd_" + k])}</span>' for k in BOARD_MARKS if k in used) + "</div>"
+        fig = self.figure(b, inner, set(), after=legend + f'<p class="mh bohint">{E(t["b_hint"])}</p>', tools=tools)
+        return fig.replace('<figure class="fg"', '<figure class="fg bo"', 1)
+
     def b_tree(self, b):
         filt = b.get("filter", list(self.cats))
         cats = [{"key": c, "mode": self.cats[c].get("filter", "any")} for c in filt]
@@ -1437,17 +1801,12 @@ class Report:
         `chapters` (`[{t, label}]`, `t` seconds ascending: a button list under the player that seeks it), `caption`, `at`."""
         gid = b["id"]
         out_dir = Path(self.out_dir) if self.out_dir is not None else Path(".")
-        bases = [out_dir] + ([Path(self.src).parent] if self.src is not None else [])
         for key in ("src", "poster", "track"):
             if key == "src" and not b.get(key):
                 fail(f"video {gid}: `src` is required")
             if not b.get(key):
                 continue
-            found = next((x / b[key] for x in bases if (x / b[key]).is_file()), None)
-            if found is None:
-                fail(f"video {gid}: file not found {b[key]}")
-            if found != out_dir / b[key]:
-                b[key] = Path(os.path.relpath(found.resolve(), out_dir.resolve())).as_posix()
+            b[key] = self.media_path(f"video {gid}", b[key])
         chapters = b.get("chapters") or []
         prev = -1
         for i, c in enumerate(chapters):
@@ -1476,6 +1835,83 @@ class Report:
         if b.get("at"):
             after += self.evidence([(E(b.get("label", gid)), b["at"])])
         return self.figure(b, el, used={}, tools="", after=after)
+
+    def b_media(self, b):
+        """Licensed images (`web-research`): `items: [{src, alt, caption, credit, href?, license?, license_url?}]`. `src` is a local
+        file next to the output HTML or report.json (rewritten relative to the output); alt, caption and credit are required.
+        `href` links the credit to the image's source page, `license_url` the licence name to its text. One or two columns."""
+        items = b.get("items")
+        if not isinstance(items, list) or not items:
+            fail("media: `items` must be a non-empty list")
+        figs = []
+        for i, it in enumerate(items, 1):
+            where = f"media item {i}"
+            if not isinstance(it, dict):
+                fail(f"{where}: must be an object")
+            for k in ("src", "alt", "caption", "credit"):
+                if not isinstance(it.get(k), str) or not it[k].strip():
+                    fail(f"{where}: `{k}` is required and must not be empty")
+            if NOT_LOCAL.match(it["src"]):
+                fail(f"{where}: `src` must be a local file next to the report, not a URL")
+            for k in ("href", "license_url"):
+                if it.get(k) is not None and not self.web_url(it[k]):
+                    fail(f"{where}: `{k}` must be an http(s) URL")
+            lic = str(it.get("license") or "").strip()
+            if it.get("license_url") and not lic:
+                fail(f"{where}: `license_url` needs `license`")
+            path = self.media_path(where, it["src"])
+            ext = 'rel="noopener noreferrer"'
+            credit = f'<a href="{E(it["href"])}" {ext}>{E(it["credit"])}</a>' if it.get("href") else E(it["credit"])
+            licence = ""
+            if lic:
+                lic_html = f'<a href="{E(it["license_url"])}" {ext}>{E(lic)}</a>' if it.get("license_url") else E(lic)
+                licence = f' <span class="mf-l">{lic_html}</span>'
+            figs.append(f'<figure class="mf"><img src="{E(path)}" alt="{E(it["alt"])}" loading="lazy" decoding="async">'
+                        f'<figcaption><span class="mf-c">{self.inline(it["caption"])}</span> '
+                        f'<span class="mf-cr">{credit}</span>{licence}</figcaption></figure>')
+        return f'<div class="gal" data-n="{min(len(figs), 2)}">{"".join(figs)}</div>'
+
+    def b_resources(self, b):
+        """Curated external resources (`web-research`): `items: [{title, url, description, audience?, kind?}]`, optional `label`.
+        Every url is external (http/https)."""
+        items = b.get("items")
+        if not isinstance(items, list) or not items:
+            fail("resources: `items` must be a non-empty list")
+        cards = []
+        for i, it in enumerate(items, 1):
+            where = f"resources item {i}"
+            if not isinstance(it, dict):
+                fail(f"{where}: must be an object")
+            for k in ("title", "url", "description"):
+                if not isinstance(it.get(k), str) or not it[k].strip():
+                    fail(f"{where}: `{k}` is required and must not be empty")
+            if not self.web_url(it["url"]):
+                fail(f"{where}: `url` must start with http:// or https://")
+            meta = []
+            if it.get("kind"):
+                meta.append(f'<span class="bg s-pill rc-k" style="--c:var(--gray);--cb:var(--gray-bg)">{E(str(it["kind"]))}</span>')
+            if it.get("audience"):
+                meta.append(f'<span class="rc-a">{E(self.t["for"])} {E(str(it["audience"]))}</span>')
+            meta.append(f'<span class="rc-h">{E(urlparse(it["url"]).hostname or "")}</span>')
+            cards.append(f'<li class="rc"><a class="rc-t" href="{E(it["url"])}" rel="noopener noreferrer">{E(it["title"])}</a>'
+                         f'<span class="rc-m">{"".join(meta)}</span><p class="rc-d">{self.inline(it["description"])}</p></li>')
+        label = f'<h3 class="rc-l">{E(b["label"])}</h3>' if b.get("label") else ""
+        return f'{label}<ul class="res">{"".join(cards)}</ul>'
+
+    def b_callout(self, b):
+        """Highlighted block (`web-research`): `tone` answer|safety|action|note, `title`, `text`, optional `items`.
+        The tone name is printed, so the tone never relies on colour alone. Safety and action stay visible at every reader depth."""
+        tone = b.get("tone")
+        if tone not in CALLOUT_TONES:
+            fail(f"callout: tone must be one of {', '.join(CALLOUT_TONES)}, not {tone}")
+        for k in ("title", "text"):
+            if not isinstance(b.get(k), str) or not b[k].strip():
+                fail(f"callout ({tone}): `{k}` is required and must not be empty")
+        self.nco += 1
+        cid = f"co-{self.nco}"
+        items = f'<ul class="ste">{"".join(f"<li>{self.inline(x)}</li>" for x in b["items"])}</ul>' if b.get("items") else ""
+        return (f'<div class="co co-{tone}" role="group" aria-labelledby="{cid}"><p class="co-h"><span class="co-k">{E(self.t["tone_" + tone])}</span> '
+                f'<strong id="{cid}">{E(b["title"])}</strong></p><p>{self.inline(b["text"])}</p>{items}</div>')
 
     def vega_check(self, b):
         """Validate and normalise one `vega` block once (the spec stays inline, the dataset is named `rows` for the page script);
@@ -1521,13 +1957,18 @@ class Report:
         return self.figure(b, inner, used={}, tools="", after=after).replace('<figure class="fg"', f'<figure class="fg"{ent}', 1)
 
     def block(self, b, where, scope=False):
-        """One block; in a change document a marked block gets its mark and rule, an unmarked one next to a marked sibling dims."""
+        """One block; in a change document a marked block gets its mark and rule, an unmarked one next to a marked sibling dims.
+        A block with `reader` (deeper than general) sits in a `.rd[data-reader]` wrapper the page script shows or hides."""
         fn = getattr(self, "b_" + b["type"], None)
         if not fn:
             fail(f"{where}: unknown block type {b['type']}")
         k, cls, mk = self.state(b, scope)
         out = self.inside(k, fn, b)
-        return f'<div class="cx{cls}">{mk}{out}</div>' if cls else out
+        if cls:
+            out = f'<div class="cx{cls}">{mk}{out}</div>'
+        if self.reader_rank(b, where):
+            out = f'<div class="rd" data-reader="{E(b["reader"])}">{out}</div>'
+        return out
 
     # -- computed stats, evidence and lint ---------------------------------
     def require_at(self):
@@ -1649,6 +2090,11 @@ class Report:
     def lint(self):
         """Lint lines for the weaknesses of the 2026-10-13 review; stat lines are already in self.lints."""
         out, d = list(self.lints), self.d
+        if self.sources:
+            cited = set(CITE.findall(json.dumps({k: v for k, v in d.items() if k != "sources"}, ensure_ascii=False)))
+            out += [f"source {sid}: never cited" for sid in self.sources if sid not in cited]
+        elif d.get("profile") == "web-research":
+            out.append("web-research: no top-level `sources`")
         secs = d.get("sections", [])
         inc = self.incoming()
         for e in d.get("entities", []):
@@ -1729,33 +2175,78 @@ class Report:
         return out
 
     # -- page ------------------------------------------------------------
+    def reader_control(self):
+        """Segmented control for the reader depth: three toggle buttons; the page script sets `html[data-depth]` and keeps the choice
+        in sessionStorage. The active level's description shows next to the buttons."""
+        rd = self.readers
+        btns = "".join(f'<button type="button" data-depth="{E(l["id"])}" data-desc="{E(l["description"])}" aria-pressed="false">{E(l["label"])}</button>'
+                       for l in rd["levels"])
+        return (f'<div class="rdc" role="group" aria-labelledby="rdl" aria-describedby="rdd" data-default="{E(rd["default"])}">'
+                f'<span id="rdl" class="rdl">{E(rd["label"])}</span><div class="seg">{btns}</div><span id="rdd" class="rdd"></span></div>')
+
+    def bibliography(self):
+        """The `sources` records as an ordered list after the authored sections; every record is an anchor `#src-<id>`.
+        The title links out. No reader depth hides it."""
+        if not self.sources:
+            return ""
+        t, items = self.t, []
+        for sid, s in self.sources.items():
+            meta = [E(str(s[k])) for k in ("publisher", "year") if s.get(k)]
+            if s.get("kind"):
+                meta.append(f'<span class="bg s-pill" style="--c:var(--gray);--cb:var(--gray-bg)">{E(str(s["kind"]))}</span>')
+            host = urlparse(s["url"]).hostname
+            if host:
+                meta.append(f'<span class="rc-h">{E(host)}</span>')
+            if s.get("read"):
+                meta.append(f'{E(t["read"])} {E(str(s["read"]))}')
+            note = f'<span class="bi-n">{self.inline(s["note"])}</span>' if s.get("note") else ""
+            items.append(f'<li id="src-{E(sid)}" class="bi"><span class="src bi-id">[{E(sid)}]</span>'
+                         f'<div class="bi-b"><a class="bi-t" href="{E(s["url"])}" rel="noopener noreferrer">{E(s["title"])}</a>'
+                         f'<span class="mt bi-m">{" · ".join(meta)}</span>{note}</div></li>')
+        return (f'<section id="sources" class="bibl" aria-labelledby="sources-h"><h2 id="sources-h">{E(t["bib"])}</h2>'
+                f'<div class="body"><ol class="bib">{"".join(items)}</ol></div></section>')
+
     def render(self):
         d = self.d
         used = {b.get("type") for sec in d.get("sections", []) for b in walk(sec.get("blocks", []))}
         t = self.t
-        find = (f'<div class="find"><input id="find" type="search" placeholder="{E(t["find"])}" aria-label="{E(t["find"])}">'
-                '<span id="findn"></span></div>') if used & FIND_TYPES else ""
+        wr = d.get("profile") == "web-research"
+        find = ""
+        if used & FIND_TYPES or wr:
+            extra = (f' aria-controls="main" data-hits="{E(t["find_hits"])}" data-hidden="{E(t["find_hidden"])}"' if wr else "")
+            clear = (f'<button type="button" id="findx" class="fclr">{E(t["find_clear"])}</button>' if wr else "")
+            find = (f'<div class="find"><input id="find" type="search" placeholder="{E(t["find"])}" '
+                    f'aria-label="{E(t["find_label"] if wr else t["find"])}"{extra}>{clear}'
+                    '<span id="findn" role="status" aria-live="polite"></span></div>')
+        reader = self.reader_control() if self.readers else ""
         meta = d.get("meta", [])
         lines = "<br>".join(self.inline(m) for m in meta)
         prov = f'<details class="provenance"><summary>{E(t["sources"])}</summary><p>{lines}</p></details>' if meta else ""
         # closed <details> content is not printed: a print-only copy keeps the sources on paper
         prov_print = f'<p class="prov-print">{lines}</p>' if meta else ""
-        head = [f'<header><h1>{E(d["title"])}</h1>{prov}{prov_print}{find}</header>']
         stats = ""
         if d.get("stats"):
             stats = '<dl class="stats">' + "".join(f"<div><dt>{E(k)}</dt><dd>{E(self.stat(k, v))}</dd></div>" for k, v in d["stats"]) + "</dl>"
         secs = d.get("sections", [])
-        parts = []
+        parts, toc = [], []
         top = self.scope(secs)
         for i, sec in enumerate(secs, 1):
             k, cls, mk = self.state(sec, top)
             inner = self.scope(sec.get("blocks", []))
             body = self.inside(k, lambda: [self.block(b, f"section {sec['title']}", inner) for b in sec.get("blocks", [])])
             num = f"{i} " if d.get("numbered", True) else ""
-            sid = f' id="{E(sec["id"])}"' if sec.get("id") else ""
+            secid = sec.get("id") or (f"s-{i}" if wr else None)
+            sid = f' id="{E(secid)}"' if secid else ""
+            hid = f' id="{E(secid)}-h"' if wr else ""
+            lab = f' aria-labelledby="{E(secid)}-h"' if wr else ""
+            rd = f' data-reader="{E(sec["reader"])}"' if self.reader_rank(sec, f"section {sec['title']}") else ""
             ccls = f' class="{cls.strip()}"' if cls else ""
-            parts.append(f'<section{sid}{ccls}><h2>{num}{mk}{E(sec["title"])}<span>{E(sec.get("sub", ""))}</span></h2>'
+            parts.append(f'<section{sid}{ccls}{rd}{lab}><h2{hid}>{num}{mk}{E(sec["title"])}<span>{E(sec.get("sub", ""))}</span></h2>'
                          f'<div class="body">{"".join(body)}</div></section>')
+            toc.append(f'<li{rd}><a href="#{E(secid or "")}">{num}{E(sec["title"])}</a></li>')
+        bib = self.bibliography()
+        if bib:
+            toc.append(f'<li><a href="#sources">{E(t["bib"])}</a></li>')
         summary = ""
         if self.chg:
             since = f' {E(str(d["since"]))}' if d.get("since") else ""
@@ -1763,9 +2254,18 @@ class Report:
             summary = (f'<div class="chgbar"><span>{E(self.t["since"])}{since}:</span>{counts}'
                        f'<span class="mt">{E(self.t["dimmed"])}</span>'
                        f'<button type="button" aria-pressed="false" onclick="nodim(this)">{E(self.t["full"])}</button></div>')
-        # reading order: title and find box, the first section (the answer), statistics and change summary, the rest
-        parts = head + parts[:1] + [x for x in (stats, summary) if x] + parts[1:]
-        body = "\n".join(parts)
+        # reading order: title and tools, the first section (the answer), statistics and change summary, the rest, the bibliography
+        content = parts[:1] + [x for x in (stats, summary) if x] + parts[1:] + ([bib] if bib else [])
+        if wr:
+            nav = (f'<nav class="toc" aria-label="{E(t["toc"])}"><details open><summary>{E(t["toc"])}</summary>'
+                   f'<ol>{"".join(toc)}</ol></details></nav>')
+            head = [f'<a class="skip" href="#main">{E(t["skip"])}</a>',
+                    f'<header><h1>{E(d["title"])}</h1>{prov}{prov_print}<div class="wrtools">{reader}{find}</div>{nav}</header>',
+                    f'<main id="main" class="wr" tabindex="-1" data-find-scope>{chr(10).join(content)}</main>']
+            body = "\n".join(head)
+        else:
+            head = [f'<header><h1>{E(d["title"])}</h1>{prov}{prov_print}{reader}{find}</header>']
+            body = "\n".join(head + content)
         found = Counter(html.unescape(i) for i in re.findall(r'\sid="([^"]+)"', body))
         twice = sorted(i for i, k in found.items() if k > 1)
         if twice:
@@ -1782,10 +2282,10 @@ class Report:
         return re.sub(r"\{\{(LANG|TITLE|HEAD|BODY)\}\}", lambda m: vals[m.group(1)], page)  # one pass: report text cannot inject a placeholder
 
 
-CHOICE_KEYS = ("tree", "data", "charts", "crossfilter", "badge-chart", "find", "flow", "map", "mermaid", "video")
+CHOICE_KEYS = ("tree", "data", "charts", "crossfilter", "badge-chart", "find", "flow", "map", "mermaid", "board", "video")
 CHOICE_NO_BLOCK = ("none",)  # valid feature keys that never produce a block and are not reported
 CHOICE_BLOCKS = {"tree": "tree", "table": "tree", "data": "data", "vega": "charts", "bars": "charts",
-                 "flow": "flow", "lineage": "flow", "states": "flow", "map": "map", "mermaid": "mermaid", "video": "video"}
+                 "flow": "flow", "lineage": "flow", "states": "flow", "map": "map", "mermaid": "mermaid", "board": "board", "video": "video"}
 
 
 def check_choice(data, path):

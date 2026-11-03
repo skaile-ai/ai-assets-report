@@ -118,6 +118,32 @@
       {"type": "video", "id": "demo", "label": "Vom Buch zum Screen", "src": "../report-video/example.media/demo.mp4", "poster": "../report-video/example.media/demo.jpg",
        "track": "../report-video/example.media/demo.vtt",
        "chapters": [{"t": 0, "label": "1. Antwort"}, {"t": 15.6, "label": "2. Ablauf"}, {"t": 36.333, "label": "3. Typen und Baum"}],
-       "caption": "Erzeugt mit `report-video` aus diesem Bericht."}]}
+       "caption": "Erzeugt mit `report-video` aus diesem Bericht."}]},
+    {"title": "Moodboard", "sub": "heute und Vorschlag nebeneinander, Änderungen markiert", "blocks": [
+      {"type": "board", "id": "brett", "label": "Editor heute und morgen", "height": 560, "canvases": [
+        {"id": "editor", "label": "Editor", "title": "Der Editor heute und im Vorschlag",
+         "lead": "Heute zwei getrennte Seiten, im Vorschlag eine Seite mit Vorschau.", "lanes": [
+          {"tone": "today", "cols": 2, "cards": [
+            {"id": "liste", "kicker": "/screens", "title": "Screen-Liste", "ref": "trigger", "marks": ["move in den Editor"],
+             "image": {"src": "example.data/board-screen.jpg", "alt": "Screen-Liste mit Trigger und Pause", "caption": "Stand 12. Okt."},
+             "at": "app/pages/screens.vue:12"},
+            {"id": "vorschau", "kicker": "/preview", "title": "Vorschau", "marks": ["merge", "later Druckansicht"],
+             "items": ["öffnet ein neues Fenster", "zeigt nur einen Screen"]}],
+           "changes": [
+            {"mark": "move", "text": "Die Liste wird die Seitenleiste des Editors.", "from": "liste", "to": "editor-neu"},
+            {"mark": "merge", "text": "Die Vorschau geht im Editor auf.", "from": "vorschau", "to": "editor-neu"}]},
+          {"tone": "proposed", "cards": [
+            {"id": "editor-neu", "title": "Editor mit Vorschau", "marks": ["new", "reuse Seitenleiste", "keep Speichern"],
+             "blocks": [
+              {"type": "table", "columns": ["Bereich", "Inhalt"], "rows": [["links", "Screen-Liste"], ["Mitte", "Blöcke"], ["rechts", "Vorschau"]]},
+              {"type": "bullets", "items": ["Vorschau folgt der Auswahl", "kein zweites Fenster"]}]}]}]},
+        {"id": "freigabe", "label": "Freigabe", "title": "Die Freigabe", "lanes": [
+          {"tone": "today", "cards": [
+            {"id": "mail", "title": "Freigabe per Mail", "marks": ["remove"], "text": "Die Autorin schickt einen Link."}],
+           "changes": [
+            {"mark": "new", "text": "Ein Knopf im Editor ersetzt die Mail.", "from": "mail", "to": "knopf"}]},
+          {"tone": "proposed", "cards": [
+            {"id": "knopf", "title": "Knopf „Zur Freigabe“", "marks": ["new", "optional Kommentar"],
+             "text": "Setzt den Status, siehe [[pause]]."}]}]}]}]}
   ]
 }
