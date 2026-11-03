@@ -301,6 +301,7 @@ main.wr>dl.stats{margin:24px 0 0}
 .co p{margin:6px 0}.co>.co-h{margin:0 0 8px}.co-h strong{font-size:18px;line-height:1.35}.co ul.ste{margin:6px 0 0}
 .co-k{display:inline-block;margin-right:8px;padding:1px 8px;border-radius:3px;background:var(--c);color:#fff;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;vertical-align:2px}
 .fn{font-size:.72em;line-height:0;margin-left:1px}.fn a{text-decoration:none;font-family:var(--mono)}details.notes{margin:14px 0 0;font-size:13px;color:var(--mute)}details.notes summary{cursor:pointer}details.notes ol{margin:6px 0 0;padding-left:1.6em}details.notes li{margin:2px 0;overflow-wrap:anywhere}
+@media print{details.notes::details-content{content-visibility:visible;display:block}details.notes>summary{list-style:none}}
 .arg,.ex,.cmp{--c:var(--ink);margin:22px 0;padding:14px 18px;border:1px solid var(--rule);border-left:4px solid var(--c);border-radius:6px}
 .arg{--c:var(--blue)}.ex{--c:var(--teal)}.cmp{--c:var(--purple)}
 .arg p,.ex p,.cmp p{margin:6px 0}.arg>.co-h,.ex>.co-h,.cmp>.co-h{margin:0 0 8px}.arg-l{font-size:13px;font-weight:600;color:var(--mute)}
@@ -387,7 +388,13 @@ function hit(){const id=decodeURIComponent(location.hash.slice(1));if(!id)return
  const dn=el.closest('details');if(dn&&!dn.open){dn.open=true;opened=true}
  for(let p=el.closest('.tp');p;p=p.parentElement.closest('.tp'))if(!p.classList.contains('on')){tab(document.getElementById(p.id+'-b'));opened=true}
  if(opened)el.scrollIntoView();el.classList.add('hit');setTimeout(()=>el.classList.remove('hit'),1800)}
-addEventListener('beforeprint',()=>document.querySelectorAll('details.notes').forEach(d=>d.open=true));
+/* print opens every notes list; afterprint closes again exactly the lists the reader had closed */
+let printClosed=[];
+addEventListener('beforeprint',()=>{printClosed=[...document.querySelectorAll('details.notes:not([open])')];printClosed.forEach(d=>d.open=true)});
+addEventListener('afterprint',()=>{printClosed.forEach(d=>d.open=false);printClosed=[]});
+/* a link to the current hash fires no hashchange: run hit() so a closed notes list reopens and the note flashes again */
+addEventListener('click',e=>{if(e.defaultPrevented||!e.target.closest)return;const a=e.target.closest('a[href^="#"]');
+ if(a&&a.hash&&a.hash===location.hash)hit()});
 /* Diagrams. Hover or focus a node (or an edge label): its edges and neighbours stay, the rest fades,
    its labels move on top. A legend button with data-k hides one edge kind; a node left without a
    visible edge fades. ⤢ (.zb) opens the diagram in a full-screen view: wheel or two fingers zoom,
@@ -737,13 +744,18 @@ function vgInit(){document.querySelectorAll('.vg').forEach(el=>{if(el._view||el.
 addEventListener('DOMContentLoaded',vgInit);
 document.addEventListener('dt-init',vgLink);
 /* Reader depth (`readers` + block `reader`): the control sets html[data-depth]; CSS hides deeper blocks on screen, print shows all.
-   The choice stays in sessionStorage per page (no cookie). A link into a hidden block raises the depth first. */
+   The choice stays in sessionStorage per page (no cookie). A link into a hidden block raises the depth first.
+   A notes list counts only the notes the depth shows (`.nn`); print shows and counts all. */
 const RD=['general','informed','professional'];
+function rdCount(dp){for(const d of document.querySelectorAll('details.notes')){const n=d.querySelector('.nn');
+ if(n)n.textContent=[...d.querySelectorAll(':scope>ol>li')].filter(l=>RD.indexOf(l.dataset.reader||'general')<=dp).length}}
 function rdSet(id,save){const c=document.querySelector('.rdc');if(!c||!RD.includes(id))return false;
- document.documentElement.dataset.depth=id;
+ document.documentElement.dataset.depth=id;rdCount(RD.indexOf(id));
  for(const b of c.querySelectorAll('button')){const on=b.dataset.depth===id;b.setAttribute('aria-pressed',on);if(on)c.querySelector('.rdd').textContent=b.dataset.desc||''}
  if(save){try{sessionStorage.setItem('report-html:depth:'+location.pathname,id)}catch(_){}}
  if(FIND.q&&document.querySelector('[data-find-scope]'))rfRun();return true}
+addEventListener('beforeprint',()=>{if(document.documentElement.dataset.depth)rdCount(RD.length-1)});
+addEventListener('afterprint',()=>{const id=document.documentElement.dataset.depth;if(id)rdCount(RD.indexOf(id))});
 function rdReveal(el){let changed=false;
  for(let p=el.closest('[data-reader]');p;p=p.parentElement&&p.parentElement.closest('[data-reader]')){
   const cur=document.documentElement.dataset.depth;if(cur&&RD.indexOf(p.dataset.reader)>RD.indexOf(cur))changed=rdSet(p.dataset.reader,true)||changed}

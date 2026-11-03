@@ -212,8 +212,8 @@ class Footnotes(unittest.TestCase):
         page = report(sections=[section("S", self.TEXT)]).render()
         self.assertEqual(page.count('href="#n-1-1"'), 2)
         self.assertEqual(page.count('href="#n-1-2"'), 1)
-        self.assertIn('<details class="notes"><summary>Notes (2)</summary>', page)
-        self.assertIn(f'<li id="n-1-1">{src("a.py:1")}</li>', page)
+        self.assertIn('<details class="notes"><summary>Notes (<span class="nn">2</span>)</summary>', page)
+        self.assertIn(f'<li id="n-1-1" value="1">{src("a.py:1")}</li>', page)
         para = re.search(r"<p>A .*?</p>", page, re.S).group(0)
         self.assertNotIn('<span class="src">', para)
 
@@ -232,6 +232,31 @@ class Footnotes(unittest.TestCase):
         page = report(meta=["Source: [@x]"], sections=[section("S")]).render()
         self.assertIn(src("x"), page)
         self.assertNotIn('class="fn"', page)
+
+    @staticmethod
+    def depth(*blocks):
+        """A report with reader depths; the notes under test sit in section 2."""
+        secs = [section("Answer"), {"title": "S", "blocks": list(blocks)}]
+        return report(readers=READERS_CFG, sections=secs).render()
+
+    def test_note_cited_only_from_a_deeper_block_carries_its_reader(self):
+        page = self.depth({"type": "p", "text": "Plain [@a.py:1]."},
+                          {"type": "p", "text": "Deep [@b.py:2].", "reader": "professional"})
+        self.assertIn(f'<li id="n-2-1" value="1">{src("a.py:1")}</li>', page)
+        self.assertIn(f'<li id="n-2-2" value="2" data-reader="professional">{src("b.py:2")}</li>', page)
+        self.assertIn('<details class="notes"><summary>Notes (<span class="nn">2</span>)</summary>', page)
+
+    def test_note_also_cited_from_a_general_block_stays_general(self):
+        page = self.depth({"type": "p", "text": "Deep [@a.py:1].", "reader": "professional"},
+                          {"type": "p", "text": "Plain [@a.py:1]."})
+        self.assertIn(f'<li id="n-2-1" value="1">{src("a.py:1")}</li>', page)
+        self.assertNotIn('<li id="n-2-1" value="1" data-reader', page)
+
+    def test_section_with_only_deeper_notes_hides_the_whole_list(self):
+        page = self.depth({"type": "p", "text": "Plain."},
+                          {"type": "p", "text": "Deep [@a.py:1].", "reader": "professional"})
+        self.assertIn('<details class="notes" data-reader="professional"><summary>', page)
+        self.assertIn(f'<li id="n-2-1" value="1" data-reader="professional">{src("a.py:1")}</li>', page)
 
 
 class TreeRows(unittest.TestCase):

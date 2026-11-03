@@ -3,7 +3,7 @@ name: report-html
 description: "Build one static HTML report people read front to back: an argued answer first, tables, trees, diagrams and charts as support (data sheet, pipeline explanation, dependency map, moodboard of screens, inventory, coverage) from live data or code. Use for 'report', 'overview page', 'data sheet', 'how does X work as a page'. Orchestrates report-prose, report-table, report-flow, report-diagram, report-charts, report-video."
 license: MIT
 metadata:
-  version: 0.2.0
+  version: 0.2.1
   publisher: skaile-ai
   requires: "report-prose, report-table, report-flow, report-diagram, report-charts, report-video"
 ---
@@ -115,7 +115,7 @@ This section owns the rules. The extensions point here.
 - **One home.** State each piece of evidence once, where the reader checks the claim. Do not repeat a tree row's evidence in a table cell.
 - **Size.** The opening paragraph of every section stays within the size's sentence budget. Under `technical`, every section after the first cites a source.
 - **Web-research sources.** With a top-level `sources` list, an inline `[@S1]` whose text is exactly a source id renders in every size as a link to the bibliography record `#src-S1`, shown as a grey bracket, and adds no note. Any other `[@…]` text renders as **Citations** describes: a numbered note outside `technical`, an inline grey bracket under `technical`. A citation whose text looks like a source id (letters, then digits: `S1`, `R12`) but is in no `sources` record fails the build (in profile `web-research` also when `sources` is empty). Cite the record that backs the claim; do not paste URLs into prose.
-- **Reader depth (`web-research`).** Three cumulative depths: `general` sees `general` and unmarked blocks; `informed` adds `informed`; `professional` adds `professional`. A block or section with `reader: "<id>"` shows from that depth on; no `reader` means every depth. Put the short, safe, practical statement at `general`, the reasons at `informed`, the evidence detail at `professional`. The build refuses `reader` on the first section, on the answer paragraph (the first `p` of the first section) and on anything that holds a `safety` or `action` callout; the bibliography is never hidden. Print shows every depth.
+- **Reader depth (`web-research`).** Three cumulative depths: `general` sees `general` and unmarked blocks; `informed` adds `informed`; `professional` adds `professional`. A block or section with `reader: "<id>"` shows from that depth on; no `reader` means every depth. Put the short, safe, practical statement at `general`, the reasons at `informed`, the evidence detail at `professional`. The build refuses `reader` on the first section, on the answer paragraph (the first `p` of the first section) and on anything that holds a `safety` or `action` callout; the bibliography is never hidden. A note cited only from deeper blocks hides with them; the notes list keeps the marker numbers and counts only the notes the depth shows. Print shows every depth.
 
 ## report.json
 

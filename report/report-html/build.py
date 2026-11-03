@@ -275,7 +275,8 @@ class Report:
                     fail(f"badge {c}:{k}: colour must be one of {sorted(COLORS)}")
         self.t = TXT.get(str(data.get("lang", "de"))[:2], TXT["en"])
         self.nco = 0  # callout counter: unique ids for aria-labelledby
-        self.notes, self.nsec = None, 0  # footnote texts of the section being rendered (None: inline brackets)
+        self.notes, self.nsec = None, 0  # section being rendered: footnote text -> shallowest reader rank citing it (None: inline brackets)
+        self.rank = 0  # effective reader rank of the block being rendered (the deepest `reader` among it and its ancestors)
         self.load_sources()
         self.load_readers()
         self.ntabs, self.tab_entity = 0, None
@@ -553,19 +554,25 @@ class Report:
         if self.notes is None:
             return self.source(raw.strip())
         text = raw.strip()
-        if text not in self.notes:
-            self.notes.append(text)
-        n = self.notes.index(text) + 1
+        self.notes[text] = min(self.notes.get(text, self.rank), self.rank)
+        n = list(self.notes).index(text) + 1
         return (f'<sup class="fn"><a href="#n-{self.nsec}-{n}" title="{E(text)}" '
                 f'aria-label="{E(self.t["note_n"].format(n=n))}">{n}</a></sup>')
 
     def notes_html(self, i):
-        """The collapsed notes list closing section `i`; empty without notes."""
+        """The collapsed notes list closing section `i`; empty without notes. A note cited only from blocks deeper than general
+        carries the shallowest of their `data-reader`s, so the page hides it with them; `value` keeps the marker numbers when
+        items hide, and the page script recounts the visible ones in `.nn`. All notes deeper: the whole list carries it."""
         if not self.notes:
             return ""
-        items = "".join(f'<li id="n-{i}-{k}">{self.source(x)}</li>' for k, x in enumerate(self.notes, 1))
-        return (f'<details class="notes"><summary>{E(self.t["notes"])} ({len(self.notes)})</summary>'
-                f'<ol>{items}</ol></details>')
+        items = []
+        for k, (x, r) in enumerate(self.notes.items(), 1):
+            rd = f' data-reader="{READERS[r]}"' if r else ""
+            items.append(f'<li id="n-{i}-{k}" value="{k}"{rd}>{self.source(x)}</li>')
+        low = min(self.notes.values())
+        rd = f' data-reader="{READERS[low]}"' if low else ""
+        return (f'<details class="notes"{rd}><summary>{E(self.t["notes"])} (<span class="nn">{len(self.notes)}</span>)</summary>'
+                f'<ol>{"".join(items)}</ol></details>')
 
     def inline(self, text):
         """Plain text with `code` spans, [[entity-id]] / [[entity-id|label]] links and [@source text] citations.
@@ -2082,10 +2089,13 @@ class Report:
         if not fn:
             fail(f"{where}: unknown block type {b['type']}")
         k, cls, mk = self.state(b, scope)
+        rank, outer = self.reader_rank(b, where), self.rank
+        self.rank = max(outer, rank)
         out = self.inside(k, fn, b)
+        self.rank = outer
         if cls:
             out = f'<div class="cx{cls}">{mk}{out}</div>'
-        if self.reader_rank(b, where):
+        if rank:
             out = f'<div class="rd" data-reader="{E(b["reader"])}">{out}</div>'
         return out
 
@@ -2317,7 +2327,7 @@ class Report:
         for i, sec in enumerate(secs, 1):
             k, cls, mk = self.state(sec, top)
             self.nsec = i
-            self.notes = [] if self.size != "technical" else None
+            self.notes = {} if self.size != "technical" else None
             inner = self.scope(sec.get("blocks", []))
             body = self.inside(k, lambda: [self.block(b, f"section {sec['title']}", inner) for b in sec.get("blocks", [])])
             num = f"{i} " if d.get("numbered", True) else ""
