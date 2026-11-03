@@ -24,6 +24,7 @@
   ],
   "sections": [
     {"title": "Ablauf", "sub": "L0 Übersicht, L1 je Stufe", "blocks": [
+      {"type": "p", "text": "Ein Kapitel aus dem Buch wird in zwei Stufen zum Screen. Zuerst legt der Import (`npm run import`) es als Zeile im Kapitelspeicher (`source_chapter`) an, danach schreibt eine Autorin im Editor daraus den Screen. Weil der Import bei falschem Hash abbricht, kommt nur ein Kapitel mit passendem Hash im Kapitelspeicher an [@scripts/import.ts:20-22]."},
       {"type": "flow", "id": "uebersicht", "label": "Vom Buch zum Screen", "nodes": [
         {"id": "buch", "label": "Buch", "sub": "chapters/*.md", "shape": "external"},
         {"id": "import", "label": "Kapitel importieren", "sub": "npm run import", "ref": "imp"},
@@ -33,6 +34,10 @@
        "kinds": {"liest": {"label": "liest", "color": "teal", "dash": "dot"}},
        "edges": [["buch", "import", "Kapitel"], ["import", "kapitel", "Zeile"],
                  ["kapitel", "schreiben", "Absätze", "liest"], ["schreiben", "leser", "Screen"]]},
+      {"type": "example", "title": "Kapitel 1 wird zum Screen „Trigger“", "setup": "[[BOOK-C01|Kapitel 1]] liegt als Markdown-Datei im Buch und hat 18 Absätze.",
+       "steps": ["Der Import liest Frontmatter und Text der Datei.", "Er prüft den Hash; bei falschem Hash bricht er ab.", "Stimmt der Hash, legt er eine neue Zeile im Kapitelspeicher an, im Status Entwurf.", "Eine Autorin liest die Absätze im Editor und schreibt daraus den Screen."],
+       "result": "Der Screen [[trigger|Trigger]] zitiert Kapitel 1, und die Leser sehen ihn."},
+      {"type": "p", "text": "Die Reiter zeigen beide Stufen genauer: den Import Schritt für Schritt und den Status eines Kapitels vom Import bis zum Archiv."},
       {"type": "tabs", "id": "stufen", "label": "Stufen", "tabs": [
        {"entity": "imp", "blocks": [
       {"type": "flow", "id": "import", "parent": "uebersicht:import", "label": "Kapitel importieren", "dir": "down", "nodes": [
@@ -48,7 +53,7 @@
         {"from": "hash", "to": "post", "label": "ja", "at": "scripts/import.ts:21"},
         {"from": "hash", "to": "abbruch", "label": "nein", "kind": "error", "at": "scripts/import.ts:22"},
         {"from": "post", "to": "kapitel", "label": "Zeile", "at": "scripts/import.ts:31"}]},
-      {"type": "p", "text": "Der Screen [[trigger]] zitiert [[BOOK-C01|Kapitel 1]]. Er liegt in `content_variant`. Der Import dazu: [@scripts/import.ts:10-31]."}]},
+      {"type": "p", "text": "Der Import liest jede Markdown-Datei, prüft ihren Hash und legt nur bei passendem Hash eine Zeile an [@scripts/import.ts:10-31]. Den fertigen Screen speichert der Editor später im Variantenspeicher (`content_variant`)."}]},
        {"label": "source_chapter", "summary": "Status eines Kapitels vom Import bis zum Archiv.", "blocks": [
       {"type": "states", "id": "status", "parent": "uebersicht:kapitel", "label": "Kapitelstatus", "field": "source_chapter.status", "at": "schema.ts:4",
        "states": [{"id": "entwurf"}, {"id": "geprueft", "label": "geprüft"}, {"id": "frei", "label": "veröffentlicht", "color": "green"}],
@@ -60,6 +65,7 @@
         {"from": "geprueft", "to": "frei", "trigger": "Freigabe", "action": "`published_at` setzen", "at": "server/review.ts:30"},
         {"from": "frei", "to": "[*]", "trigger": "Archiv", "at": "server/archive.ts:5"}]}]}]}]},
     {"title": "Typen", "sub": "was wird zu was", "blocks": [
+      {"type": "p", "text": "Ein Kapitel wechselt auf dem Weg zum Screen viermal seine Form. Aus der Markdown-Datei wird ein Kandidat, daraus eine Zeile im Kapitelspeicher, dann ein Screen je Zielgruppe und am Ende eine Build-Datei. Die Grafik zeigt jeden Schritt mit der Funktion, die ihn ausführt."},
       {"type": "lineage", "id": "typen", "label": "Buch bis Screen", "types": [
         {"id": "md", "label": "chapters/*.md", "sub": "Markdown + YAML"},
         {"id": "cand", "label": "ChapterCandidate", "sub": "TS-Typ"},
@@ -72,7 +78,7 @@
         {"from": "row", "to": "variant", "fn": "writeScreen()", "at": "server/screen.ts:40", "note": "Absätze werden Blöcke, je Zielgruppe."},
         {"from": ["variant", "row"], "to": "json", "fn": "compileContent()", "at": "pipeline/compile.ts:8", "note": "MDC wird JSON; Zitate aufgelöst."}]}]},
     {"title": "Baum", "sub": "erst die Liste, dann die Karte; ein Filter für beide", "blocks": [
-      {"type": "p", "text": "Der Bereich [[alltag]] enthält zwei Screens. [[pause]] ist ein Entwurf; ein Klick auf das Badge „Status“ blendet ihn samt Karte und Diagramm aus."},
+      {"type": "p", "text": "Der Bereich [[alltag|Im Alltag]] enthält zwei Screens, und einer davon, [[pause]], ist noch ein Entwurf. Der Baum listet beide mit Zielgruppe, Herkunft und Status, die Karte darunter die Pakete der Pipeline und ihre Abhängigkeiten. Ein Klick auf das Badge „Status“ blendet den Entwurf in Baum, Karte und Diagramm aus."},
       {"type": "tree", "filter": ["aud", "origin", "flag"], "count_label": "Screens sichtbar", "drives": ["module", "verteilung"]},
       {"type": "map", "id": "module", "label": "Pakete der Pipeline",
        "kinds": {"npm": {"color": "blue"}, "sub": {"label": "Submodul", "color": "orange", "dash": "dash"}},
@@ -87,10 +93,17 @@
         {"from": "app", "to": "ui", "kind": "npm", "label": ["@boje/ui", "^0.8"], "warn": true, "at": "package.json:15"},
         {"from": "imp", "to": "cmp", "kind": "npm", "label": "@boje/compile", "at": "scripts/package.json:9"},
         {"from": "imp", "to": "book", "kind": "sub", "label": "vendor/book", "at": ".gitmodules:3"}],
-       "off": ["book"]}]},
+       "off": ["book"]},
+      {"type": "argument", "claim": "Der Bereich „Im Alltag“ ist erst zur Hälfte fertig.",
+       "reasons": ["Von seinen zwei Screens ist nur „Trigger“ kein Entwurf mehr.", "„Mach mal Pause“ ist selbst verfasst und stützt sich auf kein Kapitel des Buchs."],
+       "conclusion": "Deshalb braucht „Mach mal Pause“ noch Review und Freigabe, bevor der Bereich vollständig ist."},
+      {"type": "callout", "tone": "note", "title": "Versionen passen nicht zusammen",
+       "text": "Das Studio verlangt das UI-Kit (`@boje/ui`) in Version ^0.8, im Repo liegt es aber in Version 0.9.1 [@package.json:15]. Deshalb markiert die Karte diese Abhängigkeit als Warnung."}]},
     {"title": "Quellen", "blocks": [
+      {"type": "p", "text": "Die Tabelle zeigt, welches Buchkapitel welcher Screen zitiert. Bisher zitiert nur „Trigger“ ein Kapitel, nämlich Kapitel 1 mit 18 Absätzen."},
       {"type": "table", "columns": ["Kapitel", "Zitiert von", "Absätze"], "numeric": [2],
        "rows": [{"anchor": "BOOK-C01", "cells": ["BOOK-C01", {"refs": ["trigger"]}, 18]}]},
+      {"type": "p", "text": "Die Balken zählen die Screens nach Herkunft: einer stammt aus dem Buch, einer ist selbst verfasst."},
       {"type": "bars", "items": [["book", 1, "orange"], ["authored", 1, "pink"]], "link": false}]},
     {"title": "Interaktiv", "sub": "Diagramm filtert Tabelle, Baum filtert Diagramm", "blocks": [
       {"type": "p", "text": "Das Diagramm zählt die Entitäten je Art. Ein Klick auf einen Balken filtert die Tabelle darunter. Ein Badge im Baum nimmt Balken aus dem Diagramm."},
@@ -105,6 +118,7 @@
           "x": {"field": "art", "type": "nominal", "title": "Art", "axis": {"labelAngle": 0}},
           "y": {"aggregate": "count", "type": "quantitative", "title": "Entitäten", "axis": {"tickMinStep": 1}},
           "opacity": {"condition": {"param": "pick", "value": 1}, "value": 0.35}}}},
+      {"type": "p", "text": "Die Tabelle listet alle Entitäten mit Art und Titel. Sie zeigt nur die Zeilen der Art, die im Diagramm gewählt ist."},
       {"type": "data", "id": "entitaeten", "label": "Alle Entitäten", "key": "id", "columns": [
         {"label": "Entität", "key": "id"}, {"label": "Art", "key": "art"}, {"label": "Titel", "key": "titel"}],
        "rows": [
@@ -114,12 +128,15 @@
         {"id": "BOOK-C01", "art": "quelle", "titel": "Kapitel 1"},
         {"id": "imp", "art": "stufe", "titel": "Kapitel importieren"}],
        "listen": {"chart": "verteilung", "param": "pick", "field": "art"}},
+      {"type": "p", "text": "Das Flussdiagramm zeigt den Weg vom importierten Kapitel über „Trigger“ bis zum Entwurf „Mach mal Pause“. Ein Klick auf einen Kasten springt zu seinem Eintrag."},
       {"type": "mermaid", "id": "wege", "label": "Vom Kapitel zum Entwurf", "code": "flowchart LR\n  A[Kapitel importieren] -->|Zeile| B[Trigger schreiben]\n  B -->|Screen| C[Mach mal Pause]\n  click A href \"#e-imp\"\n  click B href \"#e-trigger\"\n  click C href \"#e-pause\""},
+      {"type": "p", "text": "Das Video fasst den Bericht in drei Kapiteln zusammen: Antwort, Ablauf sowie Typen und Baum."},
       {"type": "video", "id": "demo", "label": "Vom Buch zum Screen", "src": "../report-video/example.media/demo.mp4", "poster": "../report-video/example.media/demo.jpg",
        "track": "../report-video/example.media/demo.vtt",
        "chapters": [{"t": 0, "label": "1. Antwort"}, {"t": 15.6, "label": "2. Ablauf"}, {"t": 36.333, "label": "3. Typen und Baum"}],
        "caption": "Erzeugt mit `report-video` aus diesem Bericht."}]},
     {"title": "Moodboard", "sub": "heute und Vorschlag nebeneinander, Änderungen markiert", "blocks": [
+      {"type": "p", "text": "Das Moodboard stellt den Editor heute neben den Vorschlag. Die Marken an jeder Karte sagen, was bleibt, wandert, verschmilzt oder neu kommt."},
       {"type": "board", "id": "brett", "label": "Editor heute und morgen", "height": 560, "canvases": [
         {"id": "editor", "label": "Editor", "title": "Der Editor heute und im Vorschlag",
          "lead": "Heute zwei getrennte Seiten, im Vorschlag eine Seite mit Vorschau.", "lanes": [
@@ -144,6 +161,10 @@
             {"mark": "new", "text": "Ein Knopf im Editor ersetzt die Mail.", "from": "mail", "to": "knopf"}]},
           {"tone": "proposed", "cards": [
             {"id": "knopf", "title": "Knopf „Zur Freigabe“", "marks": ["new", "optional Kommentar"],
-             "text": "Setzt den Status, siehe [[pause]]."}]}]}]}]}
+             "text": "Setzt den Status, siehe [[pause]]."}]}]}]},
+      {"type": "compare", "title": "Editor heute und im Vorschlag", "columns": [
+        {"label": "Heute", "items": ["Screen-Liste und Vorschau sind zwei getrennte Seiten.", "Die Vorschau öffnet ein neues Fenster und zeigt nur einen Screen.", "Die Autorin schickt zur Freigabe einen Link per Mail."]},
+        {"label": "Vorschlag", "items": ["Eine Seite: Liste links, Blöcke in der Mitte, Vorschau rechts.", "Die Vorschau folgt der Auswahl, ohne zweites Fenster.", "Ein Knopf „Zur Freigabe“ im Editor ersetzt die Mail."]}],
+       "verdict": "Der Vorschlag lohnt sich, weil die Autorin auf einer Seite schreibt, prüft und freigibt."}]}
   ]
 }
