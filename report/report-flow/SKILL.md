@@ -3,7 +3,7 @@ name: report-flow
 description: "Capture how code or a pipeline works from the source (trigger, steps, stores, error paths, file:line evidence) and draw levelled DFD `flow`, `lineage` and `states` diagrams. Use for 'how does X work', 'what becomes what', 'which states'."
 license: MIT
 metadata:
-  version: 0.1.1
+  version: 0.2.0
   publisher: skaile-ai
 ---
 
@@ -43,7 +43,7 @@ Done when every node and every edge you draw maps to one line of this list.
 ## Draw
 
 - Draw an edge only if you read it in the code: a call, or a write that a later read consumes.
-- Put `path:line` in `at` on every edge (every transition, every `lineage` step). The build warns about each edge without `at` as soon as one edge has it. In the `explanation` and `structure` profiles the build fails without it.
+- Under size `technical` put `path:line` in `at` on every edge (every transition, every `lineage` step); the build fails without it. In other sizes add `at` where a reader may check a claim; it lands in the collapsed Evidence table.
 - Name a process with a verb and an object, or with the real function name. Name a store with its collection or path. Name an edge with the data it carries (`source_chapter`, `ImportDoc`), never "uses" or "calls".
 - Keep source paths in `at`, not in node, store or edge labels. Exception: a path that is itself the object the diagram explains (a store that is a directory, a file that a step writes).
 - Mark an error path `kind: "error"` to a node with `color: "red"` whose `sub` states the effect (`exit 1`, `409 conflict`).
@@ -68,7 +68,7 @@ Done when every node and every edge you draw maps to one line of this list.
 
 ## Alone
 
-1. Collect the facts (Capture the flow). Define one entity per stage and one per source you cite, with `badges` and `meta` (`trigger`, `code`, `guard`).
+1. Collect the facts (Capture the flow). Define one entity per stage, with `badges` and `meta` (`trigger`, `code`, `guard`).
 2. Write `report.json` with only these blocks: the L0 `flow`, one L1 `flow` per stage in `tabs`, the `states` and `lineage` blocks the question needs, and one `p` that states the answer. Copy the shape from `example.json`.
 3. Build: `python3 <skill-dir>/../report-html/build.py report.json <out>.html`. Fix every `report.json:` line.
 4. Verify (list below), then `open <out>.html` and state the answer in chat.

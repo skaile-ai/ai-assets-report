@@ -3,7 +3,7 @@ name: report-video
 description: "Chaptered, narrated manim explainer of a report's main concepts with a brand look, embedded as a `video` block with captions and chapters. Use only when the user asks for a video, animation or explainer."
 license: MIT
 metadata:
-  version: 0.2.2
+  version: 0.2.3
   publisher: skaile-ai
 ---
 
@@ -58,7 +58,7 @@ Concepts: <[[entity]] ids, stat labels, diagram ids this chapter must show>
 Shots: <layout names per beat, e.g. FULL_CENTER → LEFT_RIGHT>
 
 1. <what appears or changes> | <technique or brand.py helper>
-   > <narration: one sentence, ≤ 20 words, ASD-STE100>
+   > <narration: one sentence, ≤ 20 words, in the reader's words>
 2. <...> | <...>
    > <...>
 3. <pure pause or silent reveal>                   ← a beat without a `>` line is silent
@@ -66,7 +66,7 @@ Shots: <layout names per beat, e.g. FULL_CENTER → LEFT_RIGHT>
 
 - `section=` is the `question` id of the report section: `answer` for the first section, `end` for the closing chapter. Each `scene=` name is used once.
 - Chapters count from 1 in order, beats from 1 per chapter. Narration is exactly one `>` line directly under its beat; a second `>` line under the same beat fails. Only the chapter fields (Goal, Carry, Concepts, Shots) take indented continuation lines, not beats or narration.
-- `narrate.py` fails with `narrate: <file>:<line>: <reason>` on a heading without `scene=`, a number out of sequence, a chapter without beats, or narration over 30 words. The style rule is 20 words, one sentence, `skill://report-asd-ste100`.
+- `narrate.py` fails with `narrate: <file>:<line>: <reason>` on a heading without `scene=`, a number out of sequence, a chapter without beats, or narration over 30 words. The style rule is one sentence of at most 20 words in the reader's words (`skill://report-prose`).
 - Every beat is one visual change. `Concepts` names only ids that exist in `report.json`. `Carry` is the spine of the video: the object the viewer follows.
 - The script's `lang` picks the `say` voice; the caption track takes the `lang` of `report.json`.
 - The chapter plan is the brief; the shots are yours. Take the shot per block from `TECHNIQUES.md` and go beyond it where the report's own structure suggests a better picture: a hook, an "aha" beat, a payoff. Only the chrome (header), the title/chapter/end cards and the caption lane are fixed.

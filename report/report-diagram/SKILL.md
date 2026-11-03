@@ -3,7 +3,7 @@ name: report-diagram
 description: "Dependency `map` canvases, `board` moodboards (screens today vs. proposed, changes marked) and mermaid notations (sequence, class, ER, C4, gantt, mindmap, sankey, railroad) with the notation-choice table. Use for 'what depends on what', 'who calls whom in which order', 'moodboard', 'before/after of screens', 'draw this as a diagram'."
 license: MIT
 metadata:
-  version: 0.1.1
+  version: 0.2.0
   publisher: skaile-ai
 ---
 
@@ -45,7 +45,7 @@ map: id, label, height?, nodes: [{id, label?, sub?, lines?: [text], shape?: proc
 - `kinds: {<kind>: {label?, color?, dash?: dash|dot}}` declares one edge type per dependency type (`npm`, `submodule`). With two or more kinds in use, each legend entry hides or shows its edges.
 - An edge `label` may be a list, one line each. `warn: true` paints the label red (spec mismatch, stale version).
 - `off` greys boxes out from the start. The reader's clicks, drags and zoom stay in `localStorage` for this page and build.
-- Put `at` (`path:line`) on every edge. The build lists them in the "Evidence" table.
+- Under size `technical` put `at` (`path:line`) on every edge; the build fails without it and lists them in the Evidence table. In other sizes `at` is optional.
 - Keep node labels readable: the name as in the code or a short human term, no `path:line`. Put the source in `at`. A path is a label only when it is the object being drawn (a file dependency web).
 - A `tree` with `drives: ["<map id>"]` above the map filters it: boxes whose `ref` the badges filter out disappear with their edges. Set `ref` on every box that is an entity. Tree first, map right after it.
 - Start layout: ranks by longest path, barycentre order, long ranks wrapped. "Copy layout" puts `{"pos": …, "off": […]}` on the clipboard; paste both into the block to ship the reader's arrangement.
@@ -66,7 +66,7 @@ card: { id?, title, kicker?, ref?: entity id, marks?: ["<kind>[ qualifier]"], im
 - Mark kinds: `move`, `merge`, `new`, `reuse`, `keep`, `later`, `remove`, `optional`; any other kind fails. A qualifier after the kind names the detail (`reuse picker`). The kind is printed, colour only backs it up; the legend lists the kinds in use.
 - A lane's `changes` render as a gutter after that lane: mark, text, then `from` → `to` as links. `from`/`to` name a card `id` on any canvas of the same board, else the build fails. A link opens the card's canvas and focuses the card.
 - Anchors: canvases and cards share `#f-<board>-<id>`; ids are unique per board. A page hash to a card opens its canvas.
-- `ref` links the card to its entity (↗) and counts as an incoming link. `image.src` is a local file next to the output HTML or `report.json`, rewritten relative to the output; a missing file or a URL fails. A click on the image opens it large, Esc closes.
+- `ref` links the card to its entity (↗). `image.src` is a local file next to the output HTML or `report.json`, rewritten relative to the output; a missing file or a URL fails. A click on the image opens it large, Esc closes.
 - `blocks` take any report block except `board` (a wireframe as `table`/`bullets`/`html`). `at` renders the source next to the card.
 - `tone` labels the lane (`today`, `proposed`) when it has no `label`. `cols` sets the card columns of a lane in canvas mode.
 - Keep one canvas per area or screen group, at most ~4 lanes per canvas. Screenshots go in `<stem>.media/`; never inline them.

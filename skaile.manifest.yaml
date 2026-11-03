@@ -4,35 +4,35 @@ assets:
   - kind: skill
     name: report-html
     root: report/report-html
-    version: 0.1.1
+    version: 0.2.0
     dependencies:
-      - "@skaile-ai/report-asd-ste100"
+      - "@skaile-ai/report-prose"
       - "@skaile-ai/report-table"
       - "@skaile-ai/report-flow"
       - "@skaile-ai/report-diagram"
       - "@skaile-ai/report-charts"
       - "@skaile-ai/report-video"
   - kind: skill
-    name: report-asd-ste100
-    root: report/report-asd-ste100
-    version: 0.1.1
+    name: report-prose
+    root: report/report-prose
+    version: 0.1.0
   - kind: skill
     name: report-table
     root: report/report-table
-    version: 0.1.1
+    version: 0.2.0
   - kind: skill
     name: report-flow
     root: report/report-flow
-    version: 0.1.1
+    version: 0.2.0
   - kind: skill
     name: report-diagram
     root: report/report-diagram
-    version: 0.1.1
+    version: 0.2.0
   - kind: skill
     name: report-charts
     root: report/report-charts
-    version: 0.1.1
+    version: 0.2.0
   - kind: skill
     name: report-video
     root: report/report-video
-    version: 0.2.2
+    version: 0.2.3

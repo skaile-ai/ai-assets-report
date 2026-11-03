@@ -3,13 +3,13 @@ name: report-charts
 description: "Quantities as `bars` or Vega-Lite `vega` charts with tooltips, selections and cross-filter. Use for 'how much', 'distribution', 'over time', 'compare counts'."
 license: MIT
 metadata:
-  version: 0.1.1
+  version: 0.2.0
   publisher: skaile-ai
 ---
 
 # report-charts <question>
 
-Answer `<question>` about quantities with `bars` (a few numbers) or `vega` (Vega-Lite: counts, distributions, time series, selections). Every number comes from the dump or the code. Write prose per `skill://report-asd-ste100`.
+Answer `<question>` about quantities with `bars` (a few numbers) or `vega` (Vega-Lite: counts, distributions, time series, selections). Every number comes from the dump or the code. Write prose per `skill://report-prose`.
 
 Reading contract: follow `skill://report-html` (citations, labels, answer-first). Chart rules:
 

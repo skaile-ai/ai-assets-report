@@ -5,7 +5,7 @@ skaile library of agent skills that build one static HTML report from live data 
 | Skill | Description |
 |---|---|
 | `report-html` | Orchestrator: size and profile asked up front, question outline, one static HTML report. |
-| `report-asd-ste100` | ASD-STE100 rules for all report prose. |
+| `report-prose` | Readable, argued prose for every report: claim and reason first, few links, lists as supplement. |
 | `report-table` | Dumps, key detection, badge-filtered trees, interactive tables. |
 | `report-flow` | Levelled DFD diagrams of code and pipelines. |
 | `report-diagram` | Dependency canvas and mermaid notations. |
@@ -30,9 +30,11 @@ Needs `python3` (stdlib only). `report-video` also needs manim and ffmpeg; narra
 | Ability | Skill | Block / mechanism |
 |---|---|---|
 | Question outline: the user picks the questions by chapter, one section per question | report-html | `ask` + `questions` in `<stem>.choice.json`, checked by `--check-choice` |
-| Profiles (explanation, structure, inventory, critique, comparison, exploration, change) | report-html | top-level `profile`, skeleton seeds the outline |
+| Profiles (explanation, structure, inventory, critique, comparison, exploration, change, web-research) | report-html | top-level `profile`, skeleton seeds the outline |
 | Sizes (small, medium, detailed, technical): question, sentence and ability budgets asked up front | report-html | `size` in `<stem>.choice.json`, checked by `--check-choice` and lint |
 | Entity tree with badge filter | report-table | `tree` |
+| Explanation blocks | report-html | `argument`, `example`, `compare`, `callout` |
+| Source notes | report-html | `[@…]` → numbered notes, inline under `technical` |
 | Static table | report-table | `table` |
 | Sortable, searchable, paged table with CSV | report-table | `data` (simple-datatables) |
 | Global find box | report-html | automatic with `tree` or `data` |
@@ -44,9 +46,9 @@ Needs `python3` (stdlib only). `report-video` also needs manim and ffmpeg; narra
 | Chart click filters a table | report-charts | `data.listen` |
 | Badge toggle filters a chart | report-charts | tree `drives` a `vega` id |
 | Explainer video with chapters, captions and voice | report-video | `video` + `brand.py`, `narrate.py`, `stitch.py` |
-| Controlled prose | report-asd-ste100 | rules 1-11, always on |
+| Readable prose | report-prose | rules 1-14, always on |
 | Stats computed from the dump | report-html | `stats` `{count}`, `{rows}`, `{value, source}` |
-| Lint (orphans, unlinked prose, badge skew, missing `at`, …) | report-html | `build.py`, `--strict` |
+| Lint (link density, lists without a lead, list-heavy sections, badge skew, missing `at` under technical, …) | report-html | `build.py`, `--strict` |
 | Change documents | report-html | `since` + previous `report.json` |
 
 Every report is one HTML file built by the stdlib `report-html/build.py`; the extra libraries load from pinned CDNs and the page stays readable offline.
