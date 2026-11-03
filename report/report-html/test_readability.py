@@ -174,7 +174,7 @@ class StructuredEvidence(unittest.TestCase):
         self.assertIn(src("scripts/import.ts:10"), page)
 
     def test_lineage_at_cell_and_function_name(self):
-        r = report(sections=[{"title": "S", "blocks": [
+        r = report(size="technical", sections=[{"title": "S", "blocks": [
             {"type": "lineage", "id": "l", "types": [{"id": "a", "label": "Raw"}, {"id": "b", "label": "Clean"}, {"id": "c", "label": "Done"}],
              "steps": [{"from": "a", "to": "b", "fn": "clean()", "at": "x/clean.ts:7-9", "note": "see [@n.md:2]"},
                        {"from": "b", "to": "c", "fn": "finish()"}]}]}])
@@ -196,11 +196,51 @@ class StructuredEvidence(unittest.TestCase):
         self.assertIn("<code>doc.status</code>", page)  # state field stays code
         self.assertNotIn("<code>schema.ts:4</code>", page)
 
-    def test_missing_at_validation_unchanged(self):
+    def test_explanation_needs_at_only_under_technical(self):
+        secs = [{"title": "S", "blocks": [
+            {"type": "flow", "id": "f", "nodes": [{"id": "a"}, {"id": "b"}], "edges": [{"from": "a", "to": "b"}]}]}]
+        report(profile="explanation", sections=secs)
         with self.assertRaises(SystemExit) as cm:
-            report(profile="explanation", sections=[{"title": "S", "blocks": [
-                {"type": "flow", "id": "f", "nodes": [{"id": "a"}, {"id": "b"}], "edges": [{"from": "a", "to": "b"}]}]}])
+            report(size="technical", profile="explanation", sections=secs)
         self.assertIn("without at", str(cm.exception))
+
+
+class Footnotes(unittest.TestCase):
+    TEXT = "A [@a.py:1]. B [@b.py:2]. C [@a.py:1]."
+
+    def test_citations_become_numbered_notes_per_section(self):
+        page = report(sections=[section("S", self.TEXT)]).render()
+        self.assertEqual(page.count('href="#n-1-1"'), 2)
+        self.assertEqual(page.count('href="#n-1-2"'), 1)
+        self.assertIn('<details class="notes"><summary>Notes (2)</summary>', page)
+        self.assertIn(f'<li id="n-1-1">{src("a.py:1")}</li>', page)
+        para = re.search(r"<p>A .*?</p>", page, re.S).group(0)
+        self.assertNotIn('<span class="src">', para)
+
+    def test_technical_keeps_inline_brackets(self):
+        page = report(size="technical", sections=[section("S", self.TEXT)]).render()
+        self.assertIn(f"A {src('a.py:1')}.", page)
+        self.assertNotIn('details class="notes"', page)
+
+    def test_source_id_links_to_bibliography_without_note(self):
+        page = wr().render()
+        self.assertIn('a class="src cite"', page)
+        self.assertNotIn('details class="notes"', page)
+        self.assertNotIn('class="fn"', page)
+
+    def test_header_meta_stays_inline(self):
+        page = report(meta=["Source: [@x]"], sections=[section("S")]).render()
+        self.assertIn(src("x"), page)
+        self.assertNotIn('class="fn"', page)
+
+
+class TreeRows(unittest.TestCase):
+    def page(self, size=None):
+        return report(size=size, sections=[{"title": "S", "blocks": [{"type": "p", "text": "Rows."}, {"type": "tree"}]}]).render()
+
+    def test_id_group_only_under_technical(self):
+        self.assertNotIn('<span class="id">', self.page())
+        self.assertIn('<span class="id">A</span>', self.page("technical"))
 
 
 class HeaderMeta(unittest.TestCase):

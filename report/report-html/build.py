@@ -24,14 +24,13 @@ from urllib.parse import urlparse
 E = html.escape
 CITE = re.compile(r"\[@([^\[\]`\n]*)\]")  # inline citation: text without brackets, backticks or newlines
 TEMPLATE = Path(__file__).with_name("template.html")
-LINKS_SHOWN = 12  # per direction and tree row; the rest is counted
+LINKS_SHOWN = 5  # per direction and tree row; the rest is counted
 COLORS = {"purple", "blue", "green", "gray", "orange", "pink", "teal", "yellow", "red", "navy", "brown", "ink"}
 CHANGE = {"new": "green", "changed": "orange", "removed": "red"}  # `change` value -> mark colour
 DIAGRAMS = {"flow", "lineage", "states", "map"}
 ID_FIGURES = {"mermaid", "vega", "video", "board"}  # figures with an id and a `#f-<id>` anchor but no nodes; their renderers register below
 FIND_TYPES = {"tree", "data"}  # block types that switch on the header find box
 PROFILES = {"explanation", "structure", "inventory", "critique", "comparison", "exploration", "change", "web-research"}  # top-level `profile`
-AT_REQUIRED = {"explanation", "structure"}  # profiles in which every flow/map edge needs `at`
 SIZES = ("small", "medium", "detailed", "technical")  # `size` in <stem>.choice.json; SKILL.md "Sizes"
 SIZE_QUESTIONS = {"small": 2, "medium": 6}  # max chosen questions; detailed and technical have no cap
 SIZE_FEATURES = {"small": {"none", "tree", "charts", "find"}}  # feature keys a size allows; other sizes allow all
@@ -103,7 +102,8 @@ TXT = {
            "b_prev": "Vorherige Fläche", "b_next": "Nächste Fläche", "b_zin": "Vergrößern", "b_zout": "Verkleinern",
            "b_read": "Lesemodus", "b_enlarge": "Bild groß zeigen", "b_close": "Schließen",
            "b_hint": "Hintergrund ziehen: schwenken · ⌘/Strg + Mausrad oder zwei Finger: zoomen · ← →: Fläche · "
-                     "+ − 0: Zoom · Bild klicken: groß · Lesemodus: alles untereinander"},
+                     "+ − 0: Zoom · Bild klicken: groß · Lesemodus: alles untereinander",
+           "notes": "Belege", "note_n": "Beleg {n}"},
     "en": {"ev": "Evidence", "el": "Element", "at": "Evidence", "from": "From", "to": "To", "fn": "Function",
            "note": "Change", "trigger": "Trigger", "guard": "Guard", "up": "Part of",
            "process": "process", "store": "data store", "external": "external", "boundary": "neighbour from parent level",
@@ -133,7 +133,8 @@ TXT = {
            "b_prev": "Previous canvas", "b_next": "Next canvas", "b_zin": "Zoom in", "b_zout": "Zoom out",
            "b_read": "Read mode", "b_enlarge": "Show image large", "b_close": "Close",
            "b_hint": "drag the background: pan · ⌘/Ctrl + wheel or two fingers: zoom · ← →: canvas · "
-                     "+ − 0: zoom · click an image: enlarge · read mode: everything stacked"},
+                     "+ − 0: zoom · click an image: enlarge · read mode: everything stacked",
+           "notes": "Notes", "note_n": "Note {n}"},
 }
 
 
@@ -234,6 +235,7 @@ class Report:
                     fail(f"badge {c}:{k}: colour must be one of {sorted(COLORS)}")
         self.t = TXT.get(str(data.get("lang", "de"))[:2], TXT["en"])
         self.nco = 0  # callout counter: unique ids for aria-labelledby
+        self.notes, self.nsec = None, 0  # footnote texts of the section being rendered (None: inline brackets)
         self.load_sources()
         self.load_readers()
         self.ntabs, self.tab_entity = 0, None
@@ -508,7 +510,22 @@ class Report:
             return (f'<a class="src cite" href="#src-{E(raw)}" title="{E(self.sources[raw]["title"])}">[{E(raw)}]</a>')
         if (self.sources or self.d.get("profile") == "web-research") and SRC_LIKE.match(raw):
             fail(f"citation [@{raw}] names no source id (known: {', '.join(self.sources) or 'none'})")
-        return self.source(raw.strip())
+        if self.notes is None:
+            return self.source(raw.strip())
+        text = raw.strip()
+        if text not in self.notes:
+            self.notes.append(text)
+        n = self.notes.index(text) + 1
+        return (f'<sup class="fn"><a href="#n-{self.nsec}-{n}" title="{E(text)}" '
+                f'aria-label="{E(self.t["note_n"].format(n=n))}">{n}</a></sup>')
+
+    def notes_html(self, i):
+        """The collapsed notes list closing section `i`; empty without notes."""
+        if not self.notes:
+            return ""
+        items = "".join(f'<li id="n-{i}-{k}">{self.source(x)}</li>' for k, x in enumerate(self.notes, 1))
+        return (f'<details class="notes"><summary>{E(self.t["notes"])} ({len(self.notes)})</summary>'
+                f'<ol>{items}</ol></details>')
 
     def inline(self, text):
         """Plain text with `code` spans, [[entity-id]] / [[entity-id|label]] links and [@source text] citations.
@@ -1664,7 +1681,8 @@ class Report:
             kind = (bvals.get(kind_cat) or [None])[0]
             kind_badge = "".join(self.badge(kind_cat, v, True) for v in bvals.get(kind_cat, []))
             kind_badge = f'<span class="kb">{kind_badge}</span>' if kind_badge else ""  # one grid cell, however many values
-            groups = [f'<span class="id">{E(str(e.get("label") or e["id"]))}</span>'] + self.groups(e, kind_cat, filt)
+            idg = [f'<span class="id">{E(str(e.get("label") or e["id"]))}</span>'] if self.size == "technical" else []
+            groups = idg + self.groups(e, kind_cat, filt)
             lc = ""
             if depth == 0 and kind is not None:
                 lc = f' style="--lc:var(--{self.cats[kind_cat]["values"][kind].get("color", "ink")})"'
@@ -1972,8 +1990,8 @@ class Report:
 
     # -- computed stats, evidence and lint ---------------------------------
     def require_at(self):
-        """Profiles explanation and structure, and size technical in every profile: every flow/map edge carries `at` (otherwise only a warning, see check_evidence)."""
-        if self.d.get("profile") not in AT_REQUIRED and self.size != "technical":
+        """Size technical, in every profile: every flow/map edge carries `at` (otherwise only a warning, see check_evidence)."""
+        if self.size != "technical":
             return
         miss = [f"{b['type']} {b['id']}: edge {e['from']}->{e['to']} without at"
                 for b in self.dg.values() if b["type"] in ("flow", "map")
@@ -2232,6 +2250,8 @@ class Report:
         top = self.scope(secs)
         for i, sec in enumerate(secs, 1):
             k, cls, mk = self.state(sec, top)
+            self.nsec = i
+            self.notes = [] if self.size != "technical" else None
             inner = self.scope(sec.get("blocks", []))
             body = self.inside(k, lambda: [self.block(b, f"section {sec['title']}", inner) for b in sec.get("blocks", [])])
             num = f"{i} " if d.get("numbered", True) else ""
@@ -2242,8 +2262,9 @@ class Report:
             rd = f' data-reader="{E(sec["reader"])}"' if self.reader_rank(sec, f"section {sec['title']}") else ""
             ccls = f' class="{cls.strip()}"' if cls else ""
             parts.append(f'<section{sid}{ccls}{rd}{lab}><h2{hid}>{num}{mk}{E(sec["title"])}<span>{E(sec.get("sub", ""))}</span></h2>'
-                         f'<div class="body">{"".join(body)}</div></section>')
+                         f'<div class="body">{"".join(body) + self.notes_html(i)}</div></section>')
             toc.append(f'<li{rd}><a href="#{E(secid or "")}">{num}{E(sec["title"])}</a></li>')
+        self.notes = None
         bib = self.bibliography()
         if bib:
             toc.append(f'<li><a href="#sources">{E(t["bib"])}</a></li>')
