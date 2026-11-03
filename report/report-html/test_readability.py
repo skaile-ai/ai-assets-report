@@ -882,6 +882,10 @@ class ExplainBlocks(unittest.TestCase):
         self.assertIn("compare: `columns` needs exactly 2 columns",
                       fails(report().b_compare, dict(COMPARE, columns=COMPARE["columns"] + [{"label": "C", "text": "x"}])))
 
+    def test_compare_with_empty_items_fails_even_with_text(self):
+        cols = [dict(COMPARE["columns"][0], text="x", items=[""]), COMPARE["columns"][1]]
+        self.assertIn("compare: column 1 needs `label` and `text` or `items`", fails(report().b_compare, dict(COMPARE, columns=cols)))
+
 
 class ResponsiveTable(unittest.TestCase):
     def table(self, **extra):
@@ -1011,6 +1015,10 @@ class LinkAndListLints(unittest.TestCase):
 
     def has(self, lints, prefix):
         return [x for x in lints if x.startswith(prefix)]
+
+    def test_links_in_code_spans_do_not_count(self):
+        lints = self.lints({"type": "p", "text": "Write `[[a]]` or `[[a]]`, `[[b]]` and `[[c]]` to link."})
+        self.assertEqual(self.has(lints, "links:"), [])
 
     def test_links_per_block(self):
         four = self.lints({"type": "p", "text": "See [[a]], [[b]], [[c]] and [[d]]."})

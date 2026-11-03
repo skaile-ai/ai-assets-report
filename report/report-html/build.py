@@ -45,7 +45,7 @@ NOT_LOCAL = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:|//)")  # URL scheme or pro
 PROSE_TYPES = ("p", "bullets", "steps", "callout", "argument", "example", "compare")  # blocks whose inline text is prose
 LINT_LINKS_BLOCK = 3  # max [[id]] links in one prose block
 LINT_LIST_MIN = 4  # list items in a section before the list-vs-prose balance is checked
-LINK_ID = re.compile(r"\[\[([^\]|]+)")
+LINK_ID = re.compile(r"\[\[([^\]|]+)")  # [[id or [[id|label: the id of an inline link
 LINT_KIND_MIN = 5  # entities of one kind needed before a missing meta key is reported
 HEAD = {}  # block type -> HTML for <head> (CDN tags); added once when a block of that type is in the report
 HEAD["mermaid"] = (
@@ -1971,7 +1971,8 @@ class Report:
         return (f'<div class="co co-{tone}" role="group" aria-labelledby="{cid}"><p class="co-h"><span class="co-k">{E(self.t["tone_" + tone])}</span> '
                 f'<strong id="{cid}">{E(b["title"])}</strong></p><p>{self.inline(b["text"])}</p>{items}</div>')
 
-    def lst(self, tag, xs):
+    def ste_list(self, tag, xs):
+        """Inline string items as `<ul|ol class="ste">`."""
         return f'<{tag} class="ste">{"".join(f"<li>{self.inline(x)}</li>" for x in xs)}</{tag}>'
 
     @staticmethod
@@ -1992,7 +1993,7 @@ class Report:
         self.nco += 1
         cid, t = f"ag-{self.nco}", self.t
         return (f'<div class="arg" role="group" aria-labelledby="{cid}"><p class="co-h"><span class="co-k">{E(t["arg_claim"])}</span> '
-                f'<strong id="{cid}">{self.inline(b["claim"])}</strong></p><p class="arg-l">{E(t["arg_why"])}</p>{self.lst("ol", b["reasons"])}'
+                f'<strong id="{cid}">{self.inline(b["claim"])}</strong></p><p class="arg-l">{E(t["arg_why"])}</p>{self.ste_list("ol", b["reasons"])}'
                 f'<p class="arg-s"><span class="co-k">{E(t["arg_so"])}</span> {self.inline(b["conclusion"])}</p></div>')
 
     def b_example(self, b):
@@ -2005,7 +2006,7 @@ class Report:
         self.nco += 1
         cid, t = f"ex-{self.nco}", self.t
         return (f'<div class="ex" role="group" aria-labelledby="{cid}"><p class="co-h"><span class="co-k">{E(t["ex"])}</span> '
-                f'<strong id="{cid}">{E(b["title"])}</strong></p><p>{self.inline(b["setup"])}</p>{self.lst("ol", b["steps"])}'
+                f'<strong id="{cid}">{E(b["title"])}</strong></p><p>{self.inline(b["setup"])}</p>{self.ste_list("ol", b["steps"])}'
                 f'<p class="ex-r"><span class="co-k">{E(t["ex_result"])}</span> {self.inline(b["result"])}</p></div>')
 
     def b_compare(self, b):
@@ -2016,7 +2017,8 @@ class Report:
         for n, c in enumerate(cols, 1):
             items = c.get("items") if isinstance(c, dict) else None
             has_items = isinstance(items, list) and items and all(self.filled(x) for x in items)
-            if not (isinstance(c, dict) and self.filled(c.get("label")) and (self.filled(c.get("text")) or has_items)):
+            ok = isinstance(c, dict) and self.filled(c.get("label")) and (self.filled(c.get("text")) or has_items)
+            if not ok or ("items" in c and not has_items):
                 fail(f"compare: column {n} needs `label` and `text` or `items`")
         for k in ("title", "verdict"):
             if not self.filled(b.get(k)):
@@ -2025,7 +2027,7 @@ class Report:
         cid, t = f"cp-{self.nco}", self.t
         cells = "".join(f'<div class="cmp-c"><p class="cmp-h">{E(c["label"])}</p>'
                         + (f'<p>{self.inline(c["text"])}</p>' if c.get("text") else "")
-                        + (self.lst("ul", c["items"]) if c.get("items") else "") + "</div>" for c in cols)
+                        + (self.ste_list("ul", c["items"]) if c.get("items") else "") + "</div>" for c in cols)
         return (f'<div class="cmp" role="group" aria-labelledby="{cid}"><p class="co-h"><span class="co-k">{E(t["cmp"])}</span> '
                 f'<strong id="{cid}">{E(b["title"])}</strong></p><div class="cmp-g">{cells}</div>'
                 f'<p class="cmp-v"><span class="co-k">{E(t["cmp_verdict"])}</span> {self.inline(b["verdict"])}</p></div>')
@@ -2172,10 +2174,10 @@ class Report:
             ids = {}
             for b in walk(blocks):
                 if b.get("type") in PROSE_TYPES:
-                    texts = [str(x) for x in prose_text(b)]
-                    n = sum(x.count("[[") for x in texts)
-                    if n > LINT_LINKS_BLOCK:
-                        out.append(f'links: section "{title}": a {b["type"]} block has {n} links (max 3)')
+                    texts = [re.sub(r"`[^`]*`", "", str(x)) for x in prose_text(b)]
+                    nlinks = sum(len(LINK_ID.findall(x)) for x in texts)
+                    if nlinks > LINT_LINKS_BLOCK:
+                        out.append(f'links: section "{title}": a {b["type"]} block has {nlinks} links (max {LINT_LINKS_BLOCK})')
                     for x in texts:
                         for m in LINK_ID.finditer(x):
                             ids[m.group(1)] = ids.get(m.group(1), 0) + 1
