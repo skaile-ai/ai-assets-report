@@ -1,0 +1,13 @@
+{
+  "name": "report",
+  "description": "Static HTML reports: data sheets, diagrams, charts, video",
+  "skills": [
+    "./report/report",
+    "./report/report-prose",
+    "./report/report-table",
+    "./report/report-flow",
+    "./report/report-diagram",
+    "./report/report-charts",
+    "./report/report-video"
+  ]
+}
