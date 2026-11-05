@@ -1,6 +1,6 @@
 # Vom Buch zum Screen
 
-- report: ../report-html/example.json
+- report: ../report/example.json
 - lang: de
 - brand: default
 - arc: build-up

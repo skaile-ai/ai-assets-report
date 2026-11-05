@@ -3,7 +3,7 @@ name: report-charts
 description: "Quantities as `bars` or Vega-Lite `vega` charts with tooltips, selections and cross-filter. Use for 'how much', 'distribution', 'over time', 'compare counts'."
 license: MIT
 metadata:
-  version: 0.2.0
+  version: 0.2.1
   publisher: skaile-ai
 ---
 
@@ -11,7 +11,7 @@ metadata:
 
 Answer `<question>` about quantities with `bars` (a few numbers) or `vega` (Vega-Lite: counts, distributions, time series, selections). Every number comes from the dump or the code. Write prose per `skill://report-prose`.
 
-Reading contract: follow `skill://report-html` (citations, labels, answer-first). Chart rules:
+Reading contract: follow `skill://report` (citations, labels, answer-first). Chart rules:
 
 - The caption (`label` on `vega`, the `p` above a `bars` block) states the interpretation: what the chart shows and what the reader should see in it, for example "Most tickets are features". A bare measure ("Tickets per kind") is not enough.
 - Provenance goes in `at` (evidence table) or in a `[@path:line]` token in the caption or the prose. Never put a file path, line number or source name in an axis `title`, a `bars` label or a field name.
@@ -81,11 +81,11 @@ Needs `entity` on the `vega` block, and the rows' `entity` values must be ids of
 
 1. Pin the question and find the numbers: dump the collection (`<report>.data/`) or read them from the code. Name the field for each axis.
 2. Write `report.json`: one `p` that states the answer, then per question one `vega` (or `bars`) block. Add `badges`, `entities` and a `tree` only when the rows are entities and the reader should filter them; add a `data` table only when the reader needs the rows. Copy the shape from `example.json`.
-3. Build: `python3 <skill-dir>/../report-html/build.py report.json <out>.html`. Fix every `lint:` line or justify it in chat.
+3. Build: `python3 <skill-dir>/../report/build.py report.json <out>.html`. Fix every `lint:` line or justify it in chat.
 4. Verify (below), `open <out>.html`, state the answer in chat.
 5. Location: `<repo>/.scratch/reports/<topic>-<YYYY-MM-DD>[-vN].html`. Take the first free `-vN` (`-v2`, `-v3`, …); never overwrite an existing report.
 
-## Under report-html
+## Under report
 
 1. Return only the chosen `vega`/`bars` blocks to the orchestrator's section plan; do not build. Add `listen` wiring only when `crossfilter` was chosen and `drives` wiring only when `badge-chart` was chosen.
 2. Section order: the prose that states the finding first, then the chart, then the `data` table that listens to it. A tree that drives the chart comes before the chart.

@@ -1,6 +1,6 @@
 """Behavioural tests for readable source citations: `[@source text]` in prose and structured `at` values.
 
-Run from the reporting source root:  python3 -m unittest discover -s report-html -p 'test_readability.py'
+Run from the reporting source root:  python3 -m unittest discover -s report -p 'test_readability.py'
 The tests assert on rendered HTML fragments, not on the renderer's source text.
 """
 import base64
@@ -214,7 +214,7 @@ class Footnotes(unittest.TestCase):
         self.assertEqual(page.count('href="#n-1-2"'), 1)
         self.assertIn('<details class="notes"><summary>Notes (<span class="nn">2</span>)</summary>', page)
         self.assertIn(f'<li id="n-1-1" value="1">{src("a.py:1")}</li>', page)
-        para = re.search(r"<p>A .*?</p>", page, re.S).group(0)
+        para = re.search(r'<p data-src="sections/0/blocks/0">A .*?</p>', page, re.S).group(0)
         self.assertNotIn('<span class="src">', para)
 
     def test_technical_keeps_inline_brackets(self):
@@ -338,8 +338,8 @@ class PageOrder(unittest.TestCase):
 
     def test_numbering_and_anchors_survive_reordering(self):
         page = report(stats=self.STATS, sections=[dict(section("Answer"), id="ans"), dict(section("Detail"), id="det")]).render()
-        self.assertIn('<section id="ans"><h2>1 Answer', page)
-        self.assertIn('<section id="det"><h2>2 Detail', page)
+        self.assertIn('<section id="ans" data-src="sections/0"><h2>1 Answer', page)
+        self.assertIn('<section id="det" data-src="sections/1"><h2>2 Detail', page)
 
 
 class Provenance(unittest.TestCase):
@@ -730,14 +730,14 @@ class ReaderDepth(unittest.TestCase):
     def test_block_wrapper_carries_the_minimum_depth(self):
         page = wr(self.sections({"type": "p", "text": "Allgemein."}, {"type": "p", "text": "Fach.", "reader": "professional"},
                                 {"type": "p", "text": "Mehr.", "reader": "informed"})).render()
-        self.assertIn('<div class="rd" data-reader="professional"><p>Fach.</p></div>', page)
-        self.assertIn('<div class="rd" data-reader="informed"><p>Mehr.</p></div>', page)
-        self.assertIn("<p>Allgemein.</p>", page)
+        self.assertIn('<div class="rd" data-reader="professional"><p data-src="sections/1/blocks/1">Fach.</p></div>', page)
+        self.assertIn('<div class="rd" data-reader="informed"><p data-src="sections/1/blocks/2">Mehr.</p></div>', page)
+        self.assertIn('<p data-src="sections/1/blocks/0">Allgemein.</p>', page)
         self.assertNotIn('data-reader="general"', page)
 
     def test_section_and_contents_entry_carry_the_depth(self):
         page = wr(self.sections({"type": "p", "text": "x"}, reader="professional")).render()
-        self.assertIn('<section id="s-2" data-reader="professional" aria-labelledby="s-2-h">', page)
+        self.assertIn('<section id="s-2" data-reader="professional" aria-labelledby="s-2-h" data-src="sections/1">', page)
         self.assertIn('<li data-reader="professional"><a href="#s-2">2 Mehr</a></li>', page)
 
     def test_control_is_three_toggle_buttons_with_json_labels(self):
@@ -807,7 +807,7 @@ class WebResearchPage(unittest.TestCase):
         self.assertEqual(re.findall(r'<a href="#([^"]+)">', nav), ["s-1", "s-2", "sources"])
         for target in ("s-1", "s-2", "sources"):
             self.assertIn(f'id="{target}"', page)
-        self.assertIn('<section id="s-1" aria-labelledby="s-1-h"><h2 id="s-1-h">1 Antwort', page)
+        self.assertIn('<section id="s-1" aria-labelledby="s-1-h" data-src="sections/0"><h2 id="s-1-h">1 Antwort', page)
 
     def test_contents_uses_author_section_ids(self):
         secs = [dict(section("Answer"), id="ans"), dict(section("Rest"), id="rest")]
@@ -827,7 +827,7 @@ class WebResearchPage(unittest.TestCase):
         page = body(report(sections=[section("Answer")]).render())
         for marker in ("<main", 'class="skip"', '<nav class="toc"', "data-find-scope", 'id="find"'):
             self.assertNotIn(marker, page)
-        self.assertIn('<section><h2>1 Answer', page)
+        self.assertIn('<section data-src="sections/0"><h2>1 Answer', page)
 
     def test_tree_find_box_keeps_its_markup_without_the_profile(self):
         r = report(badges={}, sections=[{"title": "S", "blocks": [{"type": "data", "id": "d", "columns": [{"key": "a"}], "rows": [{"a": "x"}]}]}])
@@ -1030,6 +1030,59 @@ class BoardBlock(unittest.TestCase):
             json.dump({"profile": "critique", "features": ["board"]}, f)
         self.assertEqual(build.check_choice(data, f.name), "medium")
 
+
+class SourcePointers(unittest.TestCase):
+    def test_sections_and_blocks_carry_their_pointer(self):
+        secs = [section("Answer"), {"title": "Detail", "blocks": [{"type": "p", "text": "One."}, {"type": "p", "text": "Two."}]}]
+        page = body(report(sections=secs).render())
+        self.assertIn('<section data-src="sections/1">', page)
+        self.assertIn('<p data-src="sections/1/blocks/1">Two.</p>', page)
+
+    def test_blocks_inside_tabs_extend_the_pointer(self):
+        tabs = {"type": "tabs", "tabs": [{"label": "a", "blocks": [{"type": "p", "text": "First."}]},
+                                         {"label": "b", "blocks": [{"type": "p", "text": "Second."}]}]}
+        page = body(report(sections=[{"title": "S", "blocks": [tabs]}]).render())
+        self.assertIn('data-src="sections/0/blocks/0"', page)
+        self.assertIn('<p data-src="sections/0/blocks/0/tabs/1/blocks/0">Second.</p>', page)
+
+    def test_reader_wrapper_holds_the_stamped_element(self):
+        secs = [{"title": "Antwort", "blocks": [{"type": "p", "text": "Antwort."}]},
+                {"title": "Mehr", "blocks": [{"type": "p", "text": "Fach.", "reader": "professional"}]}]
+        page = body(wr(secs).render())
+        self.assertIn('<div class="rd" data-reader="professional"><p data-src="sections/1/blocks/0">Fach.</p></div>', page)
+
+    def test_html_without_a_root_tag_is_wrapped(self):
+        page = body(report(sections=[{"title": "S", "blocks": [{"type": "html", "html": "plain"}]}]).render())
+        self.assertIn('<div data-src="sections/0/blocks/0">plain</div>', page)
+
+    def test_header_names_the_source_file(self):
+        data = {"title": "T", "lang": "en", "sections": [section("Answer")]}
+        self.assertIn('<header data-report="r.json">', build.Report(data, src=Path("x/r.json")).render())
+        self.assertIn("<header>", build.Report(data).render())
+
+
+class ChoiceMode(unittest.TestCase):
+    QS = [{"id": "q1", "chapter": "c", "text": "Question?", "feature": "tree"}]
+    DATA = {"sections": [section("Answer"), {**section("Tree"), "question": "q1"}]}
+
+    def check(self, choice, data=None):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "r.choice.json"
+            path.write_text(json.dumps({"profile": "structure", **choice}))
+            return build.check_choice(data or self.DATA, path)
+
+    def test_unknown_mode_fails(self):
+        self.assertIn("mode must be ask or autopilot", fails(self.check, {"features": ["none"], "mode": "fast"}))
+
+    def test_autopilot_rejects_extras(self):
+        choice = {"features": ["tree", "crossfilter"], "mode": "autopilot", "questions": self.QS}
+        self.assertIn("autopilot chooses no extras, found crossfilter", fails(self.check, choice))
+
+    def test_autopilot_with_question_features_passes(self):
+        self.assertEqual(self.check({"features": ["tree"], "mode": "autopilot", "questions": self.QS}), "medium")
+
+    def test_no_mode_is_ask(self):
+        self.assertEqual(self.check({"features": ["tree", "crossfilter"], "questions": self.QS}), "medium")
 
 
 class LinkAndListLints(unittest.TestCase):

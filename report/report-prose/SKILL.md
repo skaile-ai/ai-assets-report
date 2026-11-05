@@ -3,7 +3,7 @@ name: report-prose
 description: "Write report prose people read front to back: an argued answer (claim, reason, consequence), the reader's words before code names, few links, lists only after a lead sentence, examples and contrasts where they explain. Use for report prose, 'make this readable', 'too technical', 'rewrite for people'."
 license: MIT
 metadata:
-  version: 0.1.0
+  version: 0.1.1
   publisher: skaile-ai
 ---
 
@@ -79,7 +79,7 @@ Check each rule against one sentence or one paragraph.
 | to follow an order | `steps` after a lead `p` |
 | to look up many rows | `table`/`data` (`skill://report-table`) after a lead `p` |
 
-Each block's schema is in `skill://report-html`, section "report.json".
+Each block's schema is in `skill://report`, section "report.json".
 
 ## Alone
 
@@ -88,7 +88,7 @@ Each block's schema is in `skill://report-html`, section "report.json".
 3. Keep facts, numbers and sources. Add no facts.
 4. End the chat with "Rules applied: …".
 
-## Under report-html
+## Under report
 
 1. Always on; never asked about.
 2. Before the build, check each section's opening for claim + reason, check that every list has a lead `p`, check links per rule 6, check code names per rule 4.

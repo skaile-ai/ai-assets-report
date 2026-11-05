@@ -339,6 +339,39 @@ table.rsp caption{caption-side:top;text-align:left;font-weight:600;color:var(--i
 /* vertical diagrams fit the column */
 .dgv{max-width:100%;height:auto}@media(max-width:640px){.dw:has(>.dgv){overflow-x:visible}}
 @media print{.rdc,.skip,nav.toc,.fclr{display:none}main.wr>section>h2{border-top-width:2px}}
+/* reader notes (page script): select text and press Comment, or ✎ on a section title; the Notes panel copies them for the agent */
+::highlight(an){background:var(--blue-bg);text-decoration:underline 2px var(--acc)}
+.an-flash{background:var(--hl);transition:background 1.5s}
+.an-add{position:absolute;z-index:25;white-space:nowrap;font:600 13px/1.4 var(--sans);padding:5px 12px;border:1px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--paper);cursor:pointer}
+.an-sec{margin-left:8px;padding:0 6px;font:400 16px/1.4 var(--sans);vertical-align:1px;color:var(--mute);background:none;border:1px solid transparent;border-radius:6px;cursor:pointer;opacity:0;transition:opacity .15s}
+.an-sec::before{content:"✎"}.an-sec:hover{color:var(--ink);border-color:var(--rule)}
+h2:hover>.an-sec,h2:focus-within>.an-sec{opacity:1}
+@media(hover:none){.an-sec{opacity:1}}
+.an-fab{position:fixed;right:16px;bottom:16px;z-index:25;display:inline-flex;align-items:center;gap:8px;min-height:44px;font:600 14px var(--sans);padding:8px 14px;border:1px solid var(--ink);border-radius:999px;background:var(--paper);color:var(--ink);cursor:pointer}
+.an-fab:hover{background:var(--wash)}.an-open .an-fab{display:none}
+.an-n{font:600 12px/1.6 var(--mono);min-width:1.8em;padding:0 6px;border-radius:999px;background:var(--ink);color:var(--paper);text-align:center;font-variant-numeric:tabular-nums}
+.an-panel{position:fixed;top:0;right:0;bottom:0;z-index:30;width:min(380px,100vw);display:flex;flex-direction:column;background:var(--paper);color:var(--ink);border-left:1px solid var(--rule);font:15px/1.5 var(--sans)}
+.an-panel[hidden]{display:none}
+.an-ph{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--ink)}.an-ph b{flex:1}
+.an-ls{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;margin:0;padding:0;list-style:none}
+.an-it{padding:10px 14px;border-bottom:1px solid var(--hair)}
+.an-go{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;overflow-wrap:anywhere}
+.an-go>span{display:block}.an-go:hover .an-c{text-decoration:underline}
+.an-t{font-size:13px;font-weight:600;color:var(--mute)}.an-q{font-style:italic;font-size:14px;color:var(--mute)}
+.an-c{white-space:pre-wrap}.an-l{font-size:12px;color:var(--red)}
+.an-x{display:flex;gap:6px;margin-top:6px}.an-mt{padding:14px;font-size:14px;color:var(--mute)}
+.an-ft{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--ink)}
+.an-st{flex-basis:100%;font-size:13px;color:var(--mute)}.an-st:empty{display:none}
+.an-fb{width:100%;min-height:8em;font:12px/1.5 var(--mono);color:var(--ink);background:var(--wash);border:1px solid var(--rule);border-radius:6px;padding:6px 8px;resize:vertical}
+.an-panel button:not(.an-go),.an-dlg button{font:13px var(--sans);min-height:32px;padding:3px 10px;border:1px solid var(--rule);background:var(--paper);border-radius:6px;cursor:pointer;color:var(--ink)}
+.an-panel button:not(.an-go):hover,.an-dlg button:hover{background:var(--wash)}.an-panel button:disabled{opacity:.4;cursor:default}
+.an-panel .an-pri,.an-dlg .an-pri,.an-panel .an-pri:hover,.an-dlg .an-pri:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.an-dlg{width:min(560px,calc(100vw - 32px));padding:18px;border:1px solid var(--ink);border-radius:8px;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans)}
+.an-tg{max-width:none;margin:0 0 10px;font-size:13px;color:var(--mute);overflow-wrap:anywhere}
+.an-dlg textarea{display:block;width:100%;min-height:7em;font:15px/1.5 var(--sans);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:8px 10px;resize:vertical}
+.an-db{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}.an-db .an-del{margin-right:auto}
+@media(pointer:coarse),(max-width:800px){.an-panel button:not(.an-go),.an-dlg button,.an-add{min-height:44px;min-width:44px}.an-sec{min-height:44px;min-width:44px;margin:-10px 0 -10px 4px}}
+@media print{.an-fab,.an-add,.an-sec,.an-panel{display:none}}
 </style>
 <script>
 /* One filter per tree. FILTER holds the toggleable categories of that tree. `drives`: figure ids of
@@ -383,11 +416,14 @@ addEventListener('keydown',e=>{const b=e.target.closest&&e.target.closest('.tl>[
 /* Cross-link highlight for every target, inside or outside a tree; a target in a closed tab opens it first. */
 addEventListener('hashchange',hit);addEventListener('DOMContentLoaded',hit);
 function nodim(b){b.setAttribute('aria-pressed',document.documentElement.classList.toggle('nodim'))}
-function hit(){const id=decodeURIComponent(location.hash.slice(1));if(!id)return;
- const el=document.getElementById(id);if(!el)return;let opened=rdReveal(el);
+/* open whatever hides el: a deeper reader level, a closed <details>, closed tabs; true when something opened */
+function reveal(el){let opened=rdReveal(el);
  const dn=el.closest('details');if(dn&&!dn.open){dn.open=true;opened=true}
  for(let p=el.closest('.tp');p;p=p.parentElement.closest('.tp'))if(!p.classList.contains('on')){tab(document.getElementById(p.id+'-b'));opened=true}
- if(opened)el.scrollIntoView();el.classList.add('hit');setTimeout(()=>el.classList.remove('hit'),1800)}
+ return opened}
+function hit(){const id=decodeURIComponent(location.hash.slice(1));if(!id)return;
+ const el=document.getElementById(id);if(!el)return;
+ if(reveal(el))el.scrollIntoView();el.classList.add('hit');setTimeout(()=>el.classList.remove('hit'),1800)}
 /* print opens every notes list; afterprint closes again exactly the lists the reader had closed */
 let printClosed=[];
 addEventListener('beforeprint',()=>{printClosed=[...document.querySelectorAll('details.notes:not([open])')];printClosed.forEach(d=>d.open=true)});
@@ -470,7 +506,7 @@ function zvWire(d){const c=d.querySelector('.zc'),pts=new Map();let st=null,move
    greyed boxes stay in localStorage, per page, figure and build (data-v). */
 const MT={de:{act:'aktiv',ok:'kopiert ✓',flt:'ausgefiltert'},en:{act:'active',ok:'copied ✓',flt:'filtered out'}};
 function mapInit(svg){const fig=svg.closest('.fg'),w=svg.parentElement,t=MT[document.documentElement.lang.slice(0,2)]||MT.en;
- const key='report-html:'+location.pathname+'#'+fig.id+':'+svg.dataset.v,N=new Map(),pts=new Map();
+ const key='report:'+location.pathname+'#'+fig.id+':'+svg.dataset.v,N=new Map(),pts=new Map();
  for(const g of svg.querySelectorAll('g.mn')){const m=/translate\(([-\d.]+) ([-\d.]+)\)/.exec(g.getAttribute('transform'));
   N.set(g.dataset.n,{g,x:+m[1],y:+m[2],w:+g.dataset.w,h:+g.dataset.h,x0:+m[1],y0:+m[2],off0:g.classList.contains('off')})}
  const E=[...svg.querySelectorAll('path.ln[data-f]')].map(p=>({p,a:p.nextElementSibling,f:p.dataset.f,t:p.dataset.t,
@@ -752,7 +788,7 @@ function rdCount(dp){for(const d of document.querySelectorAll('details.notes')){
 function rdSet(id,save){const c=document.querySelector('.rdc');if(!c||!RD.includes(id))return false;
  document.documentElement.dataset.depth=id;rdCount(RD.indexOf(id));
  for(const b of c.querySelectorAll('button')){const on=b.dataset.depth===id;b.setAttribute('aria-pressed',on);if(on)c.querySelector('.rdd').textContent=b.dataset.desc||''}
- if(save){try{sessionStorage.setItem('report-html:depth:'+location.pathname,id)}catch(_){}}
+ if(save){try{sessionStorage.setItem('report:depth:'+location.pathname,id)}catch(_){}}
  if(FIND.q&&document.querySelector('[data-find-scope]'))rfRun();return true}
 addEventListener('beforeprint',()=>{if(document.documentElement.dataset.depth)rdCount(RD.length-1)});
 addEventListener('afterprint',()=>{const id=document.documentElement.dataset.depth;if(id)rdCount(RD.indexOf(id))});
@@ -761,7 +797,7 @@ function rdReveal(el){let changed=false;
   const cur=document.documentElement.dataset.depth;if(cur&&RD.indexOf(p.dataset.reader)>RD.indexOf(cur))changed=rdSet(p.dataset.reader,true)||changed}
  return changed}
 addEventListener('DOMContentLoaded',()=>{const c=document.querySelector('.rdc');if(!c)return;let id=c.dataset.default;
- try{const s=sessionStorage.getItem('report-html:depth:'+location.pathname);if(RD.includes(s))id=s}catch(_){}
+ try{const s=sessionStorage.getItem('report:depth:'+location.pathname);if(RD.includes(s))id=s}catch(_){}
  rdSet(id,false);const el=location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)));if(el&&rdReveal(el))el.scrollIntoView()});
 addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.rdc button');if(b)rdSet(b.dataset.depth,true)});
 /* Report-wide find (profile web-research: <main data-find-scope>). Units are the outermost headings, paragraphs, list items, table
@@ -785,6 +821,141 @@ addEventListener('click',e=>{if(!e.target.closest||!e.target.closest('#findx'))r
  b.value='';b.dispatchEvent(new Event('input'));b.focus()});
 /* contents: open on a wide screen, closed on a phone (the markup is open, so it stays usable without JS) */
 addEventListener('DOMContentLoaded',()=>{const d=document.querySelector('nav.toc details');if(d&&matchMedia('(max-width:800px)').matches)d.open=false});
+/* Reader notes. Select words inside a section and press Comment, or ✎ on a section title, and write what should change.
+   Every section and block carries data-src, its JSON pointer into the report source (header[data-report]); a note keeps that
+   pointer, the marked words and the sentences around them (taken at creation). The Notes panel lists the notes in page order,
+   jumps to each, copies all of them as markdown for the agent (anMarkdown) and clears them. Notes live in localStorage per page
+   path (in memory only when storage throws); anPaint marks the words with the CSS Custom Highlight API. Nothing is uploaded. */
+const AT={en:{notes:'Notes',comment:'Comment',secNote:'Comment on this section',placeholder:'What should change?',save:'Save',cancel:'Cancel',
+  del:'Delete',edit:'Edit',copy:'Copy for agent',clear:'Clear',clearQ:'Delete all notes on this page?',copied:'Copied {n} notes',
+  copyFail:'Copy failed: select the text below and copy it',empty:'No notes yet. Select text and press Comment, or use ✎ next to a section title.',
+  lost:'text no longer found'},
+ de:{notes:'Notizen',comment:'Kommentieren',secNote:'Abschnitt kommentieren',placeholder:'Was soll sich ändern?',save:'Speichern',cancel:'Abbrechen',
+  del:'Löschen',edit:'Bearbeiten',copy:'Für Agent kopieren',clear:'Leeren',clearQ:'Alle Notizen dieser Seite löschen?',copied:'{n} Notizen kopiert',
+  copyFail:'Kopieren fehlgeschlagen: Text unten markieren und kopieren',empty:'Noch keine Notizen. Text markieren und »Kommentieren« drücken, oder ✎ neben einem Abschnittstitel.',
+  lost:'Text nicht mehr gefunden'}};
+const AN_KEY='report:notes:'+location.pathname,AN_CTX='p,li,td,th,dd,dt,figcaption,caption,blockquote,h2,h3,h4,summary';
+/* anRanges: note id -> Range of its marked words; anLost: ids whose words or target are gone; anPend: the selection under Comment */
+let anNotes=[],anRanges=new Map(),anLost=new Set(),anPend=null,anCur=null,anT=AT.en,anDlg=null,anAdd=null,anPanelEl=null;
+const anFlat=s=>s.replace(/\s+/g,' ');
+const anCut=(s,n)=>{s=anFlat(s).trim();return s.length>n?s.slice(0,n)+'…':s};
+const anElOf=n=>n&&(n.nodeType===1?n:n.parentElement);
+const anId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+function anMk(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;if(tag==='button')e.type='button';return e}
+function anStore(){try{if(anNotes.length)localStorage.setItem(AN_KEY,JSON.stringify(anNotes));else localStorage.removeItem(AN_KEY)}catch(_){}}
+function anTarget(n){return document.querySelector(`[data-src="${CSS.escape(n.src)}"]`)}
+/* the section title as the h2 shows it (number and title), without the sub line, a change mark or the ✎ button */
+function anSecTitle(s){const h=s&&s.querySelector(':scope>h2');return h?[...h.childNodes].filter(x=>x.nodeType===3).map(x=>x.data).join('').trim():''}
+/* the selection a note can take: non-empty, at most 1000 characters, both ends in one section with a source pointer */
+function anSel(){const s=getSelection();if(!s||!s.rangeCount||s.isCollapsed)return null;const r=s.getRangeAt(0),t=r.toString();
+ if(!t.trim()||t.length>1000)return null;const a=anElOf(r.startContainer),b=anElOf(r.endContainer),sec=a&&a.closest('section[data-src]');
+ if(!sec||!b||b.closest('section[data-src]')!==sec||!a.closest('[data-src]'))return null;return r}
+function anSelShow(){const r=anDlg.open?null:anSel();anPend=r&&r.cloneRange();if(!r){anAdd.hidden=true;return}
+ const q=[...r.getClientRects()].filter(x=>x.width).pop()||r.getBoundingClientRect(),W=document.documentElement.clientWidth;
+ anAdd.hidden=false;anAdd.style.top=(q.bottom+scrollY+6)+'px';
+ anAdd.style.left=Math.max(scrollX+4,Math.min(q.right+scrollX-anAdd.offsetWidth/2,scrollX+W-anAdd.offsetWidth-4))+'px'}
+/* a new note from a range: pointer of the innermost block, the sentence before through the sentence after as context */
+function anNew(r){const a=anElOf(r.startContainer),blk=a.closest('[data-src]'),sec=a.closest('section[data-src]');
+ const raw=r.toString(),quote=raw.trim();let c=a.closest(AN_CTX);if(!c||!blk.contains(c))c=blk;
+ const pre=document.createRange();pre.setStart(c,0);pre.setEnd(r.startContainer,r.startOffset);
+ const text=c.textContent,s0=Math.min(text.length,pre.toString().length+raw.length-raw.trimStart().length),e0=Math.min(text.length,s0+quote.length);
+ const ends=[0];for(const m of text.matchAll(/[.!?…](?=\s)/g))ends.push(m.index+1);ends.push(text.length);
+ const at=p=>{let i=0;while(i<ends.length-2&&ends[i+1]<=p)i++;return i};
+ const ks=at(s0),ke=Math.max(ks,at(Math.max(s0,e0-1)));
+ let before=anFlat(text.slice(ends[Math.max(0,ks-1)],s0)).trimStart(),after=anFlat(text.slice(e0,ends[Math.min(ends.length-1,ke+2)])).trimEnd();
+ if(before.length>300)before='…'+before.slice(-300);if(after.length>300)after=after.slice(0,300)+'…';
+ const di=a.closest('[data-id]'),ei=a.closest('[id^="e-"]');
+ return{id:anId(),src:blk.dataset.src,sec:anSecTitle(sec),quote,before,after,
+  anchor:di&&blk.contains(di)?'entity '+di.dataset.id:ei&&blk.contains(ei)?'entity '+ei.id.slice(2):'',comment:'',at:''}}
+/* the note's words inside root: every occurrence of the quote in root's text; the one preceded by the end of `before` wins, else the first */
+function anFind(n,root){const parts=[];let full='';
+ const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:t=>/^(SCRIPT|STYLE)$/.test(t.parentNode.nodeName)?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
+ for(let t;(t=w.nextNode());){parts.push([t,full.length]);full+=t.data}
+ const q=n.quote,tail=(n.before||'').replace(/^…/,'').slice(-32);let at=-1,first=-1;
+ for(let i=full.indexOf(q);i>=0;i=full.indexOf(q,i+1)){if(first<0)first=i;if(tail&&anFlat(full.slice(Math.max(0,i-200),i)).endsWith(tail)){at=i;break}}
+ if(at<0)at=first;if(at<0)return null;const end=at+q.length;
+ const a=parts.find(([t,s])=>at<s+t.length),b=parts.find(([t,s])=>end>s&&end<=s+t.length);if(!a||!b)return null;
+ const r=document.createRange();r.setStart(a[0],at-a[1]);r.setEnd(b[0],end-b[1]);return r}
+function anPaint(){anRanges=new Map();anLost=new Set();
+ for(const n of anNotes){const el=anTarget(n);if(!el){anLost.add(n.id);continue}if(!n.quote)continue;
+  const sec=el.closest('section[data-src]'),r=anFind(n,el)||(sec&&sec!==el?anFind(n,sec):null);if(r)anRanges.set(n.id,r);else anLost.add(n.id)}
+ if(window.Highlight&&CSS.highlights)CSS.highlights.set('an',new Highlight(...anRanges.values()))}
+/* page order: by the marked words, a section note at the start of its section; lost notes last, ties by creation */
+function anOrder(){const k=new Map();
+ for(const n of anNotes){if(anLost.has(n.id))continue;let r=anRanges.get(n.id);const el=!r&&anTarget(n);
+  if(!r&&el){r=document.createRange();r.setStart(el,0)}if(r)k.set(n.id,r)}
+ return[...anNotes].sort((a,b)=>{const x=k.get(a.id),y=k.get(b.id);
+  if(x&&y){let c=0;try{c=x.compareBoundaryPoints(Range.START_TO_START,y)}catch(_){}if(c)return c}else if(x||y)return x?-1:1;
+  return a.at<b.at?-1:a.at>b.at?1:0})}
+function anMarkdown(){anPaint();const h=document.querySelector('header[data-report]'),src=h?h.dataset.report:'report.json',ord=anOrder();
+ let file=location.pathname;try{file=decodeURIComponent(file)}catch(_){}
+ const L=[`# Notes on report "${document.title}"`,'',`File: ${file}`,`Source: ${src}`,
+  `${ord.length} notes. "Where" is a JSON pointer into the source file. Apply each note there, rebuild, and answer per note.`];
+ ord.forEach((n,i)=>{L.push('',`## ${i+1}. ${n.sec}`,`- Where: \`${src}#/${n.src}\``+(n.anchor?` · ${n.anchor}`:''));
+  if(n.quote){const q=anFlat(n.quote).trim(),b=n.before||'',a=n.after||'';
+   L.push(`- Marked: "${q}"`,`- Context: "${b&&!b.startsWith('…')?'…':''}${b}**${q}**${a}${a&&!a.endsWith('…')?'…':''}"`)}
+  L.push('- Comment: '+n.comment.trim().split('\n').join('\n  '))});
+ return L.join('\n')+'\n'}
+function anEdit(n){anCur=n;anAdd.hidden=true;const ta=anDlg.querySelector('textarea');
+ anDlg.querySelector('.an-tg').textContent=n.sec+(n.quote?' › '+anCut(n.quote,120):'');
+ ta.value=n.comment||'';anDlg.querySelector('.an-del').hidden=!anNotes.includes(n);anDlg.showModal();ta.focus()}
+function anSave(){const ta=anDlg.querySelector('textarea'),c=ta.value.trim(),n=anCur;if(!c||!n){ta.focus();return}
+ n.comment=c;if(!anNotes.includes(n)){n.at=new Date().toISOString();anNotes.push(n);getSelection().removeAllRanges()}
+ anStore();anDlg.close();anRefresh()}
+function anDel(n){anNotes=anNotes.filter(x=>x!==n);anStore();anRefresh()}
+function anRefresh(){anPaint();anList()}
+function anList(){const P=anPanelEl;if(!P)return;document.querySelector('.an-fab .an-n').textContent=anNotes.length;
+ const ol=P.querySelector('.an-ls'),ord=anOrder();ol.replaceChildren();
+ for(const b of P.querySelectorAll('.an-ft button'))b.disabled=!ord.length;
+ if(!ord.length){ol.append(anMk('li','an-mt',anT.empty));return}
+ ord.forEach((n,i)=>{const li=anMk('li','an-it'),go=anMk('button','an-go'),x=anMk('div','an-x'),ed=anMk('button','',anT.edit),dl=anMk('button','',anT.del);
+  go.append(anMk('span','an-t',`${i+1}. ${n.sec}`));if(n.quote)go.append(anMk('span','an-q',anCut(n.quote,120)));
+  go.append(anMk('span','an-c',n.comment));if(anLost.has(n.id))go.append(anMk('span','an-l',anT.lost));
+  go.addEventListener('click',()=>anJump(n));ed.addEventListener('click',()=>anEdit(n));dl.addEventListener('click',()=>anDel(n));
+  x.append(ed,dl);li.append(go,x);ol.append(li)})}
+function anJump(n){const el=anTarget(n);if(!el)return;const r=anRanges.get(n.id),f=r&&anElOf(r.startContainer).closest(AN_CTX)||el;
+ reveal(f);if(matchMedia('(max-width:800px)').matches)anPanel(false);
+ f.scrollIntoView({block:'center'});f.classList.add('an-flash');setTimeout(()=>f.classList.remove('an-flash'),1800)}
+function anPanel(on){const P=anPanelEl,fab=document.querySelector('.an-fab');P.hidden=!on;document.documentElement.classList.toggle('an-open',on);
+ fab.setAttribute('aria-expanded',on);if(on){anRefresh();P.querySelector('.an-cl').focus()}else fab.focus({preventScroll:true})}
+async function anCopy(){const st=anPanelEl.querySelector('.an-st'),fb=anPanelEl.querySelector('.an-fb'),md=anMarkdown();
+ try{await navigator.clipboard.writeText(md);fb.hidden=true;st.textContent=anT.copied.replace('{n}',anNotes.length)}
+ catch(_){fb.value=md;fb.hidden=false;fb.focus();fb.select();st.textContent=anT.copyFail}}
+function anClear(){if(!confirm(anT.clearQ))return;anNotes=[];try{localStorage.removeItem(AN_KEY)}catch(_){}
+ anPanelEl.querySelector('.an-fb').hidden=true;anPanelEl.querySelector('.an-st').textContent='';anRefresh()}
+function anInit(){const secs=document.querySelectorAll('section[data-src]');if(!secs.length)return;
+ anT=AT[document.documentElement.lang.slice(0,2)]||AT.en;const close=(ZT[document.documentElement.lang.slice(0,2)]||ZT.en).close;
+ try{const s=JSON.parse(localStorage.getItem(AN_KEY)||'[]');if(Array.isArray(s))anNotes=s}catch(_){}
+ for(const s of secs){const h=s.querySelector(':scope>h2');if(!h)continue;const b=anMk('button','an-sec');b.title=anT.secNote;b.setAttribute('aria-label',anT.secNote);
+  b.addEventListener('click',()=>anEdit({id:anId(),src:s.dataset.src,sec:anSecTitle(s),quote:'',before:'',after:'',anchor:'',comment:'',at:''}));
+  h.insertBefore(b,h.querySelector(':scope>span:last-child'))}
+ anAdd=anMk('button','an-add',anT.comment);anAdd.hidden=true;
+ anAdd.addEventListener('mousedown',e=>e.preventDefault());
+ anAdd.addEventListener('click',()=>{const r=anSel()||anPend;if(r)anEdit(anNew(r.cloneRange()))});
+ const fab=anMk('button','an-fab');fab.setAttribute('aria-controls','an-panel');fab.setAttribute('aria-expanded','false');
+ fab.append(anMk('span','',anT.notes),anMk('span','an-n','0'));fab.addEventListener('click',()=>anPanel(anPanelEl.hidden));
+ const P=anPanelEl=document.createElement('aside');P.id='an-panel';P.className='an-panel';P.hidden=true;P.setAttribute('aria-label',anT.notes);
+ P.innerHTML=`<div class="an-ph"><b>${anT.notes}</b><button type="button" class="an-cl" aria-label="${close}">✕</button></div><ol class="an-ls"></ol>`+
+  `<div class="an-ft"><button type="button" class="an-pri" data-a="copy">${anT.copy}</button><button type="button" data-a="clear">${anT.clear}</button>`+
+  `<span class="an-st" role="status" aria-live="polite"></span><textarea class="an-fb" readonly hidden rows="8" aria-label="${anT.copy}"></textarea></div>`;
+ P.querySelector('.an-cl').addEventListener('click',()=>anPanel(false));
+ P.querySelector('.an-ft').addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b)({copy:anCopy,clear:anClear})[b.dataset.a]()});
+ const d=anDlg=document.createElement('dialog');d.className='an-dlg';d.setAttribute('aria-label',anT.comment);
+ d.innerHTML=`<p class="an-tg"></p><textarea required rows="5" placeholder="${anT.placeholder}" aria-label="${anT.placeholder}"></textarea>`+
+  `<div class="an-db"><button type="button" class="an-del">${anT.del}</button><button type="button" data-a="cancel">${anT.cancel}</button>`+
+  `<button type="button" class="an-pri" data-a="save">${anT.save}</button></div>`;
+ d.querySelector('.an-db').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.classList.contains('an-del')){const n=anCur;d.close();if(n)anDel(n)}else if(b.dataset.a==='save')anSave();else d.close()});
+ d.querySelector('textarea').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();anSave()}});
+ d.addEventListener('close',()=>{anCur=null;anSelShow()});
+ document.body.append(anAdd,fab,P,d);
+ let tm=0;document.addEventListener('selectionchange',()=>{clearTimeout(tm);tm=setTimeout(anSelShow,150)});
+ addEventListener('resize',()=>{anAdd.hidden=true});
+ addEventListener('keydown',e=>{if(e.key==='Escape'&&!P.hidden&&!d.open)anPanel(false)});
+ /* data tables and late scripts rebuild parts of the page: paint again once they are done */
+ document.addEventListener('dt-init',anRefresh);addEventListener('load',anRefresh);
+ anRefresh()}
+addEventListener('DOMContentLoaded',anInit);
 </script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
 {{HEAD}}

@@ -46,6 +46,7 @@ PROSE_TYPES = ("p", "bullets", "steps", "callout", "argument", "example", "compa
 LINT_LINKS_BLOCK = 3  # max [[id]] links in one prose block
 LINT_LIST_MIN = 4  # list items in a section before the list-vs-prose balance is checked
 LINK_ID = re.compile(r"\[\[([^\]|]+)")  # [[id or [[id|label: the id of an inline link
+SRC_TAG = re.compile(r"\s*<([A-Za-z][\w-]*)")  # first root element of a block's HTML: its `data-src` pointer goes there
 LINT_KIND_MIN = 5  # entities of one kind needed before a missing meta key is reported
 HEAD = {}  # block type -> HTML for <head> (CDN tags); added once when a block of that type is in the report
 HEAD["mermaid"] = (
@@ -251,6 +252,7 @@ class Report:
         self.d = data
         self.out_dir = out_dir  # directory of the output HTML; media (`video`) resolves against it
         self.src = src  # path of report.json; the data dump (`count` stats) resolves against it
+        self.bpath = None  # JSON pointer of the block being rendered (`sections/0/blocks/2`); b_tabs extends it
         self.lints = []  # lint lines; printed by main() after the build
         self.cats = data.get("badges", {})
         self.ents = {e["id"]: e for e in data.get("entities", [])}
@@ -1838,7 +1840,9 @@ class Report:
                     head += f'<p class="sum">{self.inline(t["summary"])}</p>'
                 self.tab_entity = eid
                 inner = self.scope(t.get("blocks", []))
-                body = "".join(self.block(x, f"tabs {tid}", inner) for x in t.get("blocks", []))
+                base = self.bpath
+                body = "".join(self.block(x, f"tabs {tid}", inner, None if base is None else f"{base}/tabs/{i}/blocks/{j}")
+                               for j, x in enumerate(t.get("blocks", [])))
                 self.tab_entity = None
                 return head + body
             panels.append(f'<div class="tp{" on" if on else ""}{cls}" role="tabpanel" id="{pid}" aria-labelledby="{pid}-b">'
@@ -2082,7 +2086,13 @@ class Report:
                  f'<script type="application/json" class="vgs">{js}</script>')
         return self.figure(b, inner, used={}, tools="", after=after).replace('<figure class="fg"', f'<figure class="fg"{ent}', 1)
 
-    def block(self, b, where, scope=False):
+    def with_src(self, out, path):
+        """Stamp the block's JSON pointer (`sections/0/blocks/2`) on its first root element; the page script maps a reader note to it."""
+        attr = f' data-src="{E(path)}"'
+        m = SRC_TAG.match(out)
+        return out[:m.end()] + attr + out[m.end():] if m else f'<div{attr}>{out}</div>'
+
+    def block(self, b, where, scope=False, path=None):
         """One block; in a change document a marked block gets its mark and rule, an unmarked one next to a marked sibling dims.
         A block with `reader` (deeper than general) sits in a `.rd[data-reader]` wrapper the page script shows or hides."""
         fn = getattr(self, "b_" + b["type"], None)
@@ -2091,8 +2101,12 @@ class Report:
         k, cls, mk = self.state(b, scope)
         rank, outer = self.reader_rank(b, where), self.rank
         self.rank = max(outer, rank)
+        outer_path, self.bpath = self.bpath, path
         out = self.inside(k, fn, b)
+        self.bpath = outer_path
         self.rank = outer
+        if path is not None:
+            out = self.with_src(out, path)
         if cls:
             out = f'<div class="cx{cls}">{mk}{out}</div>'
         if rank:
@@ -2329,7 +2343,8 @@ class Report:
             self.nsec = i
             self.notes = {} if self.size != "technical" else None
             inner = self.scope(sec.get("blocks", []))
-            body = self.inside(k, lambda: [self.block(b, f"section {sec['title']}", inner) for b in sec.get("blocks", [])])
+            body = self.inside(k, lambda: [self.block(b, f"section {sec['title']}", inner, f"sections/{i - 1}/blocks/{j}")
+                                           for j, b in enumerate(sec.get("blocks", []))])
             num = f"{i} " if d.get("numbered", True) else ""
             secid = sec.get("id") or (f"s-{i}" if wr else None)
             sid = f' id="{E(secid)}"' if secid else ""
@@ -2337,7 +2352,7 @@ class Report:
             lab = f' aria-labelledby="{E(secid)}-h"' if wr else ""
             rd = f' data-reader="{E(sec["reader"])}"' if self.reader_rank(sec, f"section {sec['title']}") else ""
             ccls = f' class="{cls.strip()}"' if cls else ""
-            parts.append(f'<section{sid}{ccls}{rd}{lab}><h2{hid}>{num}{mk}{E(sec["title"])}<span>{E(sec.get("sub", ""))}</span></h2>'
+            parts.append(f'<section{sid}{ccls}{rd}{lab} data-src="sections/{i - 1}"><h2{hid}>{num}{mk}{E(sec["title"])}<span>{E(sec.get("sub", ""))}</span></h2>'
                          f'<div class="body">{"".join(body) + self.notes_html(i)}</div></section>')
             toc.append(f'<li{rd}><a href="#{E(secid or "")}">{num}{E(sec["title"])}</a></li>')
         self.notes = None
@@ -2353,15 +2368,16 @@ class Report:
                        f'<button type="button" aria-pressed="false" onclick="nodim(this)">{E(self.t["full"])}</button></div>')
         # reading order: title and tools, the first section (the answer), statistics and change summary, the rest, the bibliography
         content = parts[:1] + [x for x in (stats, summary) if x] + parts[1:] + ([bib] if bib else [])
+        hdr = f'<header data-report="{E(self.src.name)}">' if self.src else "<header>"
         if wr:
             nav = (f'<nav class="toc" aria-label="{E(t["toc"])}"><details open><summary>{E(t["toc"])}</summary>'
                    f'<ol>{"".join(toc)}</ol></details></nav>')
             head = [f'<a class="skip" href="#main">{E(t["skip"])}</a>',
-                    f'<header><h1>{E(d["title"])}</h1>{prov}{prov_print}<div class="wrtools">{reader}{find}</div>{nav}</header>',
+                    f'{hdr}<h1>{E(d["title"])}</h1>{prov}{prov_print}<div class="wrtools">{reader}{find}</div>{nav}</header>',
                     f'<main id="main" class="wr" tabindex="-1" data-find-scope>{chr(10).join(content)}</main>']
             body = "\n".join(head)
         else:
-            head = [f'<header><h1>{E(d["title"])}</h1>{prov}{prov_print}{reader}{find}</header>']
+            head = [f'{hdr}<h1>{E(d["title"])}</h1>{prov}{prov_print}{reader}{find}</header>']
             body = "\n".join(head + content)
         found = Counter(html.unescape(i) for i in re.findall(r'\sid="([^"]+)"', body))
         twice = sorted(i for i, k in found.items() if k > 1)
@@ -2402,6 +2418,10 @@ def check_choice(data, path):
     if size not in SIZES:
         fail(f"--check-choice {path}: size must be one of {', '.join(SIZES)}, not {size}")
     print(f"choice: size {size}" + ("" if "size" in choice else " (not in the choice file, medium assumed)"))
+    mode = choice.get("mode", "ask")
+    if mode not in ("ask", "autopilot"):
+        fail(f"--check-choice {path}: mode must be ask or autopilot, not {mode}")
+    print(f"choice: mode {mode}")
     allowed = SIZE_FEATURES.get(size)
     if allowed:
         bad = [f for f in feats if f not in allowed]
@@ -2423,6 +2443,8 @@ def check_choice(data, path):
         fail(f"--check-choice: used but not chosen: {', '.join(bad)}")
     qs = choice.get("questions")
     if qs is None:
+        if mode == "autopilot":
+            fail('--check-choice: autopilot needs "questions"')
         return size
     if not isinstance(qs, list) or not all(isinstance(q, dict) and q.get("id") and q.get("text") for q in qs):
         fail(f'--check-choice {path}: "questions" must be [{{"id", "chapter", "text", "feature"}}]')
@@ -2436,6 +2458,10 @@ def check_choice(data, path):
         f = q.get("feature", "none")
         if f != "none" and f not in feats:
             fail(f'--check-choice: question {q["id"]} needs feature {f}, which is not in "features"')
+    if mode == "autopilot":
+        extra = [f for f in feats if f not in {q.get("feature", "none") for q in qs} | {"none", "find"}]
+        if extra:
+            fail(f"--check-choice: autopilot chooses no extras, found {', '.join(extra)}")
     answered = defaultdict(list)
     for n, sec in enumerate(data.get("sections", [])):
         q = sec.get("question")

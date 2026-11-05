@@ -3,7 +3,7 @@ name: report-video
 description: "Chaptered, narrated manim explainer of a report's main concepts with a brand look, embedded as a `video` block with captions and chapters. Use only when the user asks for a video, animation or explainer."
 license: MIT
 metadata:
-  version: 0.2.3
+  version: 0.2.4
   publisher: skaile-ai
 ---
 
@@ -11,9 +11,9 @@ metadata:
 
 Turn a report's main concepts (the answer, the chosen questions, entities, diagrams, numbers) into a chaptered, branded explainer video. Output in `<stem>.media/`: `<id>.script.md`, `<id>.py`, `brand.py`, `timestamps.json`, `<id>.mp4` (mp4 chapter markers, AAC voice when a TTS exists), `<id>.vtt`, `<id>.jpg`, `<id>.block.json`; the `video` block carries `track` and `chapters`, so `build.py` renders a caption track and a clickable chapter list.
 
-Use this skill only when the user asks for a video, an animation or an explainer. `skill://report-html` offers it unchecked otherwise. Inputs: a built `report.json` (under report-html), or the user's text alone.
+Use this skill only when the user asks for a video, an animation or an explainer. `skill://report` offers it unchecked otherwise. Inputs: a built `report.json` (under report), or the user's text alone.
 
-Reading contract: follow `skill://report-html` (citations, labels, answer-first). The video is supplementary: the prose of the report MUST answer the question without it. It goes last and the reader starts it (the block has controls and no autoplay).
+Reading contract: follow `skill://report` (citations, labels, answer-first). The video is supplementary: the prose of the report MUST answer the question without it. It goes last and the reader starts it (the block has controls and no autoplay).
 
 Read [`TECHNIQUES.md`](TECHNIQUES.md) before you write the script and again before you write the scenes. It holds the visual grammar, the arc per profile, the block → shot table, the layouts, the pacing and the checklist for stills.
 
@@ -159,12 +159,12 @@ Done when `stitch:` prints its summary line.
 ## Alone
 
 1. Brief from the user's text → Script → Brand → Scenes → Narrate → Render (all above), in `<stem>.media/`.
-2. Stop at the mp4: no HTML. If the user wants a page, write a `report.json` with one `p` and the block from `<id>.block.json` (copy `example.json`) and build: `python3 <skill-dir>/../report-html/build.py report.json <out>.html`.
+2. Stop at the mp4: no HTML. If the user wants a page, write a `report.json` with one `p` and the block from `<id>.block.json` (copy `example.json`) and build: `python3 <skill-dir>/../report/build.py report.json <out>.html`.
 3. Run Verify. State the path of the mp4 and the chapter list in chat.
 
 The example in `example.media/` holds a finished set: `demo.script.md`, `demo.py`, `brand.py`, `demo.block.json`.
 
-## Under report-html
+## Under report
 
 1. Do Brief to Render with the built `report.json`. Put the media in `<stem>.media/` next to `report.json` (the sibling of `<stem>.json`).
 2. Hand the block from `<id>.block.json` back to the orchestrator's section plan. Place it last in the first section (the answer), unless a chosen question asked for the video: then last in that section. The text above states the answer; the video walks through it. Do not move a finding into the video.
@@ -176,6 +176,6 @@ The example in `example.media/` holds a finished set: `demo.script.md`, `demo.py
 - `ffprobe -v error -show_entries format=duration:stream=codec_name,width,height -show_chapters <id>.mp4`: h264 (+ aac when narrated), 1280×720, chapter count = script chapter count, chapter titles match `<n>. <title>`.
 - `<id>.vtt` cue count (`grep -c -- '-->'`) = narration line count.
 - Read the poster and one still per chapter: chrome visible, no cut text, ≤ 6 elements.
-- Build from any directory: `python3 <skill-dir>/../report-html/build.py <report>.json /tmp/x.html` prints `lint: 0 findings`; the emitted `src`/`poster` point at existing files relative to `/tmp`; the track is inlined as a `data:text/vtt` URI.
+- Build from any directory: `python3 <skill-dir>/../report/build.py <report>.json /tmp/x.html` prints `lint: 0 findings`; the emitted `src`/`poster` point at existing files relative to `/tmp`; the track is inlined as a `data:text/vtt` URI.
 - Built page at 1280 px and 390 px: `scrollWidth == 390`, no console errors; `<video>` `readyState ≥ 1` after `load()`; `video.textTracks[0].cues.length` = the vtt cue count (also from `file://`); a click on the second chapter button sets `currentTime` to its `t` and starts playback.
 - Build errors fire on a missing `src`, a missing file, and a `chapters` entry without `t`.

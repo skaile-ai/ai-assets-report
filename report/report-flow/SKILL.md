@@ -3,7 +3,7 @@ name: report-flow
 description: "Capture how code or a pipeline works from the source (trigger, steps, stores, error paths, file:line evidence) and draw levelled DFD `flow`, `lineage` and `states` diagrams. Use for 'how does X work', 'what becomes what', 'which states'."
 license: MIT
 metadata:
-  version: 0.2.0
+  version: 0.2.1
   publisher: skaile-ai
 ---
 
@@ -13,7 +13,7 @@ Answer `<question>` about how code or a pipeline works with levelled diagrams. C
 
 Read [`NOTATION.md`](NOTATION.md) before you write a `flow`, `lineage` or `states` block. It holds the schema, the layout rules and the sources for the notation choice.
 
-Reading contract: follow `skill://report-html` (citations, labels, answer-first).
+Reading contract: follow `skill://report` (citations, labels, answer-first).
 
 ## Which block
 
@@ -70,10 +70,10 @@ Done when every node and every edge you draw maps to one line of this list.
 
 1. Collect the facts (Capture the flow). Define one entity per stage, with `badges` and `meta` (`trigger`, `code`, `guard`).
 2. Write `report.json` with only these blocks: the L0 `flow`, one L1 `flow` per stage in `tabs`, the `states` and `lineage` blocks the question needs, and one `p` that states the answer. Copy the shape from `example.json`.
-3. Build: `python3 <skill-dir>/../report-html/build.py report.json <out>.html`. Fix every `report.json:` line.
+3. Build: `python3 <skill-dir>/../report/build.py report.json <out>.html`. Fix every `report.json:` line.
 4. Verify (list below), then `open <out>.html` and state the answer in chat.
 
-## Under report-html
+## Under report
 
 1. Do steps 1 and 2 of Alone for the selected blocks only (the L0/L1 `tabs` suite in step 2 applies only when the plan selected it); hand the blocks and entities back to the orchestrator's section plan instead of building.
 2. Return only the flow, lineage and states blocks the section plan selected. Do not add an L0/L1 suite or a `tree` of stages when the plan did not select them; the standalone recipe keeps them. A single selected `flow` needs no L0 parent. Add the `tree` of the stages only when the plan selected it.

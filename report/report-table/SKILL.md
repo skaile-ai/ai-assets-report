@@ -3,7 +3,7 @@ name: report-table
 description: "Dump collections, detect keys/relations/enums with detect.py, and render entities as badge-filtered trees and interactive sortable/searchable tables. Use for inventories, 'which X exist', 'how many', data sheets."
 license: MIT
 metadata:
-  version: 0.2.0
+  version: 0.2.1
   publisher: skaile-ai
 ---
 
@@ -11,7 +11,7 @@ metadata:
 
 Answer `<question>` about what exists with data from the source: entities in a badge-filtered `tree`, plain `table` blocks and interactive `data` tables. Dump first, detect second, write `report.json` third.
 
-Reading contract: follow `skill://report-html` (citations, labels, answer-first).
+Reading contract: follow `skill://report` (citations, labels, answer-first).
 
 ## Dump
 
@@ -33,7 +33,7 @@ It writes `schema.json`, `schema.ts` (refs as `Target["key"]`) and a draft `repo
 
 ## Shape
 
-Edit the draft until it answers the question. The core schema (`badges`, `entities`, `sections`, inline text) is in `skill://report-html`, section "report.json".
+Edit the draft until it answers the question. The core schema (`badges`, `entities`, `sections`, inline text) is in `skill://report`, section "report.json".
 
 - One entity per thing a reader may jump to. State each link once, in `parent` or `refs`; `build.py` computes the back-links (`←`).
 - A badge category has 2-4 values that split the entities. A value on more than 85 % or on fewer than 5 % of the entities that carry the category is not a badge: move it to a `meta` line or a table column. The build prints `badge <cat>=<val>: <n> of <m> entities (<pct> %)`.
@@ -64,15 +64,15 @@ Edit the draft until it answers the question. The core schema (`badges`, `entiti
 
 1. Dump, detect and shape (above) for `<question>`.
 2. Write `report.json` with the entities, the `badges`, one `tree` and the `table` or `data` blocks the question needs, plus one `p` that states the answer with its reason (`skill://report-prose`). Copy the shape from `example.json`.
-3. Build: `python3 <skill-dir>/../report-html/build.py report.json <out>.html`. The build aborts on an unknown ref, parent, badge or colour: fix the data, not the check. Read every `lint:` line and fix it or justify it in chat.
+3. Build: `python3 <skill-dir>/../report/build.py report.json <out>.html`. The build aborts on an unknown ref, parent, badge or colour: fix the data, not the check. Read every `lint:` line and fix it or justify it in chat.
 4. Verify (below), then `open <out>.html` and state the answer in chat.
 5. Location: `<repo>/.scratch/reports/<topic>-<YYYY-MM-DD>[-vN].html`, dump in `<topic>-<date>[-vN].data/`, detector output in `<topic>-<date>[-vN].build/`. When any of these names already exists, use the first free `-vN` (`-v2`, `-v3`, …) for all of them. Never overwrite an earlier report.
 
-## Under report-html
+## Under report
 
 1. Do Dump, Detect and Shape. Return the entities and only the blocks of the chosen features (`tree` with its `badges`, `table`, `data`) to the orchestrator's section plan; do not build. A `data` choice alone adds no `tree`.
 2. Section order: the prose that answers first, then for each block a lead `p` and the block: the `tree`, the diagrams it `drives`, `table` and `data`.
-3. Size (`skill://report-html` **Sizes**): `small` returns one `tree` and no `table` or `data`; `technical` returns a `data` table for every collection the chosen questions name, with every column of the dump.
+3. Size (`skill://report` **Sizes**): `small` returns one `tree` and no `table` or `data`; `technical` returns a `data` table for every collection the chosen questions name, with every column of the dump.
 4. Add `data` only when a collection has more than 30 rows (the orchestrator pre-checks it on that signal).
 5. The orchestrator builds and runs the core checks. Run the Verify list below for your blocks.
 

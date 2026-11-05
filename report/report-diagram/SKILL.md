@@ -3,7 +3,7 @@ name: report-diagram
 description: "Dependency `map` canvases, `board` moodboards (screens today vs. proposed, changes marked) and mermaid notations (sequence, class, ER, C4, gantt, mindmap, sankey, railroad) with the notation-choice table. Use for 'what depends on what', 'who calls whom in which order', 'moodboard', 'before/after of screens', 'draw this as a diagram'."
 license: MIT
 metadata:
-  version: 0.2.0
+  version: 0.2.1
   publisher: skaile-ai
 ---
 
@@ -11,7 +11,7 @@ metadata:
 
 Answer `<question>` about dependencies, call order, structure or a planned change of screens with one `map`, `board` or `mermaid` block. Read the relations from the code or the dump first, draw second. Never draw an edge you did not read.
 
-Reading contract: follow `skill://report-html` (citations, labels, answer-first).
+Reading contract: follow `skill://report` (citations, labels, answer-first).
 
 ## Which block
 
@@ -95,10 +95,10 @@ The browser renders `code` from the pinned CDN module `mermaid@11`. The build ch
 1. Pick the block from the table. Collect the relations from the code or data, every one with `path:line`.
 2. Define one entity per node the reader should reach (`badges`, `meta`), and a `tree` for them, so each `ref` and `click` target exists.
 3. Write `report.json` with only the block, its entities, the tree, and one `p` that states the answer. Copy the shape from `example.json`. State each term as in the code.
-4. Build: `python3 <skill-dir>/../report-html/build.py report.json <out>.html`. Fix every `report.json:` line.
+4. Build: `python3 <skill-dir>/../report/build.py report.json <out>.html`. Fix every `report.json:` line.
 5. Verify (list below), then `open <out>.html` and state the answer in chat.
 
-## Under report-html
+## Under report
 
 1. Do steps 1 to 3 of Alone for the selected blocks only; the `tree` in step 2 and the "only the block, its entities, the tree" list in step 3 apply only when the plan selected a tree. Hand the blocks and entities back to the orchestrator's section plan instead of building.
 2. Return only the `map`, `board` or `mermaid` blocks the section plan selected, plus the entities that their `ref` and `click` targets need. Add the `tree` of the nodes only when the plan selected it; a `ref`/`click` target can also be an entity that another selected block (table row `anchor`, tab `entity`) already owns. The standalone recipe uses a tree; the orchestration does not force one.
