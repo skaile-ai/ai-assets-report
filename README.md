@@ -30,7 +30,8 @@ Needs `python3` (stdlib only). `report-video` also needs manim and ffmpeg; narra
 | Ability | Skill | Block / mechanism |
 |---|---|---|
 | Question outline: the user picks the questions by chapter, one section per question | report | `ask` + `questions` in `<stem>.choice.json`, checked by `--check-choice` |
-| Profiles (explanation, structure, inventory, critique, comparison, exploration, change, web-research) | report | top-level `profile`, skeleton seeds the outline |
+| Profiles (explanation, structure, inventory, critique, comparison, exploration, change, web-research, app-audit) | report | top-level `profile`, skeleton seeds the outline |
+| Screenshot gallery with numbered note pins, lightbox, before/after | report | `gallery` |
 | Sizes (small, medium, detailed, technical): question, sentence and ability budgets asked up front | report | `size` in `<stem>.choice.json`, checked by `--check-choice` and lint |
 | Entity tree with badge filter; a category's `default` value hides its chip so rows show only exceptions | report-table | `tree`, `badges.<cat>.default` |
 | Explanation blocks | report | `argument`, `example`, `compare`, `callout` |

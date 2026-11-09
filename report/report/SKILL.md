@@ -3,7 +3,7 @@ name: report
 description: "Build one static HTML report read front to back: argued answer first, tables, trees, diagrams and charts as support. Use for 'report', 'overview page', 'data sheet', 'how does X work as a page'. Autopilot by default; 'report interactive: <question>' asks first; a pasted '# Notes on report' block revises it."
 license: MIT
 metadata:
-  version: 0.5.1
+  version: 0.6.0
   publisher: skaile-ai
   requires: "report-prose, report-table, report-flow, report-diagram, report-charts, report-video"
 ---
@@ -46,11 +46,12 @@ Under autopilot nothing asks and nothing waits. The steps compute the same lists
    |`exploration`|how many, distribution, over time, per month, outliers, which rows|`stats` from the dump → `vega` charts with a point selection → `data` tables listening to them → findings `argument`|data, charts|
    |`change`|what changed, diff, since version|previous `report.json` + `since`; keeps its profile and its choice file|as before|
    |`web-research`|research a topic from the web, what do guidelines say, what helps, resources for patients or the public, report with sources and images|`callout` `answer`/`safety`/`action` → `p` (`reader: informed`) → `media` (licensed images) → `table` (responsive) → `flow` (`dir: down`) → `resources` (curated links) → `bullets` (`reader: professional`: evidence, limits); `sources` render the bibliography after the last section|callout, media, resources, table, flow|
+   |`app-audit`|explore my app, app audit, how clear is my app, screens, navigation, ontology of an app|`callout` `answer` + `argument` (verdict, top 3 fixes) → objects `tree` (badges `class`, `shown-as`) + naming-conflict `table` → tasks `table` (anchors) + per-object CTA `tabs` → navigation `map` of screens + click-depth `bars` + first-click `table` → clarity scorecard `table` + rubric `bars` + findings `tree` (`sev`) + findings `data` → screens `gallery` → with `since`: change bar, findings status `table`, gallery before/after|tree, gallery, map, charts|
 
    `web-research` adds sources, media, resources and reader depths: read `references/web-research.md`.
 3. **Size and profile.** Autopilot: take the recommended size and this step's profile. Interactive: one `ask` call with two single-choice questions, before any outline exists:
    - `size`: options `small`, `medium`, `detailed`, `technical`, label `` `<size>` <reader> ``, description `<questions> · <sentences> · <abilities>` from **Sizes**. `recommended` = `small` unless the request asks for more: `medium` on medium, main support, standard; `detailed` on detailed, full, everything; `technical` on technical, engineers, code-level, implementation.
-   - `profile`: options = the eight profiles, label `` `<profile>` ``, description = its trigger words, `recommended` = the step 2 match.
+   - `profile`: options = the nine profiles, label `` `<profile>` ``, description = its trigger words, `recommended` = the step 2 match.
 
    Without an `ask` tool: print both lists in chat and wait.
 4. **Draft the outline.** Collect the signals: row counts, enum/number/date fields, the words of the question. Write candidate questions in the chapters the size allows. A chapter is one reader goal ("What exists", "How it runs", "What is wrong", "What to do"). A candidate is one question the data answers, with an id (`q1`, `q2`, …), the cheapest ability that answers it (key from **Abilities**) and its signal with the number. Sources: each skeleton slot, each ability whose "Offer when" holds, the user's own words. Drop a candidate without a signal and one that restates another. Every chapter holds 2-4 candidates (`small`: 1-2); a chapter that cannot reach 2 candidates merges into its neighbour. Pre-check as many as the size allows: the ones the answer cannot stand without; the profile's "Leans on" abilities break ties. `small` offers only `none`, `tree` and `bars` candidates; `technical` adds a `flow` candidate for every question that names code and a `data` candidate for every collection a candidate names.
