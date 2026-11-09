@@ -251,8 +251,8 @@ ul.ste li.chg,ol.ste li.chg,tr.chg>td,.row.chg{background:var(--cb)}tr.chg>td:fi
 .ln.chg{stroke:var(--c);stroke-width:2}.ln.c-removed{stroke-dasharray:3 3}.el.chg{fill:var(--c);font-weight:600}
 .tl button.dim{opacity:.5}.cdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--c);margin-right:6px;vertical-align:1px}
 @media print{.ctl,.tg{cursor:auto}.row.hit,tr.hit{background:none}.tl{display:none}.tp{display:block!important}.chgbar button,.zb,.find{display:none}.provenance{display:none}header .prov-print{display:block}}
-.find{grid-column:1/-1;display:flex;align-items:center;gap:12px}
-#find{flex:0 1 360px;min-width:0;min-height:44px;font:var(--fs-m) var(--sans);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:8px 12px}
+.find{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:12px}.find .fclr{flex:none}#findn{min-width:0}
+#find{flex:1 1 180px;max-width:360px;min-width:0;min-height:44px;font:var(--fs-m) var(--sans);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:8px 12px}
 #find:focus{outline:2px solid var(--acc);outline-offset:-1px}
 #findn{font-size:var(--fs-xs);color:var(--mute);font-variant-numeric:tabular-nums}
 /* data tables (`data` block): simple-datatables' stylesheet loads after this one, so its overrides carry .datatable-wrapper */
@@ -913,15 +913,16 @@ addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.rdc bu
    Enter jumps to the next match, Shift+Enter to the previous one. */
 const RF_SEL='h2,h3,h4,p,li,td,th,figcaption,caption,dt,dd';let rfI=-1;
 const rfFold=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const rfSeen=el=>el.checkVisibility?el.checkVisibility():!!el.getClientRects().length;  // closed <details> content still has rects
 function rfUnits(){const root=document.querySelector('[data-find-scope]');if(!root)return[];
  return[...root.querySelectorAll(RF_SEL)].filter(el=>!el.parentElement.closest(RF_SEL)&&!el.closest('ul.tr,.datatable-wrapper,table.dt,svg,.zv'))}
 function rfRun(){const q=FIND.q?rfFold(FIND.q):'';let vis=0,hid=0;rfI=-1;
- for(const el of rfUnits()){const m=!!q&&rfFold(el.textContent).includes(q);el.classList.toggle('fm',m);if(m){el.getClientRects().length?vis++:hid++}}
+ for(const el of rfUnits()){const m=!!q&&rfFold(el.textContent).includes(q);el.classList.toggle('fm',m);if(m){rfSeen(el)?vis++:hid++}}
  const box=document.getElementById('find');
  if(!q)delete FIND.parts.page;else FIND.parts.page=vis+' '+((vis===1?box.dataset.hit:box.dataset.hits)||'')+(hid?' '+(box.dataset.hidden||'+{n}').replace('{n}',hid):'');
  findN()}
 document.addEventListener('find',()=>{if(document.querySelector('[data-find-scope]'))rfRun()});
-function rfNext(back){const m=[...document.querySelectorAll('.fm')].filter(el=>el.getClientRects().length);if(!m.length)return;
+function rfNext(back){const m=[...document.querySelectorAll('.fm')].filter(rfSeen);if(!m.length)return;
  rfI=(rfI+(back?-1:1)+m.length)%m.length;m[rfI].scrollIntoView({block:'center',behavior:'smooth'})}
 addEventListener('keydown',e=>{if(e.target.id==='find'&&e.key==='Enter'&&document.querySelector('[data-find-scope]')){e.preventDefault();rfNext(e.shiftKey)}});
 addEventListener('click',e=>{if(!e.target.closest||!e.target.closest('#findx'))return;const b=document.getElementById('find');
