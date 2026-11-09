@@ -331,6 +331,10 @@ class PageOrder(unittest.TestCase):
         page = report(sections=[dict(section("Answer"), change="new"), section("Detail")]).render()
         self.assertTrue(self.pos(page, 'class="lede') < self.pos(page, 'class="chgbar"') < self.pos(page, "Detail"))
 
+    def test_since_without_marks_says_nothing_changed(self):
+        page = report(since="r-v1", sections=[section("Answer"), section("Detail")]).render()
+        self.assertIn('<div class="chgbar"><span>Changes since r-v1:</span><span class="cn">none</span></div>', page)
+
     def test_no_sections_header_then_statistics_and_change_summary(self):
         page = report(stats=self.STATS, sections=[]).render()
         self.assertTrue(self.pos(page, "</header>") < self.pos(page, '<dl class="stats">'))

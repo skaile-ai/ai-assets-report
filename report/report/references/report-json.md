@@ -65,4 +65,4 @@ A bare-number stat from an older report gets a migration hint; give it a dump be
 
 ## Change document
 
-What changed: start from the previous `report.json`, set `change: new|changed|removed` on the smallest part that differs (node, edge, row, item; a tab or section only when all of it changed) and top-level `since`. Removed parts stay, struck through. Do not mark inside a `new` or `removed` part. `change` is allowed on sections, blocks, tabs, entities, table rows, list items, flow/map nodes and edges, lineage types/steps, states and transitions, board canvases, lanes, cards and lane changes.
+What changed: start from the previous `report.json`, set `change: new|changed|removed` on the smallest part that differs (node, edge, row, item; a tab or section only when all of it changed) and top-level `since`. Removed parts stay, struck through. Do not mark inside a `new` or `removed` part. `change` is allowed on sections, blocks, tabs, entities, table rows, list items, flow/map nodes and edges, lineage types/steps, states and transitions, board canvases, lanes, cards, lane changes and gallery items. With `since` and no mark anywhere, the change bar says "none".

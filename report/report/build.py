@@ -246,7 +246,7 @@ TXT = {
            "process": "Prozess", "store": "Datenspeicher", "external": "extern", "boundary": "Nachbar aus der Elternebene",
            "decision": "Entscheidung", "data": "Datentyp", "state": "Zustand", "pseudo": "Start · Ende",
            "flow": "Fluss", "error": "Fehlerpfad", "opt": "optional", "drill": "Detaildiagramm",
-           "new": "NEU", "changed": "GEÄNDERT", "removed": "ENTFERNT", "since": "Änderungen seit",
+           "new": "NEU", "changed": "GEÄNDERT", "removed": "ENTFERNT", "since": "Änderungen seit", "nochg": "keine",
            "dimmed": "Unverändertes ist abgeblendet.", "full": "Alles voll zeigen",
            "zoom": "Vergrößern: zoomen und verschieben", "toggle": "Klicken: diese Kanten aus- oder einblenden",
            "m_fit": "Einpassen", "m_reset": "Anordnung zurücksetzen", "m_all": "Alle aktiv",
@@ -282,7 +282,7 @@ TXT = {
            "process": "process", "store": "data store", "external": "external", "boundary": "neighbour from parent level",
            "decision": "decision", "data": "data type", "state": "state", "pseudo": "start · end",
            "flow": "flow", "error": "error path", "opt": "optional", "drill": "detail diagram",
-           "new": "NEW", "changed": "CHANGED", "removed": "REMOVED", "since": "Changes since",
+           "new": "NEW", "changed": "CHANGED", "removed": "REMOVED", "since": "Changes since", "nochg": "none",
            "dimmed": "Unchanged parts are dimmed.", "full": "Show all at full contrast",
            "zoom": "Enlarge: zoom and pan", "toggle": "Click: hide or show these edges",
            "m_fit": "Fit", "m_reset": "Reset layout", "m_all": "All active",
@@ -2832,6 +2832,9 @@ class Report:
             summary = (f'<div class="chgbar"><span>{E(self.t["since"])}{since}:</span>{counts}'
                        f'<span class="mt">{E(self.t["dimmed"])}</span>'
                        f'<button type="button" aria-pressed="false" onclick="nodim(this)">{E(self.t["full"])}</button></div>')
+        elif d.get("since"):  # a re-run with nothing changed still says so
+            summary = (f'<div class="chgbar"><span>{E(self.t["since"])} {E(str(d["since"]))}:</span>'
+                       f'<span class="cn">{E(self.t["nochg"])}</span></div>')
         # reading order: title and tools, the first section (the answer), statistics and change summary, the rest, the bibliography
         content = parts[:1] + [x for x in (stats, summary) if x] + parts[1:] + ([bib] if bib else [])
         brand = load_brand(d.get("brand"), self.src.parent if self.src else Path.cwd())
