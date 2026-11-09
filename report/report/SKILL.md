@@ -3,7 +3,7 @@ name: report
 description: "Build one static HTML report read front to back: argued answer first, tables, trees, diagrams and charts as support. Use for 'report', 'overview page', 'data sheet', 'how does X work as a page'. Autopilot by default; 'report interactive: <question>' asks first; a pasted '# Notes on report' block revises it."
 license: MIT
 metadata:
-  version: 0.6.0
+  version: 0.6.1
   publisher: skaile-ai
   requires: "report-prose, report-table, report-flow, report-diagram, report-charts, report-video"
 ---
@@ -94,7 +94,7 @@ Tag each candidate with the cheapest ability that answers it: prose before a tab
 |`concepts`|`concepts`, `mock`|`report-diagram`|UI variants, terms or a rename, dialogs compared|—|
 |`video`|`video` (chaptered, narrated manim explainer)|`report-video`|the user asks for a video, animation or explainer; otherwise offered unchecked ("renders in minutes, needs manim; voice needs a TTS")|manim, ffmpeg, a `.media/` folder|
 |`gallery`|`gallery` (screenshot grid with numbered note pins, lightbox, before/after)|core|what does screen X look like, where on the screen is the problem: screenshots exist (`<stem>.media/` count)|—|
-|`find`|header find box|core|automatic with a `tree` or `data` block; never offered|—|
+|`find`|header find box over the whole page|core|automatic with a table of contents, a `tree` or a `data` block; never offered|—|
 
 **`gallery` block** (core: `b_gallery` in `build.py`, `.gl`/`#gl-dlg` CSS and JS in `template.html`): `{type: "gallery", label?, items: [{src, title, alt?, caption?, entity?, badges?: {cat: [val]}, before?, change?, notes?: [{x, y, w?, h?, text, sev?, ref?}]}]}`. `src` and `before` are local files next to the report, rewritten relative to the output; `alt` defaults to `title`; note `x`, `y`, `w`, `h` are percent of the image (`w`/`h` draw a box), `sev` is an integer 0-4 and colours the pin, `ref` links the note to an entity, `entity` makes the item that entity's anchor. One grid, about three shots per row; under 640 px one column. Notes show in the lightbox and in print.
 

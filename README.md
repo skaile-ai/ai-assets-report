@@ -38,7 +38,7 @@ Needs `python3` (stdlib only). `report-video` also needs manim and ffmpeg; narra
 | Source notes | report | `[@…]` → numbered notes, inline under `technical` |
 | Static table | report-table | `table` |
 | Sortable, searchable, paged table with CSV | report-table | `data` (simple-datatables) |
-| Global find box | report | automatic with `tree` or `data` |
+| Global find box | report | automatic with contents, `tree` or `data`; searches the whole page |
 | Reader notes: mark text or a section, comment, copy for the agent | report | page script + `data-src` pointers |
 | Autopilot: no questions, recommendations taken | report | `"mode": "autopilot"` in `<stem>.choice.json`, checked by `--check-choice` |
 | Levelled DFD diagrams | report-flow | `flow`, `lineage`, `states` |

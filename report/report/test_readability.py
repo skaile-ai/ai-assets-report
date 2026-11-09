@@ -905,7 +905,7 @@ class WebResearchPage(unittest.TestCase):
     def test_find_box_has_live_count_clear_and_scope(self):
         page = body(wr().render())
         self.assertRegex(page, r'<input id="find" type="search" placeholder="[^"]+" aria-label="Im Bericht suchen" aria-controls="main" '
-                               r'data-hits="Treffer" data-hidden="\+\{n\} ausgeblendet">')
+                               r'data-hit="Treffer" data-hits="Treffer" data-hidden="\+\{n\} ausgeblendet" data-row="Zeile" data-rows="Zeilen">')
         self.assertIn('<button type="button" id="findx" class="fclr">Suche zurücksetzen</button>', page)
         self.assertIn('<span id="findn" role="status" aria-live="polite"></span>', page)
         self.assertTrue(page.index('id="find"') < page.index("<main"))
@@ -914,17 +914,20 @@ class WebResearchPage(unittest.TestCase):
 
     def test_other_profiles_keep_their_structure(self):
         page = body(report(sections=[section("Answer")]).render())
-        for marker in ('<nav class="toc"', "data-find-scope", 'id="find"'):
+        for marker in ('<nav class="toc"', 'id="find"'):
             self.assertNotIn(marker, page)
-        self.assertIn('<main id="main" tabindex="-1">', page)
+        self.assertIn('<main id="main" tabindex="-1" data-find-scope>', page)
         self.assertIn('<section class="lede" data-src="sections/0">', page)
 
-    def test_tree_find_box_keeps_its_markup_without_the_profile(self):
+    def test_find_box_searches_the_whole_page_in_every_profile(self):
         r = report(badges={}, sections=[{"title": "S", "blocks": [{"type": "data", "id": "d", "columns": [{"key": "a"}], "rows": [{"a": "x"}]}]}])
         page = body(r.render())
-        self.assertIn('<input id="find" type="search" placeholder="Find…" aria-label="Find…">', page)
-        self.assertNotIn("data-find-scope", page)
-        self.assertNotIn("findx", page)
+        self.assertIn('<input id="find" type="search" placeholder="Find…" aria-label="Search the report" aria-controls="main" '
+                      'data-hit="match" data-hits="matches" data-hidden="+{n} hidden" data-row="row" data-rows="rows">', page)
+        self.assertIn('<main id="main" tabindex="-1" data-find-scope>', page)
+        self.assertIn('id="findx"', page)
+        # a contents list alone (no tree, no table) brings the box too
+        self.assertIn('id="find"', body(PageStructure.five()))
 
     def test_whole_page_with_every_new_block_builds(self):
         tmp = tempfile.TemporaryDirectory()
@@ -1428,9 +1431,8 @@ class PageStructure(unittest.TestCase):
     def test_toc_main_and_skip_link_for_every_profile(self):
         page = self.five()
         self.assertIn('<nav class="toc"', page)
-        self.assertIn('<main id="main" tabindex="-1">', page)
+        self.assertIn('<main id="main" tabindex="-1" data-find-scope>', page)
         self.assertIn('<a class="skip" href="#main">', page)
-        self.assertNotIn("data-find-scope", re.search(r'<main id="main"[^>]*>', page).group(0))
 
     def test_toc_needs_four_sections_after_the_lede(self):
         four = report(profile="explanation", sections=[section(f"S{i}") for i in range(1, 5)]).render()
@@ -1559,6 +1561,25 @@ class NarrowScreens(unittest.TestCase):
         self.assertIn('<details class="flt" open><summary>Filters</summary><dl class="legend">', tree)
         self.assertLess(tree.index('<div class="ctl">'), tree.index("</details>"))
         self.assertLess(tree.index("</details>"), tree.index('<div class="tree">'))
+
+
+class InlinePolish(unittest.TestCase):
+    def test_short_hyphenated_code_does_not_break(self):
+        r = report()
+        self.assertIn('<code class="nw">--strict</code>', r.inline("run `--strict` now"))
+        self.assertIn("<code>fail</code>", r.inline("`fail`"))
+        self.assertIn("<code>a-very-long-hyphenated-identifier-name</code>", r.inline("`a-very-long-hyphenated-identifier-name`"))
+
+    def test_all_default_badges_leave_no_empty_group(self):
+        cats = {"net": {"default": "off", "values": {"off": {"label": "Off"}, "cdn": {"label": "CDN"}}}}
+        ents = [{"id": "e1", "title": "E1", "meta": ["40 lines"], "badges": {"net": ["off"]}}]
+        tree = report(badges=cats, entities=ents).b_tree({"type": "tree"})
+        self.assertNotIn('<span class="grp"></span>', tree)
+
+    def test_compare_column_labels_render_code(self):
+        cols = [{"label": "Abort (`fail`)", "text": "a"}, {"label": "Lint", "text": "b"}]
+        out = report().b_compare({"type": "compare", "title": "T", "columns": cols, "verdict": "v"})
+        self.assertIn('<p class="cmp-h">Abort (<code>fail</code>)</p>', out)
 
 
 if __name__ == "__main__":

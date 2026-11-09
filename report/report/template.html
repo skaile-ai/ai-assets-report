@@ -294,11 +294,14 @@ a.src{color:var(--acc);text-decoration:underline;text-decoration-color:var(--rul
 .seg button:first-child{border-radius:5px 0 0 5px}.seg button:last-child{border-right:0;border-radius:0 5px 5px 0}.seg button:hover{background:var(--wash)}
 .seg button[aria-pressed=true]{background:var(--ink);color:#fff}
 .rdd{flex:1 1 240px;font-size:var(--fs-s);color:var(--mute)}html:not(.js) .rdc{display:none}
-.fclr{min-height:44px;font:var(--fs-s) var(--sans);padding:8px 14px;border:1px solid var(--rule);background:var(--paper);border-radius:6px;cursor:pointer;color:var(--ink)}.fclr:hover{background:var(--wash)}
+.fclr{min-height:44px;font:var(--fs-s) var(--sans);padding:8px 14px;border:1px solid var(--rule);background:var(--paper);border-radius:6px;cursor:pointer;color:var(--ink);white-space:nowrap}.fclr:hover{background:var(--wash)}
 html:not(.js) .fclr{display:none}#findn{font-size:var(--fs-s)}
 .fm{background:var(--hl);box-shadow:0 0 0 2px var(--hl);border-radius:2px}
 nav.toc{grid-column:1/-1;font-size:var(--fs-m)}
 nav.toc summary{cursor:pointer;font-weight:600;min-height:44px;display:flex;align-items:center}
+nav.toc summary::after{content:"";width:7px;height:7px;margin-left:12px;border:solid currentColor;border-width:0 2px 2px 0;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
+nav.toc details:not([open])>summary::after{transform:rotate(-45deg)}
+code.nw{white-space:nowrap}.nn-k{color:var(--mute)}.an-n[hidden]{display:none}
 nav.toc ol{margin:0;padding:0;list-style:none;columns:2 280px;column-gap:32px}nav.toc li{break-inside:avoid;margin:0}
 nav.toc a{display:block;padding:6px 0;text-decoration:none}nav.toc a:hover{text-decoration:underline}
 /* the page: one reading column, sections stack, the heading leads */
@@ -789,11 +792,15 @@ function glOpen(o){let d=document.getElementById('gl-dlg');
    if(d._from){d._from.focus({preventScroll:true});d._from=null}})}
  glShow(d,o.closest('.gl-i'));d.showModal();d.querySelector('.gld-x').focus()}
 document.addEventListener('click',e=>{const o=e.target.closest&&e.target.closest('.gl-o');if(o&&!o.closest('dialog'))glOpen(o)});
-/* Find box in the header (only when the report has a tree or a data table). Every tree filters by its own row text;
-   any other feature listens for `find` on document (detail.q) and reports its visible count in FIND.parts[name]. */
+/* Find box in the header: one search over the whole page (<main data-find-scope>, below). Every tree filters by its own row text;
+   any other feature listens for `find` on document (detail.q) and reports its visible count in FIND.parts[name] (a number counts
+   rows). Counts read "3 matches · 2 rows": page matches first, then the tree and table rows added up. */
 const FIND={q:'',parts:{}};
-function findN(){const n=document.getElementById('findn');if(!n)return;const tf=[...(window.TF||[])];
- n.textContent=FIND.q?[...(tf.length?[tf.reduce((s,t)=>s+t.shown,0)]:[]),...Object.values(FIND.parts)].join(' · '):''}
+function findN(){const n=document.getElementById('findn');if(!n)return;const box=document.getElementById('find'),tf=[...(window.TF||[])];
+ const{page,...rest}=FIND.parts,nums=Object.values(rest).filter(v=>typeof v==='number'),rows=tf.length||nums.length?
+  [tf.reduce((s,t)=>s+t.shown,0)+nums.reduce((s,v)=>s+v,0)]:[];
+ const out=[...(page!==undefined?[page]:[]),...rows.map(k=>k+' '+(k===1?box.dataset.row:box.dataset.rows)),...Object.values(rest).filter(v=>typeof v!=='number')];
+ n.textContent=FIND.q?out.join(' · '):''}
 addEventListener('DOMContentLoaded',()=>{const box=document.getElementById('find');if(!box)return;let timer;
  box.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>{FIND.q=box.value.trim().toLowerCase();
   for(const tf of window.TF||[]){tf.q=FIND.q;tf.recalc()}
@@ -900,7 +907,7 @@ addEventListener('DOMContentLoaded',()=>{const c=document.querySelector('.rdc');
  try{const s=sessionStorage.getItem('report:depth:'+location.pathname);if(RD.includes(s))id=s}catch(_){}
  rdSet(id,false);const el=location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)));if(el&&rdReveal(el))el.scrollIntoView()});
 addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.rdc button');if(b)rdSet(b.dataset.depth,true)});
-/* Report-wide find (profile web-research: <main data-find-scope>). Units are the outermost headings, paragraphs, list items, table
+/* Report-wide find (<main data-find-scope>, every profile). Units are the outermost headings, paragraphs, list items, table
    cells and captions; trees, data tables and diagrams keep their own find. A unit that matches (case and accents ignored) gets .fm.
    The count (FIND.parts.page) covers visible units only; matches in hidden parts (reader depth, closed tab) are added as a hint.
    Enter jumps to the next match, Shift+Enter to the previous one. */
@@ -911,7 +918,7 @@ function rfUnits(){const root=document.querySelector('[data-find-scope]');if(!ro
 function rfRun(){const q=FIND.q?rfFold(FIND.q):'';let vis=0,hid=0;rfI=-1;
  for(const el of rfUnits()){const m=!!q&&rfFold(el.textContent).includes(q);el.classList.toggle('fm',m);if(m){el.getClientRects().length?vis++:hid++}}
  const box=document.getElementById('find');
- if(!q)delete FIND.parts.page;else FIND.parts.page=vis+' '+(box.dataset.hits||'')+(hid?' '+(box.dataset.hidden||'+{n}').replace('{n}',hid):'');
+ if(!q)delete FIND.parts.page;else FIND.parts.page=vis+' '+((vis===1?box.dataset.hit:box.dataset.hits)||'')+(hid?' '+(box.dataset.hidden||'+{n}').replace('{n}',hid):'');
  findN()}
 document.addEventListener('find',()=>{if(document.querySelector('[data-find-scope]'))rfRun()});
 function rfNext(back){const m=[...document.querySelectorAll('.fm')].filter(el=>el.getClientRects().length);if(!m.length)return;
@@ -1006,7 +1013,7 @@ function anSave(){const ta=anDlg.querySelector('textarea'),c=ta.value.trim(),n=a
  anStore();anDlg.close();anRefresh()}
 function anDel(n){anNotes=anNotes.filter(x=>x!==n);anStore();anRefresh()}
 function anRefresh(){anPaint();anList()}
-function anList(){const P=anPanelEl;if(!P)return;document.querySelector('.an-fab .an-n').textContent=anNotes.length;
+function anList(){const P=anPanelEl;if(!P)return;const fn=document.querySelector('.an-fab .an-n');fn.textContent=anNotes.length;fn.hidden=!anNotes.length;
  const ol=P.querySelector('.an-ls'),ord=anOrder();ol.replaceChildren();
  for(const b of P.querySelectorAll('.an-ft button'))b.disabled=!ord.length;
  if(!ord.length){ol.append(anMk('li','an-mt',anT.empty));return}
@@ -1035,7 +1042,8 @@ function anInit(){const secs=document.querySelectorAll('section[data-src]');if(!
  anAdd.addEventListener('mousedown',e=>e.preventDefault());
  anAdd.addEventListener('click',()=>{const r=anSel()||anPend;if(r)anEdit(anNew(r.cloneRange()))});
  const fab=anMk('button','an-fab');fab.setAttribute('aria-controls','an-panel');fab.setAttribute('aria-expanded','false');
- fab.append(anMk('span','',anT.notes),anMk('span','an-n','0'));fab.addEventListener('click',()=>anPanel(anPanelEl.hidden));
+ const fabN=anMk('span','an-n','0');fabN.hidden=true;
+ fab.append(anMk('span','',anT.notes),fabN);fab.addEventListener('click',()=>anPanel(anPanelEl.hidden));
  const P=anPanelEl=document.createElement('aside');P.id='an-panel';P.className='an-panel';P.hidden=true;P.setAttribute('aria-label',anT.notes);
  P.innerHTML=`<div class="an-ph"><b>${anT.notes}</b><button type="button" class="an-cl" aria-label="${close}">${IC.x}</button></div><ol class="an-ls"></ol>`+
   `<div class="an-ft"><button type="button" class="an-pri" data-a="copy">${anT.copy}</button><button type="button" data-a="clear">${anT.clear}</button>`+

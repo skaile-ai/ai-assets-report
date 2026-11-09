@@ -259,7 +259,8 @@ TXT = {
            "permalink": "Link zu diesem Abschnitt",
            "t_reset": "Zurücksetzen", "t_count": "sichtbar", "sources": "Quellen und Laufdetails",
            "toc": "Inhalt", "skip": "Zum Inhalt springen", "bib": "Quellen", "depth": "Lesetiefe",
-           "find_label": "Im Bericht suchen", "find_clear": "Suche zurücksetzen", "find_hits": "Treffer",
+           "find_label": "Im Bericht suchen", "find_clear": "Suche zurücksetzen", "find_hit": "Treffer", "find_hits": "Treffer",
+           "find_row": "Zeile", "find_rows": "Zeilen",
            "find_hidden": "+{n} ausgeblendet", "read": "gelesen", "for": "Für",
            "tone_answer": "Antwort", "tone_safety": "Sicherheit", "tone_action": "Was tun", "tone_note": "Hinweis",
            "bm_move": "VERSCHIEBEN", "bm_merge": "ZUSAMMENFÜHREN", "bm_new": "NEU", "bm_reuse": "WIEDERVERWENDEN",
@@ -294,7 +295,8 @@ TXT = {
            "permalink": "Link to this section",
            "t_reset": "Reset", "t_count": "visible", "sources": "Sources and run details",
            "toc": "Contents", "skip": "Skip to content", "bib": "Sources", "depth": "Reading depth",
-           "find_label": "Search the report", "find_clear": "Clear search", "find_hits": "matches",
+           "find_label": "Search the report", "find_clear": "Clear search", "find_hit": "match", "find_hits": "matches",
+           "find_row": "row", "find_rows": "rows",
            "find_hidden": "+{n} hidden", "read": "read", "for": "For",
            "tone_answer": "Answer", "tone_safety": "Safety", "tone_action": "Action", "tone_note": "Note",
            "bm_move": "MOVE", "bm_merge": "MERGE", "bm_new": "NEW", "bm_reuse": "REUSE",
@@ -746,7 +748,8 @@ class Report:
         rd = f' data-reader="{READERS[low]}"' if low else ""
         if len(self.notes) == 1 and low == 0:  # one note, always shown: inline instead of a collapsed list
             (x,) = self.notes
-            return f'<p class="notes notes-1"><span class="nn-l">{E(self.t["notes"])}:</span> <span id="n-{i}-1">{self.source(x)}</span></p>'
+            return (f'<p class="notes notes-1"><span class="nn-l">{E(self.t["notes"])}:</span> <sup class="nn-k">1</sup> '
+                    f'<span id="n-{i}-1">{self.source(x)}</span></p>')
         return (f'<details class="notes"{rd}><summary>{E(self.t["notes"])} (<span class="nn">{len(self.notes)}</span>)</summary>'
                 f'<ol>{"".join(items)}</ol></details>')
 
@@ -768,7 +771,8 @@ class Report:
                 i = m.end()
             elif s[i] == "`" and "`" in s[i + 1:]:
                 j = s.index("`", i + 1)
-                out.append(f"<code>{E(s[i + 1:j])}</code>")
+                code = s[i + 1:j]  # a short hyphenated name (`--strict`) must not break at its hyphen
+                out.append(f'<code class="nw">{E(code)}</code>' if "-" in code and len(code) <= 24 else f"<code>{E(code)}</code>")
                 i = j + 1
             else:
                 j = min([k for k in (s.find("[[", i + 1), s.find("[@", i + 1), s.find("`", i + 1)) if k != -1] or [len(s)])
@@ -1970,7 +1974,9 @@ class Report:
         out = [f'<span class="mt">{self.inline(m)}</span>' for m in e.get("meta", [])]
         for c in self.cats:
             if c != kind_cat and c in bvals:
-                out.append("".join(self.badge(c, v, c in toggles) for v in dict.fromkeys(bvals[c]) if v != self.cats[c].get("default")))
+                chips = "".join(self.badge(c, v, c in toggles) for v in dict.fromkeys(bvals[c]) if v != self.cats[c].get("default"))
+                if chips:  # every value the default: no empty group (it would draw a stray separator)
+                    out.append(chips)
         for arrow, ids in (("→", e.get("refs", [])), ("←", self.back.get(e["id"], []))):
             if ids:
                 more = f'<span class="mt">+{len(ids) - LINKS_SHOWN}</span>' if len(ids) > LINKS_SHOWN else ""
@@ -2457,7 +2463,7 @@ class Report:
                 fail(f"compare: `{k}` is required and must not be empty")
         self.nco += 1
         cid, t = f"cp-{self.nco}", self.t
-        cells = "".join(f'<div class="cmp-c"><p class="cmp-h">{E(c["label"])}</p>'
+        cells = "".join(f'<div class="cmp-c"><p class="cmp-h">{self.inline(c["label"])}</p>'
                         + (f'<p>{self.inline(c["text"])}</p>' if c.get("text") else "")
                         + (self.ste_list("ul", c["items"]) if c.get("items") else "") + "</div>" for c in cols)
         return (f'<div class="cmp" role="group" aria-labelledby="{cid}"><p class="co-h">'
@@ -2776,13 +2782,6 @@ class Report:
         used = {b.get("type") for sec in d.get("sections", []) for b in walk(sec.get("blocks", []))}
         t = self.t
         wr = d.get("profile") == "web-research"
-        find = ""
-        if used & FIND_TYPES or wr:
-            extra = (f' aria-controls="main" data-hits="{E(t["find_hits"])}" data-hidden="{E(t["find_hidden"])}"' if wr else "")
-            clear = (f'<button type="button" id="findx" class="fclr">{E(t["find_clear"])}</button>' if wr else "")
-            find = (f'<div class="find"><input id="find" type="search" placeholder="{E(t["find"])}" '
-                    f'aria-label="{E(t["find_label"] if wr else t["find"])}"{extra}>{clear}'
-                    '<span id="findn" role="status" aria-live="polite"></span></div>')
         reader = self.reader_control() if self.readers else ""
         meta = d.get("meta", [])
         lines = "<br>".join(self.inline(m) for m in meta)
@@ -2854,13 +2853,20 @@ class Report:
                     g += 1
             nav = (f'<nav class="toc" aria-label="{E(t["toc"])}"><details open><summary>{E(t["toc"])}</summary>'
                    f'<ol>{"".join(items)}</ol></details></nav>')
+        find = ""
+        if used & FIND_TYPES or wr or nav:  # one box searches the whole page; trees and data tables filter their rows with it
+            find = (f'<div class="find"><input id="find" type="search" placeholder="{E(t["find"])}" aria-label="{E(t["find_label"])}" '
+                    f'aria-controls="main" data-hit="{E(t["find_hit"])}" data-hits="{E(t["find_hits"])}" data-hidden="{E(t["find_hidden"])}" '
+                    f'data-row="{E(t["find_row"])}" data-rows="{E(t["find_rows"])}">'
+                    f'<button type="button" id="findx" class="fclr">{E(t["find_clear"])}</button>'
+                    '<span id="findn" role="status" aria-live="polite"></span></div>')
         skip = f'<a class="skip" href="#main">{E(t["skip"])}</a>'
         if wr:
             top = f'{hdr}<h1>{E(d["title"])}</h1>{prov}{prov_print}<div class="wrtools">{reader}{find}</div>{nav}</header>'
             main = f'<main id="main" class="wr" tabindex="-1" data-find-scope>{chr(10).join(content)}</main>'
         else:
             top = f'{hdr}<h1>{E(d["title"])}</h1>{prov}{prov_print}{reader}{find}{nav}</header>'
-            main = f'<main id="main" tabindex="-1">{chr(10).join(content)}</main>'
+            main = f'<main id="main" tabindex="-1" data-find-scope>{chr(10).join(content)}</main>'
         body = "\n".join([skip, top, main])
         found = Counter(html.unescape(i) for i in re.findall(r'\sid="([^"]+)"', body))
         twice = sorted(i for i, k in found.items() if k > 1)

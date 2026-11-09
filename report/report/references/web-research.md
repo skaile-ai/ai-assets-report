@@ -7,7 +7,7 @@ A report researched from the web for patients, the public or professionals: an a
 - `media` (`items: [{src, alt, caption, credit, href?, license?, license_url?}]`): `src` is a local file next to the output HTML or the `report.json`, rewritten relative to the output; a missing file fails. `alt`, `caption`, `credit` are required; `href` links the credit to the image page, `license_url` needs `license`. One or two columns on a wide page, one on a phone.
 - `resources` (`items: [{title, url, description, audience?, kind?}]`, optional `label`): every `url` is an external http(s) link and opens as a compact card.
 - `sources`: ids are unique (letters, digits, `.`, `_`, `-`), `title` and an http(s) `url` are required, `publisher`, `year`, `kind`, `read` (date read) and `note` are optional and shown under the linked title. The bibliography renders after the last authored section with `id="sources"` and is listed in the table of contents.
-- The page always gets the table of contents, the skip link and a report-wide find box (headings, prose, table cells, captions, resources, source records; `aria-live` count, clear button). Trees and `data` tables keep their own find.
+- The page always gets the table of contents and the skip link. The report-wide find box is shared with every profile (report-json.md, Page order and sections).
 
 ## Sources
 
