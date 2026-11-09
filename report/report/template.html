@@ -350,8 +350,8 @@ table.rsp caption{caption-side:top;text-align:left;font-size:var(--fs-s);font-we
  table.rsp td::before{content:attr(data-label);display:block;margin-bottom:2px;font:500 var(--fs-xs)/1.4 var(--mono);color:var(--mute);text-transform:uppercase;letter-spacing:.05em}
  table.rsp td:first-child{font-weight:600}
 }
-/* vertical diagrams fit the column down to 75 % scale, then scroll inside their frame */
-.dgv{max-width:100%;height:auto}
+/* vertical diagrams keep their clamp width (75 % of full at least) and scroll inside .dw; print fits every diagram to the page */
+.dgv{height:auto}@media print{.dg{max-width:100%;height:auto}}
 @media print{.rdc,.skip,nav.toc,.fclr,.ha{display:none}main>section>h2{border-top-width:2px}}
 /* reader notes (page script): select text and press Comment, or ✎ on a section title; the Notes panel copies them for the agent */
 ::highlight(an){background:var(--blue-bg);text-decoration:underline 2px var(--acc)}
@@ -791,12 +791,13 @@ function vgClear(el,spec){const v=el._view,id=el.id.slice(3),pts=vgPoints(spec);
    if(l&&l.chart===id&&cl.includes(l.param))t._dtFilter(l.col,null,'chart')}})})}
 function vgFilter(fig,el){const v=el._view,ent=fig.dataset.e;if(!v||!ent||!fig._hide)return;const h=fig._hide;
  v.change('rows',(window.vega||vegaEmbed.vega).changeset().remove(()=>true).insert(el._rows.filter(r=>!h.has(String(r[ent]))).map(r=>({...r})))).run()}
-/* Vega config from the page tokens: brand palette for categories, muted axes, legend below the plot */
-function vgConfig(){const cs=getComputedStyle(document.documentElement),v=n=>cs.getPropertyValue('--'+n).trim();
- const mute=v('mute'),rule=v('rule'),hair=v('hair');
+/* Vega config from the page tokens: brand palette for categories, muted axes, legend below the plot in as many columns
+   as the chart's width holds (one per 160px), so it wraps on phones; a spec's own config still wins (Vega-Lite merges it over this) */
+function vgConfig(el){const cs=getComputedStyle(document.documentElement),v=n=>cs.getPropertyValue('--'+n).trim();
+ const mute=v('mute'),rule=v('rule'),hair=v('hair'),cols=Math.max(1,Math.floor((el&&el.clientWidth||innerWidth)/160));
  return{font:'JetBrains Mono, monospace',
   axis:{labelColor:mute,titleColor:mute,domainColor:rule,gridColor:hair,labelFontSize:12,titleFontSize:12},
-  legend:{orient:'bottom',direction:'horizontal',labelColor:mute,titleColor:mute,labelFontSize:12,titleFontSize:12,labelLimit:220},
+  legend:{orient:'bottom',direction:'horizontal',columns:cols,labelColor:mute,titleColor:mute,labelFontSize:12,titleFontSize:12,labelLimit:140},
   range:{category:['blue','orange','teal','purple','green','pink','brown','navy','yellow','red'].map(v).filter(Boolean)},
   mark:{color:v('blue')}}}
 function vgInit(){document.querySelectorAll('.vg').forEach(el=>{if(el._view||el._busy)return;el._busy=true;
@@ -806,7 +807,7 @@ function vgInit(){document.querySelectorAll('.vg').forEach(el=>{if(el._view||el.
   let spec;try{spec=JSON.parse(sc.textContent)}catch(_){bad();return}
   el._rows=spec.data.values;
   fig.addEventListener('treefilter',()=>vgFilter(fig,el));
-  vegaEmbed(el,spec,{actions:false,renderer:'svg',config:vgConfig()})
+  vegaEmbed(el,spec,{actions:false,renderer:'svg',config:vgConfig(el)})
    .then(r=>{el._view=r.view;vgClear(el,spec);vgFilter(fig,el);vgLink()}).catch(bad)})}
 addEventListener('DOMContentLoaded',vgInit);
 document.addEventListener('dt-init',vgLink);
