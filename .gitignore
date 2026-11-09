@@ -6,3 +6,4 @@ example.html
 __pycache__/
 *.voice/
 media/
+.impeccable/

@@ -2,12 +2,53 @@
 """Render a report.json into one self-contained HTML file.
 
     python3 build.py [--strict] [--check-choice <stem>.choice.json] report.json out.html
+    python3 build.py --help
 
-Schema: see SKILL.md ("report.json") and the extension skills (report-flow/NOTATION.md, report-diagram, report-table, report-charts, report-video). Every entity gets the anchor
+Schema: see references/report-json.md and the extension skills (report-flow/NOTATION.md, report-diagram, report-table, report-charts, report-video). Every entity gets the anchor
 `#e-<id>`, every diagram `#f-<id>`, every diagram node `#f-<id>-<node>`. `refs`,
 `{"ref": id}` table cells and diagram nodes link to them; back-links ("cited by")
 and drill-down links (from a diagram's `parent`) are computed here, so the data
 states each link once.
+
+Lint lines (printed as `lint: <line>`; advisory, errors under --strict). Format, then the fix:
+    stat "{label}": literal, source {src}
+        a hand-typed number; prefer {"count": ...} or {"rows": ...} so the build counts it.
+    source {id}: never cited
+        cite it with [@{id}] in prose, or drop it from `sources`.
+    web-research: no top-level `sources`
+        add `sources` and cite them.
+    links: section "{title}": a {type} block has {n} links (max {max})
+        link fewer ids per block; name the rest in plain words.
+    links: section "{title}": [[{id}]] is linked {n} times (link once, then name it)
+        keep the first link, write the id as plain text afterwards.
+    lists: section "{title}": a {type} block has no lead sentence (put a p before it)
+        add a `p` that says what the list shows.
+    lists: section "{title}" has {items} list items and {sents} sentences of prose
+        turn the list into prose, a table or a tree.
+    size {size}: section "{title}" opens with {n} sentences (max {cap})
+        shorten the opening paragraph to the size budget.
+    size technical: section "{title}" has no [@...] citation and no at
+        cite the source or give the block an `at`.
+    badge {c}={val}: {n} of {len} entities ({pct} %): set "default": "{val}" so only the exceptions show
+        add `"default": "{val}"` to the badge category; its chip is hidden on rows.
+    badge {c}={val}: {n} of {len} entities ({pct} %)
+        a value on under 5 % of rows: merge it into another value or drop it.
+    badge {c}: mirrors tree level, not a filter
+        drop the category; the tree already shows the level.
+    badge colour {c}: {cat}={val}, {cat2}={val2} (one colour, one meaning)
+        give each value of a different category its own colour.
+    kind {kind}: {id} lacks meta "{key}"
+        add the meta line the other entities of that kind carry.
+    section "{title}": tree after the diagram it drives
+        move the tree before the diagram.
+    prose: section "{title}": "{first 6 words}..." narrates the figure; say what it means
+        replace "The chart shows ..." with the claim the figure supports.
+    prose: section "{title}" ends on a "So ..." recap of its figure
+        cut the closing recap sentence.
+    numbers: "{n}" appears in {k} prose blocks (state it once, then refer to it)
+        give the number once, refer to it ("that total") elsewhere.
+    stat "{label}": {value} is never discussed in the prose
+        discuss the stat in a paragraph, or remove it.
 """
 import os
 import base64
@@ -32,7 +73,7 @@ ID_FIGURES = {"mermaid", "vega", "video", "board", "concepts", "mock"}  # figure
 FIND_TYPES = {"tree", "data"}  # block types that switch on the header find box
 PROFILES = {"explanation", "structure", "inventory", "critique", "comparison", "exploration", "change", "web-research"}  # top-level `profile`
 SIZES = ("small", "medium", "detailed", "technical")  # `size` in <stem>.choice.json; SKILL.md "Sizes"
-SIZE_QUESTIONS = {"small": 2, "medium": 6}  # max chosen questions; detailed and technical have no cap
+SIZE_QUESTIONS = {"small": 2, "medium": 6, "detailed": 8}  # max chosen questions; technical has no cap
 SIZE_FEATURES = {"small": {"none", "tree", "charts", "find"}}  # feature keys a size allows; other sizes allow all
 SIZE_SENTENCES = {"small": 2}  # max sentences in a section's opening `p`; other sizes 3
 SIZE_SENTENCES_DEFAULT = 3
@@ -45,6 +86,8 @@ NOT_LOCAL = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:|//)")  # URL scheme or pro
 PROSE_TYPES = ("p", "bullets", "steps", "callout", "argument", "example", "compare")  # blocks whose inline text is prose
 LINT_LINKS_BLOCK = 3  # max [[id]] links in one prose block
 LINT_LIST_MIN = 4  # list items in a section before the list-vs-prose balance is checked
+NARRATES = re.compile(r"^(The|This|These|Die|Das|Der|Diese)\s+(diagram|chart|table|figure|tree|bars|graph|Diagramm|Grafik|Tabelle|Abbildung|Baum|Balken)\s+(shows?|counts?|lists?|groups?|zeigt|zählt|listet|gruppiert)\b")  # prose that narrates its figure
+NUMBER = re.compile(r"(?<![\w.])\d[\d,.]*\d|(?<![\w.])\d(?![\w.])")  # a number in prose text
 LINK_ID = re.compile(r"\[\[([^\]|]+)")  # [[id or [[id|label: the id of an inline link
 SRC_TAG = re.compile(r"\s*<([A-Za-z][\w-]*)")  # first root element of a block's HTML: its `data-src` pointer goes there
 LINT_KIND_MIN = 5  # entities of one kind needed before a missing meta key is reported
@@ -213,6 +256,7 @@ TXT = {
                      "Anordnung und Ausgegrautes bleiben in diesem Browser",
            "find": "Suchen…", "csv": "CSV", "chart_cdn": "Diagramm braucht das vega-CDN",
            "t_hint": "Klicken Sie auf ein Badge: Es schaltet den Wert ein oder aus.",
+           "permalink": "Link zu diesem Abschnitt",
            "t_reset": "Zurücksetzen", "t_count": "sichtbar", "sources": "Quellen und Laufdetails",
            "toc": "Inhalt", "skip": "Zum Inhalt springen", "bib": "Quellen", "depth": "Lesetiefe",
            "find_label": "Im Bericht suchen", "find_clear": "Suche zurücksetzen", "find_hits": "Treffer",
@@ -228,7 +272,7 @@ TXT = {
            "b_read": "Lesemodus", "b_enlarge": "Bild groß zeigen", "b_close": "Schließen",
            "b_hint": "Hintergrund ziehen: schwenken · ⌘/Strg + Mausrad oder zwei Finger: zoomen · ← →: Fläche · "
                      "+ − 0: Zoom · Bild klicken: groß · Lesemodus: alles untereinander",
-           "notes": "Belege", "note_n": "Beleg {n}",
+          "notes": "Belege", "note_n": "Beleg {n}", "legend": "Legende", "filters": "Filter",
            "arg_claim": "Kernaussage", "arg_why": "Gründe", "arg_so": "Folgerung", "ex": "Beispiel", "ex_result": "Ergebnis",
            "cmp": "Gegenüberstellung", "cmp_verdict": "Fazit"},
     "en": {"ev": "Evidence", "el": "Element", "at": "Evidence", "from": "From", "to": "To", "fn": "Function",
@@ -246,6 +290,7 @@ TXT = {
                      "layout and greyed boxes stay in this browser",
            "find": "Find…", "csv": "CSV", "chart_cdn": "Chart needs the vega CDN",
            "t_hint": "Click a badge to switch the value on or off.",
+           "permalink": "Link to this section",
            "t_reset": "Reset", "t_count": "visible", "sources": "Sources and run details",
            "toc": "Contents", "skip": "Skip to content", "bib": "Sources", "depth": "Reading depth",
            "find_label": "Search the report", "find_clear": "Clear search", "find_hits": "matches",
@@ -261,7 +306,7 @@ TXT = {
            "b_read": "Read mode", "b_enlarge": "Show image large", "b_close": "Close",
            "b_hint": "drag the background: pan · ⌘/Ctrl + wheel or two fingers: zoom · ← →: canvas · "
                      "+ − 0: zoom · click an image: enlarge · read mode: everything stacked",
-           "notes": "Notes", "note_n": "Note {n}",
+          "notes": "Notes", "note_n": "Note {n}", "legend": "Legend", "filters": "Filters",
            "arg_claim": "Key point", "arg_why": "Because", "arg_so": "So", "ex": "Example", "ex_result": "Result",
            "cmp": "Comparison", "cmp_verdict": "Verdict"},
 }
@@ -375,6 +420,7 @@ class Report:
         self.src = src  # path of report.json; the data dump (`count` stats) resolves against it
         self.bpath = None  # JSON pointer of the block being rendered (`sections/0/blocks/2`); b_tabs extends it
         self.lints = []  # lint lines; printed by main() after the build
+        self.legends_seen = set()  # legend HTML already shown on the page; a repeat collapses (`figure`)
         self.cats = data.get("badges", {})
         self.ents = {e["id"]: e for e in data.get("entities", [])}
         if len(self.ents) != len(data.get("entities", [])):
@@ -396,6 +442,8 @@ class Report:
             for k, val in cat["values"].items():
                 if val.get("color", "gray") not in COLORS:
                     fail(f"badge {c}:{k}: colour must be one of {sorted(COLORS)}")
+            if "default" in cat and cat["default"] not in cat["values"]:
+                fail(f"badge {c}: default {cat['default']} is not one of its values")
         self.t = TXT.get(str(data.get("lang", "de"))[:2], TXT["en"])
         self.nco = 0  # callout counter: unique ids for aria-labelledby
         self.notes, self.nsec = None, 0  # section being rendered: footnote text -> shallowest reader rank citing it (None: inline brackets)
@@ -694,6 +742,9 @@ class Report:
             items.append(f'<li id="n-{i}-{k}" value="{k}"{rd}>{self.source(x)}</li>')
         low = min(self.notes.values())
         rd = f' data-reader="{READERS[low]}"' if low else ""
+        if len(self.notes) == 1 and low == 0:  # one note, always shown: inline instead of a collapsed list
+            (x,) = self.notes
+            return f'<p class="notes notes-1"><span class="nn-l">{E(self.t["notes"])}:</span> <span id="n-{i}-1">{self.source(x)}</span></p>'
         return (f'<details class="notes"{rd}><summary>{E(self.t["notes"])} (<span class="nn">{len(self.notes)}</span>)</summary>'
                 f'<ol>{"".join(items)}</ol></details>')
 
@@ -1226,7 +1277,7 @@ class Report:
         marks = "".join(f'<marker id="m-{E(gid)}-{k}" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">'
                         f'<path d="M0,0 L8,4 L0,8" class="mk {self.kind_style(kinds, k)[0]}"{self.kind_style(kinds, k)[1]}/></marker>'
                         for k in sorted(used & (EDGE_KINDS | set(kinds))))
-        fit = f"min(100%,{wd}px)" if not right else f"clamp({int(wd * .8)}px,100%,{wd}px)"  # down: always inside the column, no sideways scroll
+        fit = f"clamp({int(wd * .75)}px,100%,{wd}px)"  # at least 75 % scale; narrower frames scroll inside .dw
         svg = (f'<svg viewBox="{x0:.1f} {y0:.1f} {wd} {ht}" width="{wd}" height="{ht}" class="dg{"" if right else " dgv"}" role="img" '
                f'style="width:{fit};height:auto" '
                f'aria-label="{E(b.get("label") or b["id"])}"><defs>{marks}</defs>'
@@ -1353,8 +1404,13 @@ class Report:
         cap.append(tools if tools is not None else
                    f'<button type="button" class="zb" onclick="zoomFig(this)" title="{E(self.t["zoom"])}" '
                    f'aria-label="{E(self.t["zoom"])}">{icon("maximize-2")}</button>')
+        lg = self.legend(b, used)
+        if lg and lg in self.legends_seen:  # the same legend again: collapsed, its toggles still work
+            lg = f'<details class="lgx"><summary>{E(self.t["legend"])}</summary>{lg}</details>'
+        else:
+            self.legends_seen.add(lg)
         return (f'<figure class="fg" id="{E(self.danchor(gid))}"><figcaption>{"".join(cap)}</figcaption><div class="dw">{svg}</div>'
-                f'{self.legend(b, used)}{after}</figure>')
+                f'{lg}{after}</figure>')
 
     def check_evidence(self, b, what, items):
         """`at` on some but not all edges means unproven edges slipped in."""
@@ -1900,9 +1956,10 @@ class Report:
                 fail(f"tree: drives {gid}: no node of it has a `ref` to an entity of this tree")
         drives = [self.danchor(g) for g in b.get("drives", [])]
         return (f'<div x-data="treeFilter({E(json.dumps(cats))},{E(json.dumps(label))},{E(json.dumps(drives))})">'
+                f'<details class="flt" open><summary>{E(self.t["filters"])}</summary>'
                 f'<dl class="legend">{"".join(legend)}</dl>'
                 f'<div class="ctl"><span>{E(hint)}</span><span class="cnt" x-text="count"></span>'
-                f'<button type="button" @click="reset()" :disabled="!Object.values(off).some(Boolean)">{E(reset)}</button></div>'
+                f'<button type="button" @click="reset()" :disabled="!Object.values(off).some(Boolean)">{E(reset)}</button></div></details>'
                 f'<div class="tree"><ul class="tr">{"".join(li(r, 0) for r in roots)}</ul></div></div>')
 
     def groups(self, e, kind_cat, toggles):
@@ -1911,23 +1968,25 @@ class Report:
         out = [f'<span class="mt">{self.inline(m)}</span>' for m in e.get("meta", [])]
         for c in self.cats:
             if c != kind_cat and c in bvals:
-                out.append("".join(self.badge(c, v, c in toggles) for v in dict.fromkeys(bvals[c])))
+                out.append("".join(self.badge(c, v, c in toggles) for v in dict.fromkeys(bvals[c]) if v != self.cats[c].get("default")))
         for arrow, ids in (("→", e.get("refs", [])), ("←", self.back.get(e["id"], []))):
             if ids:
                 more = f'<span class="mt">+{len(ids) - LINKS_SHOWN}</span>' if len(ids) > LINKS_SHOWN else ""
                 out.append(f'<span class="xr">{arrow} ' + " ".join(self.link(r) for r in ids[:LINKS_SHOWN]) + more + "</span>")  # spaces: wrap points on a phone
         return out
 
-    def card(self, eid, kind_cat):
-        """One entity as a summary row: its anchor, kind badge, title, meta, badges and links."""
+    def card(self, eid, kind_cat, label=None):
+        """One entity as a summary row: its anchor, kind badge, title, meta, badges and links. The title is left out
+        when it only repeats `label` (the tab that holds the card)."""
         if eid not in self.ents:
             fail(f"tabs: unknown entity {eid}")
         e = self.ents[eid]
         kind = "".join(self.badge(kind_cat, v, False) for v in e.get("badges", {}).get(kind_cat, []))
         kind = f'<span class="kb">{kind}</span>' if kind else ""
         _, cls, mk = self.state(e, False)
-        return (f'<div class="row card{cls}" id="{E(self.anchor(eid))}">{kind}<span class="bd">{mk}'
-                f'<span class="tt">{E(e.get("title") or str(eid))}</span>'
+        title = e.get("title") or str(eid)
+        tt = "" if label is not None and title.replace("`", "") == str(label).replace("`", "") else f'<span class="tt">{E(title)}</span>'
+        return (f'<div class="row card{cls}" id="{E(self.anchor(eid))}">{kind}<span class="bd">{mk}{tt}'
                 + "".join(f'<span class="grp">{g}</span>' for g in self.groups(e, kind_cat, ())) + "</span></div>")
 
     def b_tabs(self, b):
@@ -1956,7 +2015,7 @@ class Report:
                        f' tabindex="{0 if on else -1}"{bcls}>{dot}{num}{E(str(label))}</button>')
 
             def panel():
-                head = self.card(eid, kind_cat) if eid else ""
+                head = self.card(eid, kind_cat, label) if eid else ""
                 if t.get("summary"):
                     head += f'<p class="sum">{self.inline(t["summary"])}</p>'
                 self.tab_entity = eid
@@ -2127,7 +2186,7 @@ class Report:
                     rows.append(f'<div class="mk-f">{field(r, at)}</div>')
             btns = "".join(f'<span class="mk-btn{" p" if x.get("primary") else ""}">{E(x["label"])}</span>' for x in p.get("buttons", []))
             sub = f' <small>{self.inline(p["sub"])}{pin(p, at)}</small>' if p.get("sub") or p.get("n") else ""
-            cols.append(f'<div class="mk-col"><h5>{self.inline(p["label"])}</h5><div class="mk-dlg"><header>{self.inline(p["title"])}{sub}</header>'
+            cols.append(f'<div class="mk-col"><h3>{self.inline(p["label"])}</h3><div class="mk-dlg"><header>{self.inline(p["title"])}{sub}</header>'
                         f'<div class="mk-bd">{"".join(rows)}</div><div class="mk-ft">{btns}</div></div></div>')
         ol = ("<ol class=\"mk-notes\">" + "".join(f'<li><span class="mk-n">{i}</span>{self.inline(x)}</li>' for i, x in enumerate(notes, 1))
               + "</ol>") if notes else ""
@@ -2284,9 +2343,9 @@ class Report:
             fail("argument: `reasons` needs 1 to 3 non-empty items")
         self.nco += 1
         cid, t = f"ag-{self.nco}", self.t
-        return (f'<div class="arg" role="group" aria-labelledby="{cid}"><p class="co-h"><span class="co-k">{E(t["arg_claim"])}</span> '
-                f'<strong id="{cid}">{self.inline(b["claim"])}</strong></p><p class="arg-l">{E(t["arg_why"])}</p>{self.ste_list("ol", b["reasons"])}'
-                f'<p class="arg-s"><span class="co-k">{E(t["arg_so"])}</span> {self.inline(b["conclusion"])}</p></div>')
+        return (f'<div class="arg" role="group" aria-labelledby="{cid}"><p class="co-h">'
+                f'<strong id="{cid}">{self.inline(b["claim"])}</strong></p><p><span class="blk-l">{E(t["arg_why"])}</span></p>{self.ste_list("ol", b["reasons"])}'
+                f'<p class="arg-s"><span class="blk-l">{E(t["arg_so"])}</span> {self.inline(b["conclusion"])}</p></div>')
 
     def b_example(self, b):
         """Worked example: `title` (text), `setup`, `steps` (1–6), `result` (inline)."""
@@ -2297,9 +2356,9 @@ class Report:
             fail("example: `steps` needs 1 to 6 non-empty items")
         self.nco += 1
         cid, t = f"ex-{self.nco}", self.t
-        return (f'<div class="ex" role="group" aria-labelledby="{cid}"><p class="co-h"><span class="co-k">{E(t["ex"])}</span> '
+        return (f'<div class="ex" role="group" aria-labelledby="{cid}"><p class="co-h">'
                 f'<strong id="{cid}">{E(b["title"])}</strong></p><p>{self.inline(b["setup"])}</p>{self.ste_list("ol", b["steps"])}'
-                f'<p class="ex-r"><span class="co-k">{E(t["ex_result"])}</span> {self.inline(b["result"])}</p></div>')
+                f'<p class="ex-r"><span class="blk-l">{E(t["ex_result"])}</span> {self.inline(b["result"])}</p></div>')
 
     def b_compare(self, b):
         """Two-column contrast: `title` (text), `columns` (exactly 2: `label`, `text?`, `items?`), `verdict` (inline)."""
@@ -2320,9 +2379,9 @@ class Report:
         cells = "".join(f'<div class="cmp-c"><p class="cmp-h">{E(c["label"])}</p>'
                         + (f'<p>{self.inline(c["text"])}</p>' if c.get("text") else "")
                         + (self.ste_list("ul", c["items"]) if c.get("items") else "") + "</div>" for c in cols)
-        return (f'<div class="cmp" role="group" aria-labelledby="{cid}"><p class="co-h"><span class="co-k">{E(t["cmp"])}</span> '
+        return (f'<div class="cmp" role="group" aria-labelledby="{cid}"><p class="co-h">'
                 f'<strong id="{cid}">{E(b["title"])}</strong></p><div class="cmp-g">{cells}</div>'
-                f'<p class="cmp-v"><span class="co-k">{E(t["cmp_verdict"])}</span> {self.inline(b["verdict"])}</p></div>')
+                f'<p class="cmp-v"><span class="blk-l">{E(t["cmp_verdict"])}</span> {self.inline(b["verdict"])}</p></div>')
 
     def vega_check(self, b):
         """Validate and normalise one `vega` block once (the spec stays inline, the dataset is named `rows` for the page script);
@@ -2426,7 +2485,7 @@ class Report:
             fail(f'stat "{label}": {f} is not an array of rows')
         return rows
 
-    def stat(self, label, v):
+    def stat(self, label, v, quiet=False):
         """Header stat value as text: `{"count": <collection>, "where"?: {field: value}}` counts dump rows, `{"rows": <table id>}`
         counts the body rows of a `table`/`data` block, `{"value": n, "source": <file>}` is a literal that names its source
         (lint line). A bare number fails; other text (a label such as "v2") stays as typed."""
@@ -2449,7 +2508,8 @@ class Report:
             if "value" in v:
                 if not v.get("source"):
                     fail(f'stat "{label}": literal number needs source, count or rows')
-                self.lints.append(f'stat "{label}": literal, source {v["source"]}')
+                if not quiet:
+                    self.lints.append(f'stat "{label}": literal, source {v["source"]}')
                 return str(v["value"])
             fail(f'stat "{label}": give count, rows, or value with source')
         if (isinstance(v, (int, float)) and not isinstance(v, bool)) or re.fullmatch(r"[\d.,\s]+", str(v)):
@@ -2497,6 +2557,32 @@ class Report:
             sents = sum(sentences(b.get("text", "")) for b in all_b if b.get("type") == "p")
             if items >= LINT_LIST_MIN and items > sents:
                 out.append(f'lists: section "{title}" has {items} list items and {sents} sentences of prose')
+            for b in all_b:
+                if b.get("type") == "p":
+                    txt = re.sub(r"`[^`]*`", "", CITE.sub("", str(b.get("text", ""))))
+                    if any(NARRATES.match(s) for s in re.split(r"(?<=[.!?])\s+", txt.strip())):
+                        out.append(f'prose: section "{title}": "{" ".join(txt.split()[:6])}…" narrates the figure; say what it means')
+            last = blocks[-1] if blocks else None
+            if last and last.get("type") == "p" and any(x.get("type") in DIAGRAMS | ID_FIGURES | {"tree", "table", "data", "bars"} for x in all_b):
+                lastsent = re.split(r"(?<=[.!?])\s+", re.sub(r"`[^`]*`", "", CITE.sub("", str(last.get("text", "")))).strip())[-1]
+                if lastsent.startswith(("So ", "Also ", "Damit ")):
+                    out.append(f'prose: section "{title}" ends on a "So …" recap of its figure')
+        blocks_text = []  # one joined string per prose block, whole report
+        for sec in secs:
+            for b in walk(sec.get("blocks", [])):
+                if b.get("type") in PROSE_TYPES:
+                    blocks_text.append(" ".join(re.sub(r"`[^`]*`", "", CITE.sub("", str(x))) for x in prose_text(b)))
+        seen = defaultdict(int)
+        for txt in blocks_text:
+            for n in {x.replace(",", "") for x in NUMBER.findall(txt)}:
+                if int(n.split(".")[0] or 0) >= 10 and not (len(n) == 4 and n.isdigit() and 1900 <= int(n) <= 2099):
+                    seen[n] += 1
+        out += [f'numbers: "{n}" appears in {k} prose blocks (state it once, then refer to it)' for n, k in seen.items() if k > 2]
+        alltext = "\n".join(blocks_text)
+        for k, v in d.get("stats", []):
+            val = self.stat(k, v, quiet=True)
+            if not re.search(rf"(?<![\w.]){re.escape(val)}(?![\w.])", alltext):
+                out.append(f'stat "{k}": {val} is never discussed in the prose')
         if self.size:
             cap = SIZE_SENTENCES.get(self.size, SIZE_SENTENCES_DEFAULT)
             for sec in secs:
@@ -2517,8 +2603,17 @@ class Report:
             for val in cat["values"]:
                 n = sum(1 for e in have if val in e["badges"][c])
                 pct = n * 100 / len(have)
-                if pct > 85 or pct < 5:
+                if pct > 60 and cat.get("default") != val:
+                    out.append(f'badge {c}={val}: {n} of {len(have)} entities ({pct:.0f} %): set "default": "{val}" so only the exceptions show')
+                elif pct < 5:
                     out.append(f"badge {c}={val}: {n} of {len(have)} entities ({pct:.0f} %)")
+        by_col = defaultdict(list)
+        for c, cat in self.cats.items():
+            for val, v in cat["values"].items():
+                by_col[v.get("color", "gray")].append((c, val))
+        for col, pairs in by_col.items():
+            if len({c for c, _ in pairs}) > 1:
+                out.append(f"badge colour {col}: " + ", ".join(f"{c}={val}" for c, val in pairs) + " (one colour, one meaning)")
         depth = {}
         for e in d.get("entities", []):
             n, p = 0, e.get("parent")
@@ -2619,6 +2714,7 @@ class Report:
         secs = d.get("sections", [])
         parts, toc = [], []
         top = self.scope(secs)
+        prev_sub = None
         for i, sec in enumerate(secs, 1):
             k, cls, mk = self.state(sec, top)
             self.nsec = i
@@ -2626,20 +2722,29 @@ class Report:
             inner = self.scope(sec.get("blocks", []))
             body = self.inside(k, lambda: [self.block(b, f"section {sec['title']}", inner, f"sections/{i - 1}/blocks/{j}")
                                            for j, b in enumerate(sec.get("blocks", []))])
-            num = f"{i} " if d.get("numbered", True) else ""
-            secid = sec.get("id") or (f"s-{i}" if wr else None)
-            sid = f' id="{E(secid)}"' if secid else ""
-            hid = f' id="{E(secid)}-h"' if wr else ""
-            lab = f' aria-labelledby="{E(secid)}-h"' if wr else ""
             rd = f' data-reader="{E(sec["reader"])}"' if self.reader_rank(sec, f"section {sec['title']}") else ""
+            inner_html = f'<div class="body">{"".join(body) + self.notes_html(i)}</div>'
+            if i == 1:  # the first section is the lede: the answer under the title, no heading, no number
+                lid = f' id="{E(sec["id"])}"' if sec.get("id") else ""
+                lcls = " ".join(x for x in ("lede", cls.strip()) if x)
+                parts.append(f'<section{lid} class="{lcls}"{rd} data-src="sections/0">{inner_html}</section>')
+                continue
+            n = f"{i - 1} " if d.get("numbered", True) else ""
+            secid = sec.get("id") or f"s-{i - 1}"
+            sub = sec.get("sub") or ""
+            chap = f'<p class="chap">{E(sub)}</p>' if sub and sub != prev_sub else ""
+            prev_sub = sub
             ccls = f' class="{cls.strip()}"' if cls else ""
-            parts.append(f'<section{sid}{ccls}{rd}{lab} data-src="sections/{i - 1}"><h2{hid}>{num}{mk}{E(sec["title"])}<span>{E(sec.get("sub", ""))}</span></h2>'
-                         f'<div class="body">{"".join(body) + self.notes_html(i)}</div></section>')
-            toc.append(f'<li{rd}><a href="#{E(secid or "")}">{num}{E(sec["title"])}</a></li>')
+            sn = f'<span class="sn">{n}</span>' if n else ""
+            parts.append(f'{chap}<section id="{E(secid)}"{ccls}{rd} aria-labelledby="{E(secid)}-h" data-src="sections/{i - 1}">'
+                         f'<h2 id="{E(secid)}-h">{sn}{mk}{E(sec["title"])}'
+                         f'<a class="ha" href="#{E(secid)}" aria-label="{E(t["permalink"])}">#</a></h2>{inner_html}</section>')
+            toc.append((sub, f'<li{rd}><a href="#{E(secid)}">{n}{E(sec["title"])}</a></li>'))
+        nsec = len(toc)
         self.notes = None
         bib = self.bibliography()
         if bib:
-            toc.append(f'<li><a href="#sources">{E(t["bib"])}</a></li>')
+            toc.append(("", f'<li><a href="#sources">{E(t["bib"])}</a></li>'))
         summary = ""
         if self.chg:
             since = f' {E(str(d["since"]))}' if d.get("since") else ""
@@ -2652,16 +2757,30 @@ class Report:
         brand = load_brand(d.get("brand"), self.src.parent if self.src else Path.cwd())
         logo, favicon = brand_logo(brand)
         hdr = (f'<header data-report="{E(self.src.name)}">' if self.src else "<header>") + logo
-        if wr:
+        nav = ""
+        if toc and (wr or nsec >= 4):  # web-research always had its contents; other profiles get one from 4 numbered sections
+            items, g = [], 0
+            while g < len(toc):
+                sub, h = toc[g]
+                e = g
+                while sub and e < len(toc) and toc[e][0] == sub:
+                    e += 1
+                if e > g:
+                    items.append(f'<li class="toc-g"><span>{E(sub)}</span><ol>{"".join(x[1] for x in toc[g:e])}</ol></li>')
+                    g = e
+                else:
+                    items.append(h)
+                    g += 1
             nav = (f'<nav class="toc" aria-label="{E(t["toc"])}"><details open><summary>{E(t["toc"])}</summary>'
-                   f'<ol>{"".join(toc)}</ol></details></nav>')
-            head = [f'<a class="skip" href="#main">{E(t["skip"])}</a>',
-                    f'{hdr}<h1>{E(d["title"])}</h1>{prov}{prov_print}<div class="wrtools">{reader}{find}</div>{nav}</header>',
-                    f'<main id="main" class="wr" tabindex="-1" data-find-scope>{chr(10).join(content)}</main>']
-            body = "\n".join(head)
+                   f'<ol>{"".join(items)}</ol></details></nav>')
+        skip = f'<a class="skip" href="#main">{E(t["skip"])}</a>'
+        if wr:
+            top = f'{hdr}<h1>{E(d["title"])}</h1>{prov}{prov_print}<div class="wrtools">{reader}{find}</div>{nav}</header>'
+            main = f'<main id="main" class="wr" tabindex="-1" data-find-scope>{chr(10).join(content)}</main>'
         else:
-            head = [f'{hdr}<h1>{E(d["title"])}</h1>{prov}{prov_print}{reader}{find}</header>']
-            body = "\n".join(head + content)
+            top = f'{hdr}<h1>{E(d["title"])}</h1>{prov}{prov_print}{reader}{find}{nav}</header>'
+            main = f'<main id="main" tabindex="-1">{chr(10).join(content)}</main>'
+        body = "\n".join([skip, top, main])
         found = Counter(html.unescape(i) for i in re.findall(r'\sid="([^"]+)"', body))
         twice = sorted(i for i, k in found.items() if k > 1)
         if twice:
@@ -2712,11 +2831,17 @@ def check_choice(data, path):
         bad = [f for f in feats if f not in allowed]
         if bad:
             fail(f"--check-choice: size {size} does not allow {', '.join(bad)}")
-    used = set()
-    for sec in data.get("sections", []):
-        for b in walk(sec.get("blocks", [])):
-            if b.get("type") in CHOICE_BLOCKS:
-                used.add(CHOICE_BLOCKS[b["type"]])
+    used, ids = set(), {}
+    blocks = [b for sec in data.get("sections", []) for b in walk(sec.get("blocks", []))]
+    for b in blocks:
+        if b.get("id"):
+            ids[b["id"]] = b.get("type")
+        if b.get("type") in CHOICE_BLOCKS:
+            used.add(CHOICE_BLOCKS[b["type"]])
+        if b.get("type") == "data" and b.get("listen"):
+            used.add("crossfilter")
+    if any(ids.get(g) in ("vega", "bars") for b in blocks if b.get("type") == "tree" for g in b.get("drives") or []):
+        used.add("badge-chart")
     if data.get("badges"):
         used.add("tree")
     if size == "small" and any(b.get("type") == "vega" for sec in data.get("sections", []) for b in walk(sec.get("blocks", []))):
@@ -2770,6 +2895,9 @@ def check_choice(data, path):
 
 def main():
     argv = sys.argv[1:]
+    if "-h" in argv or "--help" in argv:
+        print(__doc__)
+        return
     choice = None
     if "--check-choice" in argv:
         i = argv.index("--check-choice")

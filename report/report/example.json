@@ -409,7 +409,7 @@
       "blocks": [
         {
           "type": "p",
-          "text": "Ein Kapitel wechselt auf dem Weg zum Screen viermal seine Form. Aus der Markdown-Datei wird ein Kandidat, daraus eine Zeile im Kapitelspeicher, dann ein Screen je Zielgruppe und am Ende eine Build-Datei. Die Grafik zeigt jeden Schritt mit der Funktion, die ihn ausführt."
+          "text": "Ein Kapitel wechselt auf dem Weg zum Screen viermal seine Form. Aus der Markdown-Datei wird ein Kandidat, daraus eine Zeile im Kapitelspeicher, dann ein Screen je Zielgruppe und am Ende eine Build-Datei. Jeder Schritt steht mit der Funktion da, die ihn ausführt."
         },
         {
           "type": "lineage",
@@ -486,7 +486,7 @@
       "blocks": [
         {
           "type": "p",
-          "text": "Der Bereich [[alltag|Im Alltag]] enthält zwei Screens, und einer davon, [[pause]], ist noch ein Entwurf. Der Baum listet beide mit Zielgruppe, Herkunft und Status, die Karte darunter die Pakete der Pipeline und ihre Abhängigkeiten. Ein Klick auf das Badge „Status“ blendet den Entwurf in Baum, Karte und Diagramm aus."
+          "text": "Der Bereich [[alltag|Im Alltag]] enthält 2 Screens, und einer davon, [[pause]], ist noch ein Entwurf. Beide stehen im Baum mit Zielgruppe, Herkunft und Status, darunter die Karte mit den Paketen der Pipeline und ihren Abhängigkeiten. Ein Klick auf das Badge „Status“ blendet den Entwurf in Baum, Karte und Diagramm aus."
         },
         {
           "type": "tree",
@@ -614,7 +614,7 @@
       "blocks": [
         {
           "type": "p",
-          "text": "Die Tabelle zeigt, welches Buchkapitel welcher Screen zitiert. Bisher zitiert nur „Trigger“ ein Kapitel, nämlich Kapitel 1 mit 18 Absätzen."
+          "text": "Welches Buchkapitel von welchem Screen zitiert wird, steht in der Tabelle. Bisher zitiert nur „Trigger“ ein Kapitel, nämlich Kapitel 1 mit 18 Absätzen."
         },
         {
           "type": "table",
@@ -669,7 +669,7 @@
       "blocks": [
         {
           "type": "p",
-          "text": "Das Diagramm zählt die Entitäten je Art. Ein Klick auf einen Balken filtert die Tabelle darunter. Ein Badge im Baum nimmt Balken aus dem Diagramm."
+          "text": "Entitäten je Art als Balken. Ein Klick auf einen Balken filtert die Tabelle darunter. Ein Badge im Baum nimmt Balken aus dem Diagramm."
         },
         {
           "type": "vega",
@@ -747,7 +747,7 @@
         },
         {
           "type": "p",
-          "text": "Die Tabelle listet alle Entitäten mit Art und Titel. Sie zeigt nur die Zeilen der Art, die im Diagramm gewählt ist."
+          "text": "Alle 5 Entitäten stehen mit Art und Titel in der Tabelle. Sie zeigt nur die Zeilen der Art, die im Diagramm gewählt ist."
         },
         {
           "type": "data",

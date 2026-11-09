@@ -249,8 +249,8 @@ class Footnotes(unittest.TestCase):
     def test_note_also_cited_from_a_general_block_stays_general(self):
         page = self.depth({"type": "p", "text": "Deep [@a.py:1].", "reader": "professional"},
                           {"type": "p", "text": "Plain [@a.py:1]."})
-        self.assertIn(f'<li id="n-2-1" value="1">{src("a.py:1")}</li>', page)
-        self.assertNotIn('<li id="n-2-1" value="1" data-reader', page)
+        self.assertIn(f'<span id="n-2-1">{src("a.py:1")}</span>', page)
+        self.assertIn('<p class="notes notes-1">', page)
 
     def test_section_with_only_deeper_notes_hides_the_whole_list(self):
         page = self.depth({"type": "p", "text": "Plain."},
@@ -318,18 +318,18 @@ class PageOrder(unittest.TestCase):
 
     def test_first_section_precedes_statistics_and_rest_follow(self):
         page = report(stats=self.STATS, sections=[section("Answer"), section("Detail")]).render()
-        h1, first, stats, second = (self.pos(page, n) for n in ("<h1>", "Answer", '<dl class="stats">', "Detail"))
+        h1, first, stats, second = (self.pos(page, n) for n in ("<h1>", 'class="lede"', '<dl class="stats">', "Detail"))
         self.assertTrue(h1 < first < stats < second)
 
     def test_change_summary_between_first_and_second_section(self):
         first = dict(section("Answer"), change="new")
         page = report(stats=self.STATS, sections=[first, section("Detail")]).render()
-        a, stats, bar, detail = (self.pos(page, n) for n in ("Answer", '<dl class="stats">', 'class="chgbar"', "Detail"))
+        a, stats, bar, detail = (self.pos(page, n) for n in ('class="lede', '<dl class="stats">', 'class="chgbar"', "Detail"))
         self.assertTrue(a < stats < bar < detail)
 
     def test_change_summary_without_stats(self):
         page = report(sections=[dict(section("Answer"), change="new"), section("Detail")]).render()
-        self.assertTrue(self.pos(page, "Answer") < self.pos(page, 'class="chgbar"') < self.pos(page, "Detail"))
+        self.assertTrue(self.pos(page, 'class="lede') < self.pos(page, 'class="chgbar"') < self.pos(page, "Detail"))
 
     def test_no_sections_header_then_statistics_and_change_summary(self):
         page = report(stats=self.STATS, sections=[]).render()
@@ -338,8 +338,8 @@ class PageOrder(unittest.TestCase):
 
     def test_numbering_and_anchors_survive_reordering(self):
         page = report(stats=self.STATS, sections=[dict(section("Answer"), id="ans"), dict(section("Detail"), id="det")]).render()
-        self.assertIn('<section id="ans" data-src="sections/0"><h2>1 Answer', page)
-        self.assertIn('<section id="det" data-src="sections/1"><h2>2 Detail', page)
+        self.assertIn('<section id="ans" class="lede" data-src="sections/0">', page)
+        self.assertIn('<section id="det" aria-labelledby="det-h" data-src="sections/1"><h2 id="det-h"><span class="sn">1 </span>Detail', page)
 
 
 class Provenance(unittest.TestCase):
@@ -611,7 +611,7 @@ class SourceLinks(unittest.TestCase):
 
     def test_bibliography_follows_the_sections_and_links_out(self):
         page = wr().render()
-        self.assertTrue(page.index("2 Details") < page.index('<section id="sources"'))
+        self.assertTrue(page.index("1 </span>Details") < page.index('<section id="sources"'))
         self.assertIn('<li id="src-S1" class="bi">', page)
         self.assertIn('<a class="bi-t" href="https://example.org/a" rel="noopener noreferrer">Leitlinie Knick-Senkfuß</a>', page)
         self.assertIn("AWMF · 2023", page)
@@ -737,8 +737,8 @@ class ReaderDepth(unittest.TestCase):
 
     def test_section_and_contents_entry_carry_the_depth(self):
         page = wr(self.sections({"type": "p", "text": "x"}, reader="professional")).render()
-        self.assertIn('<section id="s-2" data-reader="professional" aria-labelledby="s-2-h" data-src="sections/1">', page)
-        self.assertIn('<li data-reader="professional"><a href="#s-2">2 Mehr</a></li>', page)
+        self.assertIn('<section id="s-1" data-reader="professional" aria-labelledby="s-1-h" data-src="sections/1">', page)
+        self.assertIn('<li data-reader="professional"><a href="#s-1">1 Mehr</a></li>', page)
 
     def test_control_is_three_toggle_buttons_with_json_labels(self):
         page = wr().render()
@@ -804,14 +804,14 @@ class WebResearchPage(unittest.TestCase):
         self.assertIn('<main id="main" class="wr" tabindex="-1" data-find-scope>', page)
         self.assertIn('<nav class="toc" aria-label="Inhalt">', page)
         nav = re.search(r"<nav.*?</nav>", page, re.S).group(0)
-        self.assertEqual(re.findall(r'<a href="#([^"]+)">', nav), ["s-1", "s-2", "sources"])
-        for target in ("s-1", "s-2", "sources"):
+        self.assertEqual(re.findall(r'<a href="#([^"]+)">', nav), ["s-1", "sources"])
+        for target in ("s-1", "sources"):
             self.assertIn(f'id="{target}"', page)
-        self.assertIn('<section id="s-1" aria-labelledby="s-1-h" data-src="sections/0"><h2 id="s-1-h">1 Antwort', page)
+        self.assertIn('<section id="s-1" aria-labelledby="s-1-h" data-src="sections/1"><h2 id="s-1-h"><span class="sn">1 </span>Details', page)
 
     def test_contents_uses_author_section_ids(self):
         secs = [dict(section("Answer"), id="ans"), dict(section("Rest"), id="rest")]
-        self.assertIn('<a href="#ans">1 Answer</a>', wr(secs).render())
+        self.assertIn('<a href="#rest">1 Rest</a>', wr(secs).render())
 
     def test_find_box_has_live_count_clear_and_scope(self):
         page = body(wr().render())
@@ -825,9 +825,10 @@ class WebResearchPage(unittest.TestCase):
 
     def test_other_profiles_keep_their_structure(self):
         page = body(report(sections=[section("Answer")]).render())
-        for marker in ("<main", 'class="skip"', '<nav class="toc"', "data-find-scope", 'id="find"'):
+        for marker in ('<nav class="toc"', "data-find-scope", 'id="find"'):
             self.assertNotIn(marker, page)
-        self.assertIn('<section data-src="sections/0"><h2>1 Answer', page)
+        self.assertIn('<main id="main" tabindex="-1">', page)
+        self.assertIn('<section class="lede" data-src="sections/0">', page)
 
     def test_tree_find_box_keeps_its_markup_without_the_profile(self):
         r = report(badges={}, sections=[{"title": "S", "blocks": [{"type": "data", "id": "d", "columns": [{"key": "a"}], "rows": [{"a": "x"}]}]}])
@@ -857,7 +858,7 @@ class WebResearchPage(unittest.TestCase):
                 {"type": "table", "columns": ["Übung", "Dosis"], "rows": [["Zehenstand", "3×10"]], "caption": "Plan", "reader": "professional"}]}]
         page = build.Report(wr(secs).d, out_dir=d, src=d / "r.json").render()
         self.assertIn("<main", page)
-        for k in ('class="arg"', 'class="ex"', 'class="cmp"', "Kernaussage", "Beispiel", "Gegenüberstellung"):
+        for k in ('class="arg"', 'class="ex"', 'class="cmp"', '<span class="blk-l">Gründe</span>', '<span class="blk-l">Ergebnis</span>', '<span class="blk-l">Fazit</span>'):
             self.assertIn(k, page)
 
 
@@ -874,23 +875,23 @@ class ExplainBlocks(unittest.TestCase):
 
     def test_argument_renders(self):
         out = report().b_argument(ARG)
-        self.assertTrue(out.startswith('<div class="arg" role="group" aria-labelledby="ag-1"><p class="co-h"><span class="co-k">Key point</span> '
-                                       '<strong id="ag-1">Claim</strong></p><p class="arg-l">Because</p><ol class="ste">'))
-        self.assertIn('<p class="arg-s"><span class="co-k">So</span> So this.</p></div>', out)
+        self.assertTrue(out.startswith('<div class="arg" role="group" aria-labelledby="ag-1"><p class="co-h">'
+                                       '<strong id="ag-1">Claim</strong></p><p><span class="blk-l">Because</span></p><ol class="ste">'))
+        self.assertIn('<p class="arg-s"><span class="blk-l">So</span> So this.</p></div>', out)
         self.assertEqual(out.count("<li>"), 2)
-        self.assertIn("Kernaussage", self.page(ARG, lang="de"))
+        self.assertIn('<span class="blk-l">Gründe</span>', self.page(ARG, lang="de"))
 
     def test_example_renders(self):
         out = report().b_example(EXAMPLE)
-        self.assertIn('<span class="co-k">Example</span> <strong id="ex-1">One row</strong>', out)
-        self.assertIn('<p class="ex-r"><span class="co-k">Result</span> Done.</p>', out)
+        self.assertIn('<p class="co-h"><strong id="ex-1">One row</strong>', out)
+        self.assertIn('<p class="ex-r"><span class="blk-l">Result</span> Done.</p>', out)
         self.assertEqual(out.count("<li>"), 3)
         self.assertIn('class="ex"', self.page(EXAMPLE))
 
     def test_compare_renders(self):
         out = report().b_compare(COMPARE)
-        self.assertIn('<span class="co-k">Comparison</span> <strong id="cp-1">A or B</strong></p><div class="cmp-g">', out)
-        self.assertIn('<p class="cmp-v"><span class="co-k">Verdict</span> Take A.</p></div>', out)
+        self.assertIn('<p class="co-h"><strong id="cp-1">A or B</strong></p><div class="cmp-g">', out)
+        self.assertIn('<p class="cmp-v"><span class="blk-l">Verdict</span> Take A.</p></div>', out)
         self.assertEqual(out.count('class="cmp-c"'), 2)
         self.assertEqual(out.count("<li>"), 2)
         self.assertIn('class="cmp"', self.page(COMPARE, profile="structure"))
@@ -950,10 +951,10 @@ class VerticalFlow(unittest.TestCase):
         b = {"type": "flow", "id": "f", "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "edges": [{"from": "a", "to": "b"}], **extra}
         return report().b_flow(b)
 
-    def test_down_flow_fits_the_column(self):
+    def test_down_flow_keeps_a_minimum_scale(self):
         svg = re.search(r'<svg [^>]*class="dg[ "][^>]*>', self.flow(dir="down")).group(0)
         self.assertIn('class="dg dgv"', svg)
-        self.assertRegex(svg, r'style="width:min\(100%,\d+px\);height:auto"')
+        self.assertRegex(svg, r'style="width:clamp\(\d+px,100%,\d+px\);height:auto"')
 
     def test_right_flow_is_unchanged(self):
         svg = re.search(r'<svg [^>]*class="dg[ "][^>]*>', self.flow()).group(0)
@@ -1035,7 +1036,7 @@ class SourcePointers(unittest.TestCase):
     def test_sections_and_blocks_carry_their_pointer(self):
         secs = [section("Answer"), {"title": "Detail", "blocks": [{"type": "p", "text": "One."}, {"type": "p", "text": "Two."}]}]
         page = body(report(sections=secs).render())
-        self.assertIn('<section data-src="sections/1">', page)
+        self.assertIn('<section id="s-1" aria-labelledby="s-1-h" data-src="sections/1">', page)
         self.assertIn('<p data-src="sections/1/blocks/1">Two.</p>', page)
 
     def test_blocks_inside_tabs_extend_the_pointer(self):
@@ -1233,6 +1234,242 @@ class MockBlock(unittest.TestCase):
         with self.assertRaises(SystemExit) as cm:
             report().b_mock({"type": "mock", "id": "m", "panes": [self.PANE]})
         self.assertIn("pin 1 has no note", str(cm.exception))
+
+
+class CritiqueBuildFixes(unittest.TestCase):
+    check = ChoiceCheck.check
+    questions = ChoiceCheck.questions
+    answered = ChoiceCheck.answered
+
+    def run_check(self, features, blocks, capsys=None):
+        import contextlib, io
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            self.check(features, {"sections": [{"title": "S", "blocks": blocks}]})
+        return buf.getvalue()
+
+    DATA = {"type": "data", "id": "d", "listen": ["v"]}
+
+    def test_crossfilter_used_when_data_listens(self):
+        out = self.run_check(["data", "crossfilter"], [self.DATA])
+        self.assertIn("choice: crossfilter chosen=yes used=yes", out)
+
+    def test_crossfilter_used_but_not_chosen_fails(self):
+        with self.assertRaises(SystemExit) as cm:
+            self.run_check(["data"], [self.DATA])
+        self.assertIn("used but not chosen: crossfilter", str(cm.exception))
+
+    def test_data_without_listen_does_not_use_crossfilter(self):
+        out = self.run_check(["data", "crossfilter"], [{"type": "data", "id": "d"}])
+        self.assertIn("choice: crossfilter chosen=yes used=no", out)
+
+    def test_badge_chart_used_when_tree_drives_a_chart(self):
+        blocks = [{"type": "bars", "id": "b1", "items": [["a", 1]]}, {"type": "tree", "drives": ["b1"]}]
+        out = self.run_check(["tree", "charts", "badge-chart"], blocks)
+        self.assertIn("choice: badge-chart chosen=yes used=yes", out)
+
+    def test_tree_driving_a_flow_is_not_badge_chart(self):
+        blocks = [{"type": "flow", "id": "f1"}, {"type": "tree", "drives": ["f1"]}]
+        out = self.run_check(["tree", "flow"], blocks)
+        self.assertIn("choice: badge-chart chosen=no used=no", out)
+
+    def test_badge_chart_used_but_not_chosen_fails(self):
+        blocks = [{"type": "bars", "id": "b1", "items": [["a", 1]]}, {"type": "tree", "drives": ["b1"]}]
+        with self.assertRaises(SystemExit) as cm:
+            self.run_check(["tree", "charts"], blocks)
+        self.assertIn("used but not chosen: badge-chart", str(cm.exception))
+
+    def test_detailed_caps_eight_questions(self):
+        with self.assertRaises(SystemExit) as cm:
+            self.check(["none"], self.answered(9), size="detailed", questions=self.questions(9))
+        self.assertIn("size detailed allows at most 8 questions", str(cm.exception))
+        self.assertEqual(self.check(["none"], self.answered(8), size="detailed", questions=self.questions(8)), "detailed")
+
+    def test_help_prints_the_lint_catalogue(self):
+        import subprocess, sys
+        for flag in ("--help", "-h"):
+            r = subprocess.run([sys.executable, str(Path(__file__).with_name("build.py")), flag], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0)
+            self.assertIn("prose: section", r.stdout)
+            self.assertIn("badge colour", r.stdout)
+
+    def test_mock_pane_label_is_h3(self):
+        out = report().b_mock({"type": "mock", "id": "m", "panes": [MockBlock.PANE], "notes": ["Name twice."]})
+        self.assertIn("<h3>Today</h3>", out)
+        self.assertNotIn("<h5", out)
+
+
+class RedundancyLints(unittest.TestCase):
+    FLOW = {"type": "flow", "id": "f", "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "edges": [{"from": "a", "to": "b"}]}
+
+    def lints(self, *blocks, **extra):
+        return report(sections=[{"title": "S", "blocks": list(blocks)}], **extra).lint()
+
+    def has(self, lints, prefix):
+        return [x for x in lints if x.startswith(prefix)]
+
+    def test_narrated_figure(self):
+        out = self.has(self.lints({"type": "p", "text": "The chart shows the counts."}), "prose: section")
+        self.assertEqual(out, ['prose: section "S": "The chart shows the counts.…" narrates the figure; say what it means'])
+        self.assertEqual(self.has(self.lints({"type": "p", "text": "Most sites sit in the board renderer."}), "prose: section"), [])
+
+    def test_so_recap_after_figure(self):
+        out = self.has(self.lints({"type": "p", "text": "Lead."}, self.FLOW, {"type": "p", "text": "So the page waits."}), "prose: section")
+        self.assertEqual(out, ['prose: section "S" ends on a "So …" recap of its figure'])
+        self.assertEqual(self.has(self.lints({"type": "p", "text": "So the page waits."}), "prose: section"), [])
+
+    def test_repeated_numbers(self):
+        three = [{"type": "p", "text": f"Block {w} has 199 files."} for w in "abc"]
+        self.assertEqual(self.has(self.lints(*three), "numbers:"), ['numbers: "199" appears in 3 prose blocks (state it once, then refer to it)'])
+        self.assertEqual(self.has(self.lints(*three[:2]), "numbers:"), [])
+
+    def test_orphan_stat(self):
+        stats = [["Files", {"value": 42, "source": "x.txt"}]]
+        out = self.has(self.lints({"type": "p", "text": "Nothing here."}, stats=stats), 'stat "Files"')
+        self.assertIn('stat "Files": 42 is never discussed in the prose', out)
+        self.assertEqual(self.has(self.lints({"type": "p", "text": "There are 42 files."}, stats=stats), 'stat "Files": 42 is never'), [])
+
+
+class PageStructure(unittest.TestCase):
+    @staticmethod
+    def five(**sub):
+        secs = [dict(section(f"S{i}"), **sub) if i > 1 else section("Answer") for i in range(1, 6)]
+        return report(profile="explanation", sections=secs).render()
+
+    def test_toc_main_and_skip_link_for_every_profile(self):
+        page = self.five()
+        self.assertIn('<nav class="toc"', page)
+        self.assertIn('<main id="main" tabindex="-1">', page)
+        self.assertIn('<a class="skip" href="#main">', page)
+        self.assertNotIn("data-find-scope", re.search(r'<main id="main"[^>]*>', page).group(0))
+
+    def test_toc_needs_four_sections_after_the_lede(self):
+        four = report(profile="explanation", sections=[section(f"S{i}") for i in range(1, 5)]).render()
+        self.assertNotIn('<nav class="toc"', four)
+
+    def test_first_section_is_the_lede(self):
+        page = self.five()
+        lede = re.search(r"<section[^>]*>.*?</section>", page, re.S).group(0)
+        self.assertIn('class="lede"', lede)
+        self.assertNotIn("<h2", lede)
+        nav = re.search(r"<nav.*?</nav>", page, re.S).group(0)
+        self.assertEqual(re.findall(r'<a href="#([^"]+)">', nav), ["s-1", "s-2", "s-3", "s-4"])
+
+    def test_second_section_heading(self):
+        page = self.five()
+        self.assertIn('<section id="s-1" aria-labelledby="s-1-h" data-src="sections/1"><h2 id="s-1-h"><span class="sn">1 </span>S2<a class="ha" href="#s-1"', page)
+
+    def test_chapter_label_shows_once_per_sub(self):
+        page = self.five(sub="How it runs")
+        self.assertEqual(page.count('<p class="chap">How it runs</p>'), 1)
+        self.assertNotIn("<span>How it runs</span></h2>", page)
+
+    def test_chapter_label_changes_with_sub(self):
+        secs = [section("Answer"), dict(section("A"), sub="One"), dict(section("B"), sub="Two"), dict(section("C"), sub="Two")]
+        page = report(sections=secs).render()
+        self.assertEqual(re.findall(r'<p class="chap">([^<]*)</p>', page), ["One", "Two"])
+
+    def test_toc_groups_entries_by_sub(self):
+        secs = [section("Answer"), dict(section("A"), sub="One"), dict(section("B"), sub="One"), section("C"), section("D")]
+        nav = re.search(r"<nav.*?</nav>", report(sections=secs).render(), re.S).group(0)
+        self.assertEqual(nav.count('<li class="toc-g"><span>One</span>'), 1)
+        self.assertIn('<li><a href="#s-3">3 C</a></li>', nav)
+
+
+class ColourRoles(unittest.TestCase):
+    def test_explanation_blocks_use_blk_l_not_co_k(self):
+        r = report()
+        for out in (r.b_argument(ARG), r.b_example(EXAMPLE), r.b_compare(COMPARE)):
+            self.assertIn('class="blk-l"', out)
+            self.assertNotIn("co-k", out)
+            self.assertNotIn("arg-l", out)
+
+    def badges(self, second_colour):
+        return {"c1": {"label": "C1", "values": {"a": {"color": "green"}, "b": {"color": "blue"}}},
+                "c2": {"label": "C2", "values": {"x": {"color": second_colour}}}}
+
+    def test_shared_colour_across_categories_lints(self):
+        lines = report(badges=self.badges("green")).lint()
+        hit = [x for x in lines if x.startswith("badge colour green:")]
+        self.assertEqual(len(hit), 1)
+        self.assertIn("c1=a", hit[0])
+        self.assertIn("c2=x", hit[0])
+        self.assertIn("(one colour, one meaning)", hit[0])
+
+    def test_distinct_colours_or_one_category_give_no_line(self):
+        self.assertFalse([x for x in report(badges=self.badges("teal")).lint() if x.startswith("badge colour")])
+        one = {"c1": {"label": "C1", "values": {"a": {"color": "green"}, "b": {"color": "green"}}}}
+        self.assertFalse([x for x in report(badges=one).lint() if x.startswith("badge colour")])
+
+
+class RepeatedChrome(unittest.TestCase):
+    @staticmethod
+    def flow(gid):
+        return {"type": "flow", "id": gid, "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "edges": [{"from": "a", "to": "b"}]}
+
+    def test_repeated_legend_collapses(self):
+        page = report(sections=[{"title": "S", "blocks": [self.flow("f"), self.flow("g")]}]).render()
+        self.assertEqual(page.count('<details class="lgx"><summary>Legend</summary>'), 1)
+        self.assertLess(page.index('id="f-g"'), page.index('<details class="lgx">'))
+
+    def test_single_general_note_renders_inline(self):
+        page = report(sections=[section("S", "A [@a.py:1].")]).render()
+        self.assertIn('class="notes notes-1"', page)
+        self.assertIn(f'<span id="n-1-1">{src("a.py:1")}</span>', page)
+        self.assertIn('href="#n-1-1"', page)
+        self.assertNotIn('<details class="notes"', page)
+
+    def test_two_notes_keep_the_list(self):
+        page = report(sections=[section("S", "A [@a.py:1]. B [@b.py:2].")]).render()
+        self.assertIn('<details class="notes">', page)
+        self.assertNotIn('class="notes notes-1"', page)
+
+    @staticmethod
+    def badged(**default):
+        cats = {"kind": {"values": {"k": {"label": "Kindly"}}},
+                "st": {"values": {"ok": {"label": "Fine"}, "bad": {"label": "Broken"}}, **default}}
+        ents = [{"id": f"e{i}", "title": f"E{i}", "badges": {"kind": ["k"], "st": ["ok" if i < 7 else "bad"]}} for i in range(10)]
+        return report(badges=cats, entities=ents, sections=[{"title": "S", "blocks": [{"type": "tree"}]}])
+
+    def test_dominant_value_lint_and_default(self):
+        out = [x for x in self.badged().lint() if x.startswith("badge st=ok")]
+        self.assertEqual(out, ['badge st=ok: 7 of 10 entities (70 %): set "default": "ok" so only the exceptions show'])
+        r = self.badged(default="ok")
+        self.assertEqual([x for x in r.lint() if x.startswith("badge st=ok")], [])
+
+    def test_default_chip_is_hidden_on_rows_but_listed_in_legend(self):
+        self.assertEqual(self.badged().b_tree({"type": "tree"}).count(">Fine</span>"), 8)
+        tree = self.badged(default="ok").b_tree({"type": "tree"})
+        self.assertEqual(tree.count(">Fine</span>"), 1)
+        self.assertEqual(tree.count(">Broken</span>"), 4)
+        self.assertIn('data-b="{&quot;kind&quot;: [&quot;k&quot;], &quot;st&quot;: [&quot;ok&quot;]}"', tree)
+
+    def test_unknown_default_fails(self):
+        self.assertIn("badge st: default nope is not one of its values", fails(self.badged, default="nope"))
+
+    def test_tab_card_omits_title_equal_to_label(self):
+        r = report()
+        same = r.b_tabs({"type": "tabs", "tabs": [{"entity": "alpha", "label": "Alpha", "blocks": []}]})
+        self.assertNotIn('class="tt"', same)
+        other = r.b_tabs({"type": "tabs", "tabs": [{"entity": "alpha", "label": "First", "blocks": []}]})
+        self.assertIn('<span class="tt">Alpha</span>', other)
+
+
+class NarrowScreens(unittest.TestCase):
+    def test_diagrams_keep_three_quarter_scale(self):
+        b = {"type": "flow", "id": "f", "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "edges": [{"from": "a", "to": "b"}]}
+        for extra in ({}, {"dir": "down"}):
+            svg = re.search(r'<svg [^>]*class="dg[ "][^>]*>', report().b_flow(dict(b, **extra))).group(0)
+            wd = int(re.search(r'width="(\d+)"', svg).group(1))
+            self.assertIn(f"width:clamp({int(wd * .75)}px,100%,{wd}px)", svg)
+
+    def test_tree_filters_sit_in_an_open_details(self):
+        cats = {"st": {"values": {"ok": {"label": "Fine"}}}}
+        ents = [{"id": "e1", "title": "E1", "badges": {"st": ["ok"]}}]
+        tree = report(badges=cats, entities=ents).b_tree({"type": "tree"})
+        self.assertIn('<details class="flt" open><summary>Filters</summary><dl class="legend">', tree)
+        self.assertLess(tree.index('<div class="ctl">'), tree.index("</details>"))
+        self.assertLess(tree.index("</details>"), tree.index('<div class="tree">'))
 
 
 if __name__ == "__main__":

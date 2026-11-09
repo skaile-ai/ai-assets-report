@@ -1,0 +1,9 @@
+# Brand
+
+A report is drawn in a brand: page colours, fonts and a logo. The default is `skaile` (`brands/skaile.json`, from `@skaile/brand`: violet accent, Inter, Plus Jakarta Sans headings, JetBrains Mono, the Skaile icon in the header and as favicon). Choice, first hit wins: top-level `brand` in `report.json` (a built-in name such as `github`, the look before brands, or a path relative to `report.json`) > the `REPORT_BRAND` environment variable (a path) > `skaile`.
+
+A brand file holds `page` (the colour tokens `ink mute rule hair paper wash acc hl` and every badge colour with its `-bg`), `fonts` (`sans`, `heading`, `mono` as CSS stacks, `load` as Google Fonts families like `"Inter:wght@400;600"`) and `logo` (an svg/png/jpg/webp next to the file, or `null`). It is merged over `skaile.json` key by key, so a client brand may set only `acc` and `logo`. The build fails on an unknown token, a value that is not a colour, or a missing logo file. The same file brands `report-video` through `REPORT_BRAND` (its keys `bg`, `fg`, `accent`, ...); each side ignores the other's keys.
+
+Prose, tab labels, table headers and buttons use the brand's proportional font at 17 px on a fixed type scale. The mono font stays for code, badges, data cells, note numbers and source markers. Vega charts take the brand's badge colours as their palette and its muted tones for axes; their legends sit below the plot.
+
+Icons are the platform's set: lucide, as in the Skaile frontend (`lucide.json`, extracted from `lucide-react`). The page's buttons (zoom, board tools, notes panel) use them; a `concepts` item names one by its lucide name (`folder-kanban`, `message-square`, `bot`, ...). A name missing from `lucide.json` fails the build; add it by extracting it from `lucide-react/dist/esm/icons/<name>.mjs`.

@@ -3,7 +3,7 @@ name: report-diagram
 description: "Dependency `map` canvases, `board` moodboards (screens today vs. proposed, changes marked) `concepts` figures (UI variants per state with their linked terms), `mock` dialogs and mermaid notations (sequence, class, ER, C4, gantt, mindmap, sankey, railroad) with the notation-choice table. Use for 'what depends on what', 'who calls whom in which order', 'moodboard', 'before/after of screens', 'which UI variant', 'how do these terms relate', 'draw this as a diagram'."
 license: MIT
 metadata:
-  version: 0.3.1
+  version: 0.4.0
   publisher: skaile-ai
 ---
 
@@ -127,29 +127,24 @@ row: field {label, value?, off?, area?, ok?, n?} | {avatar: {text, color?, sq?},
 - `n` puts a numbered pin on a field, a disclosure or the title; `notes[n-1]` explains it below the figure. A pin without its note fails the build.
 - `off` greys a field (empty or default), `area` makes it a text area, `ok` shows a green check text beside it (`@iris available`), `more` is an open disclosure (advanced options, helper hint).
 
-## Alone
+## Standalone
 
-1. Pick the block from the table. Collect the relations from the code or data, every one with `path:line`.
-2. Define one entity per node the reader should reach (`badges`, `meta`), and a `tree` for them, so each `ref` and `click` target exists.
-3. Write `report.json` with only the block, its entities, the tree, and one `p` that states the answer. Copy the shape from `example.json`. State each term as in the code.
-4. Build: `python3 <skill-dir>/../report/build.py report.json <out>.html`. Fix every `report.json:` line.
-5. Verify (list below), then `open <out>.html` and state the answer in chat.
+Standalone: run `skill://report` with this feature preselected.
 
 ## Under report
 
-1. Do steps 1 to 3 of Alone for the selected blocks only; the `tree` in step 2 and the "only the block, its entities, the tree" list in step 3 apply only when the plan selected a tree. Hand the blocks and entities back to the orchestrator's section plan instead of building.
-2. Return only the `map`, `board`, `concepts`, `mock` or `mermaid` blocks the section plan selected, plus the entities that their `ref` and `click` targets need. Add the `tree` of the nodes only when the plan selected it; a `ref`/`click` target can also be an entity that another selected block (table row `anchor`, tab `entity`) already owns. The standalone recipe uses a tree; the orchestration does not force one.
-3. Size: under `technical` every `map` edge carries `path:line` in `at` (the build fails without it). `small` never reaches this skill.
-4. Order inside a section: the prose first, then the selected `tree` (if any), then the `map` it `drives`, then `mermaid` figures, then a `board`, `concepts` or `mock`.
-5. The orchestrator builds and runs the full checks. Run the Verify list for your blocks.
+The shared contract is in report, Under orchestration. This skill adds:
+
+1. Pick the block from the table. Collect the relations from the code or data, every one with `path:line`. State each term as in the code.
+2. Return the `map`, `board`, `concepts`, `mock` or `mermaid` blocks the section plan selected, plus the entities their `ref` and `click` targets need. A target may also be an entity another selected block (table row `anchor`, tab `entity`) already owns. Add a `tree` of the nodes only when the plan selected it.
+3. Under size `technical` every `map` edge carries `path:line` in `at` (the build fails without it).
 
 ## Verify
 
-- 1280 px and 390 px: `scrollWidth == 390`, no console errors.
 - `map`: dragging a box moves its edges. A click greys the box out and changes the counter. Both survive a reload. "Reset layout" restores the start layout.
 - `map` with a `tree`: a badge toggle removes boxes and their edges and changes the counter.
 - `mermaid`: the figure contains an `svg.dg`; ⤢ opens the zoom dialog with it; a click on a linked node jumps to the entity and highlights it. Without network the source text shows.
 - `board`: the select and ‹ › change the visible canvas; ⌘/Ctrl + wheel changes the zoom %; a plain wheel scrolls the page; a change arrow's link opens the other canvas and focuses its card; a hash to a card on canvas 2 opens canvas 2; "Read mode" stacks the canvases; at 390 px it starts in read mode; an image click opens the large view, Esc closes it.
-- `concepts`: each preset button changes the views and the change summary; a switch with `requires` appears only when its key is on; hovering a term highlights it in views, graph and glossary, a click pins it; at 390 px the views stack and the page does not scroll sideways.
+- `concepts`: each preset button changes the views and the change summary; a switch with `requires` appears only when its key is on; hovering a term highlights it in views, graph and glossary, a click pins it; at 390 px the views stack.
 - `mock`: every pin has its note; at 390 px the panes stack.
 - Screenshot every diagram. Overlapping labels: shorten them or split the diagram.

@@ -3,7 +3,7 @@ name: report-video
 description: "Chaptered, narrated manim explainer of a report's main concepts with a brand look, embedded as a `video` block with captions and chapters. Use only when the user asks for a video, animation or explainer."
 license: MIT
 metadata:
-  version: 0.2.4
+  version: 0.3.0
   publisher: skaile-ai
 ---
 
@@ -159,17 +159,18 @@ Done when `stitch:` prints its summary line.
 ## Alone
 
 1. Brief from the user's text → Script → Brand → Scenes → Narrate → Render (all above), in `<stem>.media/`.
-2. Stop at the mp4: no HTML. If the user wants a page, write a `report.json` with one `p` and the block from `<id>.block.json` (copy `example.json`) and build: `python3 <skill-dir>/../report/build.py report.json <out>.html`.
-3. Run Verify. State the path of the mp4 and the chapter list in chat.
+2. Stop at the mp4: no HTML. Run the Verify items for the mp4, the vtt and the stills, then state the path of the mp4 and the chapter list in chat.
+3. Standalone page: run `skill://report` with this feature preselected.
 
 The example in `example.media/` holds a finished set: `demo.script.md`, `demo.py`, `brand.py`, `demo.block.json`.
 
 ## Under report
 
-1. Do Brief to Render with the built `report.json`. Put the media in `<stem>.media/` next to `report.json` (the sibling of `<stem>.json`).
-2. Hand the block from `<id>.block.json` back to the orchestrator's section plan. Place it last in the first section (the answer), unless a chosen question asked for the video: then last in that section. The text above states the answer; the video walks through it. Do not move a finding into the video.
-3. Size: `small` never offers a video.
-4. The orchestrator builds and runs the full checks. Run Verify.
+The shared contract is in report, Under orchestration. This skill adds:
+
+1. The orchestrator builds the report once without the `video` block. Do Brief to Render from that built `report.json`, with the media in `<stem>.media/` next to it (the sibling of `<stem>.json`).
+2. Hand the block from `<id>.block.json` back; the orchestrator adds it and builds again. Place it last in the section whose question asked for the video, else last in the first numbered section after the lede. The lede stays prose only. The prose states the answer; the video walks through it. Do not move a finding into the video.
+3. `small` never offers a video.
 
 ## Verify
 
@@ -177,5 +178,5 @@ The example in `example.media/` holds a finished set: `demo.script.md`, `demo.py
 - `<id>.vtt` cue count (`grep -c -- '-->'`) = narration line count.
 - Read the poster and one still per chapter: chrome visible, no cut text, ≤ 6 elements.
 - Build from any directory: `python3 <skill-dir>/../report/build.py <report>.json /tmp/x.html` prints `lint: 0 findings`; the emitted `src`/`poster` point at existing files relative to `/tmp`; the track is inlined as a `data:text/vtt` URI.
-- Built page at 1280 px and 390 px: `scrollWidth == 390`, no console errors; `<video>` `readyState ≥ 1` after `load()`; `video.textTracks[0].cues.length` = the vtt cue count (also from `file://`); a click on the second chapter button sets `currentTime` to its `t` and starts playback.
+- Built page: `<video>` `readyState ≥ 1` after `load()`; `video.textTracks[0].cues.length` = the vtt cue count (also from `file://`); a click on the second chapter button sets `currentTime` to its `t` and starts playback.
 - Build errors fire on a missing `src`, a missing file, and a `chapters` entry without `t`.

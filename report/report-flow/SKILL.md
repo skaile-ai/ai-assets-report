@@ -3,7 +3,7 @@ name: report-flow
 description: "Capture how code or a pipeline works from the source (trigger, steps, stores, error paths, file:line evidence) and draw levelled DFD `flow`, `lineage` and `states` diagrams. Use for 'how does X work', 'what becomes what', 'which states'."
 license: MIT
 metadata:
-  version: 0.2.1
+  version: 0.3.0
   publisher: skaile-ai
 ---
 
@@ -68,22 +68,21 @@ Done when every node and every edge you draw maps to one line of this list.
 
 ## Alone
 
-1. Collect the facts (Capture the flow). Define one entity per stage, with `badges` and `meta` (`trigger`, `code`, `guard`).
-2. Write `report.json` with only these blocks: the L0 `flow`, one L1 `flow` per stage in `tabs`, the `states` and `lineage` blocks the question needs, and one `p` that states the answer. Copy the shape from `example.json`.
-3. Build: `python3 <skill-dir>/../report/build.py report.json <out>.html`. Fix every `report.json:` line.
-4. Verify (list below), then `open <out>.html` and state the answer in chat.
+Standalone: run `skill://report` with this feature preselected. Without a narrower plan, select the L0 `flow`, one L1 `flow` per stage in `tabs` (one entity per stage, with `badges` and `meta` `trigger`, `code`, `guard`), and the `states` and `lineage` blocks the question needs.
 
 ## Under report
 
-1. Do steps 1 and 2 of Alone for the selected blocks only (the L0/L1 `tabs` suite in step 2 applies only when the plan selected it); hand the blocks and entities back to the orchestrator's section plan instead of building.
-2. Return only the flow, lineage and states blocks the section plan selected. Do not add an L0/L1 suite or a `tree` of stages when the plan did not select them; the standalone recipe keeps them. A single selected `flow` needs no L0 parent. Add the `tree` of the stages only when the plan selected it.
-3. Size: under `technical` every edge, transition and lineage step carries `path:line` in `at` in every profile (the build fails without it), and a question that names state or data gets its `states` or `lineage` block. `small` never reaches this skill.
-4. Order inside a section: the prose that explains first, then the selected `tree` (if any), then the diagrams it drives, then the `lineage`. When a `tree` is selected, set `drives: [<flow id>]` on it and `ref` on every node that is one of its entities.
-5. The orchestrator builds and runs the full checks. Run the Verify list for your blocks.
+Shared contract: `skill://report`, Under orchestration. Delta:
+
+1. Collect the facts (Capture the flow) for the selected blocks only. Return only the `flow`, `lineage` and `states` blocks the section plan selected. Add no L0/L1 suite and no `tree` of stages unless selected; a single selected `flow` needs no L0 parent.
+2. Size: under `technical` every edge, transition and lineage step carries `path:line` in `at` in every profile (the build fails without it), and a question that names state or data gets its `states` or `lineage` block.
+3. Order inside a section: the prose that explains first, then the selected `tree` (if any), then the diagrams it drives, then the `lineage`. When a `tree` is selected, set `drives: [<flow id>]` on it and `ref` on every node that is one of its entities.
 
 ## Verify
 
-- 1280 px and 390 px: `scrollWidth == 390`, no console errors.
+Base checks (1280/390 px, console) are in `skill://report`. Delta:
+
+- A wide or vertical diagram keeps at least 75 % scale and scrolls inside its frame, with a scroll shadow at the cut edge; the page keeps `scrollWidth == 390` at 390 px.
 - Click ⊞ on a parent node: the page jumps to its detail diagram. The child's "↑ Part of" link jumps back.
 - Hover a node: everything but its edges and neighbours fades. A legend edge kind hides its edges. ⤢ opens the zoom view.
 - A link into a closed tab opens that tab.

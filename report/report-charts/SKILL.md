@@ -3,7 +3,7 @@ name: report-charts
 description: "Quantities as `bars` or Vega-Lite `vega` charts with tooltips, selections and cross-filter. Use for 'how much', 'distribution', 'over time', 'compare counts'."
 license: MIT
 metadata:
-  version: 0.2.1
+  version: 0.3.0
   publisher: skaile-ai
 ---
 
@@ -14,6 +14,7 @@ Answer `<question>` about quantities with `bars` (a few numbers) or `vega` (Vega
 Reading contract: follow `skill://report` (citations, labels, answer-first). Chart rules:
 
 - The caption (`label` on `vega`, the `p` above a `bars` block) states the interpretation: what the chart shows and what the reader should see in it, for example "Most tickets are features". A bare measure ("Tickets per kind") is not enough.
+- The title states only what the plotted data shows: a title naming the top five plots five bars, or the plot marks them. An "other" group sits last and takes `gray`.
 - Provenance goes in `at` (evidence table) or in a `[@path:line]` token in the caption or the prose. Never put a file path, line number or source name in an axis `title`, a `bars` label or a field name.
 - One chart answers one question. The answer to that question is in the prose before the chart; the chart supports it.
 
@@ -53,7 +54,7 @@ Spec rules. The build fails on the first two:
 - `entity` (optional) names the row field that holds entity ids. Every row needs it: `vega <id>: entity <f> missing in row <n>`.
 - The build sets `$schema` (Vega-Lite v6), `width: "container"` and `data.name = "rows"` when missing. Give `height` (about 200-260). Do not set a fixed `width` (the chart must fit 390 px).
 - Add `mark.tooltip: true` (or an `encoding.tooltip`) so a hover shows the value.
-- Label axes with `title` in the language of the report. Keep the default colours; set `mark.color` to `#0969da` for a single series.
+- Label axes with `title` in the language of the report. Leave colours and legend placement to the page: it applies the brand palette and puts legends below the plot.
 - Do not put a `vega` block inside `tabs`: a hidden panel has no width when the chart renders.
 - One chart answers one question. Two series that share no scale are two charts.
 
@@ -77,28 +78,24 @@ A `tree` filters the chart with `drives`. The chart then follows every badge tog
 
 Needs `entity` on the `vega` block, and the rows' `entity` values must be ids of entities in that tree: `tree: drives kinds: no row of it has an `id` that is an entity of this tree`. Use one row per entity (the count then comes from `aggregate: "count"`), so a filtered entity removes exactly one row. Say in the tree's `hint` that the chart follows. The header find box filters the tree rows, and the chart follows that too.
 
-## Alone
+## Standalone
 
-1. Pin the question and find the numbers: dump the collection (`<report>.data/`) or read them from the code. Name the field for each axis.
-2. Write `report.json`: one `p` that states the answer, then per question one `vega` (or `bars`) block. Add `badges`, `entities` and a `tree` only when the rows are entities and the reader should filter them; add a `data` table only when the reader needs the rows. Copy the shape from `example.json`.
-3. Build: `python3 <skill-dir>/../report/build.py report.json <out>.html`. Fix every `lint:` line or justify it in chat.
-4. Verify (below), `open <out>.html`, state the answer in chat.
-5. Location: `<repo>/.scratch/reports/<topic>-<YYYY-MM-DD>[-vN].html`. Take the first free `-vN` (`-v2`, `-v3`, …); never overwrite an existing report.
+Standalone: run `skill://report` with this feature preselected.
 
 ## Under report
 
-1. Return only the chosen `vega`/`bars` blocks to the orchestrator's section plan; do not build. Add `listen` wiring only when `crossfilter` was chosen and `drives` wiring only when `badge-chart` was chosen.
+The shared contract is in `skill://report`, "Under orchestration". This skill's delta:
+
+1. Return the chosen `vega`/`bars` blocks. Add `listen` wiring only when `crossfilter` was chosen and `drives` wiring only when `badge-chart` was chosen; wire badge → chart only when the rows carry entity ids.
 2. Section order: the prose that states the finding first, then the chart, then the `data` table that listens to it. A tree that drives the chart comes before the chart.
-3. Size: `small` returns `bars` only (a `vega` block fails the choice check). Under `technical` the caption's `[@…]` token names the dump file and the field of every series.
-4. Wire the cross-filter only when the orchestrator checked it (`data` and `vega` both chosen). Wire badge → chart only when the rows carry entity ids.
-5. The orchestrator builds. Run the Verify list below for your blocks.
+3. Under `technical` the caption's `[@…]` token names the dump file and the field of every series.
+4. Run the Verify list below for your blocks.
 
 ## Verify
 
-Open the built file at 1280 px and at 390 px. The charts need the network.
+The base checks (1280/390 px, `scrollWidth`, console) are in `skill://report`. Chart checks; the charts need the network:
 
-- `document.documentElement.scrollWidth == 390` at 390 px; the chart fits the column; no console errors.
-- Each `vega` figure contains an `svg` (no "needs the vega CDN" note).
+- Each `vega` figure contains an `svg` (no "needs the vega CDN" note) and fits its column at 390 px.
 - A hover over a bar shows a tooltip with the value.
 - A click on a bar leaves only the rows of that value in the listening `data` table (the info line drops); a click on the chart background restores all rows.
 - A tree badge toggle removes bars (or their counts) from the chart; the tree's reset restores them.

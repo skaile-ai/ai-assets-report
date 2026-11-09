@@ -1,35 +1,40 @@
 ---
 name: report
-description: "Build one static HTML report people read front to back: an argued answer first, tables, trees, diagrams and charts as support (data sheet, pipeline explanation, dependency map, moodboard of screens, inventory, coverage) from live data or code. Use for 'report', 'overview page', 'data sheet', 'how does X work as a page'. Orchestrates report-prose, report-table, report-flow, report-diagram, report-charts, report-video. Runs on autopilot by default (builds without asking); \"report interactive: <question>\" asks for size, profile and questions first; a pasted \"# Notes on report\" block revises a built report."
+description: "Build one static HTML report read front to back: argued answer first, tables, trees, diagrams and charts as support. Use for 'report', 'overview page', 'data sheet', 'how does X work as a page'. Autopilot by default; 'report interactive: <question>' asks first; a pasted '# Notes on report' block revises it."
 license: MIT
 metadata:
-  version: 0.4.2
+  version: 0.5.0
   publisher: skaile-ai
   requires: "report-prose, report-table, report-flow, report-diagram, report-charts, report-video"
 ---
 
 # report <question>
 
-Answer `<question>` with one static HTML file a person reads front to back: each section argues its answer in prose, and tables, trees, diagrams and charts support it. Links stand only where detail waits; sources become numbered notes. Collect data into `report.json` and render it with `build.py`; the template owns all styling.
+Answer `<question>` with one static HTML file a person reads front to back: each section argues its answer in prose, and tables, trees, diagrams and charts support it. Collect the data into `report.json` and render it with `build.py`; the template owns all styling. The extension skills (`report-prose`, `report-table`, `report-flow`, `report-diagram`, `report-charts`, `report-video`) sit beside this one at `<skill-dir>/../<name>`, where `<skill-dir>` holds this SKILL.md.
 
-Prose, tab labels, table headers and buttons use the system proportional font at 17 px. JetBrains Mono stays for code, badges, data cells, note numbers and source markers. Profile `web-research` adds `sources` (a linked bibliography), `media`, `resources`, reader depths and a report-wide find box; see **report.json** and **Reading contract**.
+All files of one report share a stem: `<stem>.json`, `<stem>.choice.json`, `<stem>.data/` (dump), `<stem>.build/` (detector output), `<stem>.media/`.
 
-`<skill-dir>` is the directory that holds this SKILL.md; the extension skills sit beside it (`<skill-dir>/../report-table`, ...).
+## Modes
 
-**Autopilot (default).** Every report runs on autopilot unless the request contains the word `interactive`, `ask me` or `with questions` (e.g. `report: how does the import work` and `report autopilot: how does the import work` both run on autopilot; `report interactive: how does the import work` asks). Autopilot never calls `ask` and never waits: step 1 takes the source the question names, else the current repository, and names it in chat; step 2 takes the `recommended` size and profile; step 5 takes the pre-checked candidates as the questions, their ability keys as the features, no extras, and writes `"mode": "autopilot"` into the choice file. Everything else is unchanged. Steps 2 and 5 describe the `ask` calls of interactive mode; under autopilot they only compute the same lists and answer them as stated here. Revising a report from a pasted `# Notes on report` block is unaffected: it copies the previous choice file, including its `mode`.
+A report runs on autopilot unless the request contains `interactive`, `ask me` or `with questions`.
 
-**Built in a subagent, never ticketed.** A report is not code work: it gets no `## Ticket breakdown`, no `to-tickets` run and no fresh implementation session, also when it was drafted and approved in plan mode. Under autopilot nothing asks, so one `task` subagent runs steps 1-9; its task contains the word `autopilot` and the question, and tells it to read `skill://report` and follow steps 1-9. This session then does step 10 with the result the subagent returns. Under interactive mode, steps 1-5 run in this session because they ask the user; steps 6-9 run in one `task` subagent, started right after the choice file is written. Its task names the question, the report stem and directory, the dump, the choice file and the outline with its signals, and tells it to read `skill://report` and follow steps 6-9.
+||interactive|autopilot (default)|
+|---|---|---|
+|Source|asked when the question names none|the one the question names, else the current repository; named in chat|
+|Size + profile|one `ask` call (step 3)|the `recommended` size and profile|
+|Questions|one `ask` call per chapter (step 5)|the pre-checked candidates|
+|Extras|offered in step 5|none; `video` only when the question names a video or an animation|
+|Chat line|the candidates left out|`Autopilot: size <s>, profile <p> (matched "<word>"), questions <ids>; left out: <ids or none>. Re-run with "interactive" to choose.`|
 
-## Process
+Under autopilot nothing asks and nothing waits. The steps compute the same lists as interactive mode and answer them as the table says. A revision from pasted notes copies the previous choice file, including its `mode`.
 
-1. **Pin the question and the data source.** Name the entities it is about and the 2-4 badge categories that classify them. Ask only if the question names no source.
+**Built in one task subagent, never ticketed.** A report gets no `## Ticket breakdown`, no `to-tickets` run and no fresh session, also when planned in plan mode. Under autopilot one `task` subagent runs steps 1-9 and writes the autopilot chat line; its task contains `autopilot` and the question and tells it to read `skill://report`. This session then does step 10. Under interactive mode steps 1-5 run here because they ask; steps 6-9 run in one `task` subagent, started right after the choice file is written, whose task names the question, the stem and directory, the dump, the choice file and the outline with its signals.
+
+## Workflow
+
+1. **Pin the question and the source.** Name the entities it is about and the 2-4 badge categories that classify them. Interactive: ask only if the question names no source. Autopilot: take the named source, else the current repository.
    - **Dump freshness.** A dump is stale when its sources are newer than it or a path it cites no longer exists. Re-run it, or write `dump-<stem>.py` beside the report. The dump reads facts from files and never hard-codes code facts. Say in chat that it was re-run.
-2. **Ask up front.** One `ask` call with two single-choice questions, before any outline exists:
-   - `size`: options `small`, `medium`, `detailed`, `technical`, label `` `<size>` <reader> `` and description `<questions> · <sentences> · <abilities>` from **Sizes**. `recommended` = `small`, the short variant, unless the request asks for more: `medium` on medium, main support, standard; `detailed` on detailed, full, everything; `technical` on technical, engineers, code-level, implementation.
-   - `profile`: options = the eight profiles, label `` `<profile>` ``, description = its trigger words, `recommended` = the first match of the table in step 3.
-
-   Without an `ask` tool: print both lists in chat and wait. The answer sets top-level `profile` and the size for steps 4-7.
-3. **Pick the profile.** Match the question against the table below, first hit wins; it is the `recommended` profile in step 2. The chosen profile's skeleton seeds the outline in step 4, one candidate question per slot; it is not a template.
+2. **Pick the profile.** Match the question against this table, first hit wins. The profile's skeleton seeds the outline, one candidate per slot; it is not a template.
 
    |Profile|Trigger words|Skeleton after the answer|Leans on|
    |---|---|---|---|
@@ -41,137 +46,76 @@ Prose, tab labels, table headers and buttons use the system proportional font at
    |`exploration`|how many, distribution, over time, per month, outliers, which rows|`stats` from the dump → `vega` charts with a point selection → `data` tables listening to them → findings `argument`|data, charts|
    |`change`|what changed, diff, since version|previous `report.json` + `since`; keeps its profile and its choice file|as before|
    |`web-research`|research a topic from the web, what do guidelines say, what helps, resources for patients or the public, report with sources and images|`callout` `answer`/`safety`/`action` → `p` (`reader: informed`) → `media` (licensed images) → `table` (responsive) → `flow` (`dir: down`) → `resources` (curated links) → `bullets` (`reader: professional`: evidence, limits); `sources` render the bibliography after the last section|callout, media, resources, table, flow|
-4. **Draft the outline.** Collect the signals: row counts, enum/number/date fields, the words of the question. Write candidate questions in the chapters the size allows (**Sizes**). A chapter is one reader goal ("What exists", "How it runs", "What is wrong", "What to do"). A candidate is one question the data answers, with an id (`q1`, `q2`, …), the cheapest ability that answers it (key from **Abilities**; `none` for prose) and its signal with the number. Sources: each skeleton slot, each ability whose "Offer when" holds, the user's own words. Drop a candidate without a signal and a candidate that restates another. Done when every chapter holds 2-4 candidates (`small`: 1-2) and each candidate names its signal. Pre-check as many as the size allows (**Sizes**): the ones the answer cannot stand without; the profile's "Leans on" abilities break ties. `small` offers only `none`, `tree` and `bars` candidates; `technical` adds a `flow` candidate for every question that names code and a `data` candidate for every collection a candidate names.
-5. **Ask the questions.** One `ask` call:
-   - one question per chapter, id `ch<n>`, `multi: true`, text = the chapter name. Options = its candidates, label `` `q<n>` <question> ``, description `<ability key> · <signal>`. `recommended` is a single index, so list the pre-checked candidates first, append ` ✓` to their label and start their description with `pre-checked: <reason>`. The first chapter's text starts with `Size: <s>; Profile: <p> (matched "<word>"); <n> candidates, <k> pre-checked`.
-   - `extras`, `multi: true`: the wiring abilities that apply to the candidates (`crossfilter`, `badge-chart`) and `video`, label `` `<key>` <ability> ``. Omit this question for `small`.
 
-   Without an `ask` tool: print the same lists in chat and wait. After the answer: the questions are the selected candidates; a typed answer becomes a new candidate, tag it yourself. The features are the ability keys of the questions plus the selected extras. Write `<stem>.choice.json` beside `report.json` once, from the answer: `{"profile": "<p>", "size": "<s>", "mode": "ask"|"autopilot", "questions": [{"id", "chapter", "text", "feature"}], "features": ["<key>", ...]}`; `mode` is `ask` after an `ask` answer, `autopilot` under **Autopilot**. Leave it as written; a failing check means the report is wrong. In chat, name the candidates left out in one line.
-6. **Run the chosen extensions.** Take each chosen ability to the skill the **Dispatch** table names. Follow that skill's "Under report" branch: it returns the selected blocks and entities, no build. An extension adds only the selected blocks. Its standalone recipe (a tree, an L0/L1 suite, a map) does not apply when the choice did not select it. Order inside a section: the answer first, then the `tree`, the diagrams it `drives`, `flow`/`mermaid`, a `board`, charts and `data` tables, `video` last. A chart or diagram never precedes the prose that explains it. Every list, table, tree, chart and diagram follows a `p` that says what it shows. A `tree` and the diagram it `drives` share one lead `p`.
-7. **Shape `report.json`** (schema below, rules in **Reading contract**). The first section answers `<question>` in at most the sentences the size allows (**Sizes**). Then one section per chosen question, chapters in order: `question: "<id>"`, `title` = the question in at most 8 words, `sub` = the chapter. Each opens with its answer in at most the sentences the size allows (**Sizes**), then holds only the blocks its candidate named. The opening of each section states claim and reason (`skill://report-prose` rule 1). Create an entity only for a thing that has a place on the page (a tree row, a table row `anchor`, a tab `entity`) and that the reader may open for detail. A report without such places has no entities and no links. Without `tree`, entities get `tree: false`. State each link once, in `parent` or `refs`; `build.py` computes the back-links. Prose per `skill://report-prose`. Every number comes from the dump or the code.
-8. **Build:** `python3 <skill-dir>/build.py report.json <out>.html --check-choice <stem>.choice.json [--strict]`. It aborts on an unknown ref, parent, badge or colour: fix the data, not the check. `--check-choice` must pass. It fails when the report holds a block (or top-level `badges`) of an unchosen ability and prints `choice: <key> chosen=<yes|no> used=<yes|no>` per key; keys without a block (`crossfilter`, `badge-chart`, `find`) are reported, never fail. It prints `choice: size <s>` and fails when the choice file lists more questions than the size allows, a feature key the size does not offer, or a `vega` block under `small`. A choice file without `size` is `medium`. With `questions` in the choice file it also fails when a section after the first carries no chosen `question`, a chosen question has no section or two, or a question's ability is missing from `features`. Every `lint:` line is fixed or justified in chat: `links: … links (max 3)`, `links: … is linked N times`, `lists: … has no lead sentence`, `lists: … list items and … sentences of prose`, `badge <cat>=<val>` (value on > 85 % or < 5 % of the entities: make it a `meta` line or a column), `badge <cat>: mirrors tree level` (the values restate the nesting: drop the category), `kind … lacks meta`, `tree after the diagram it drives`, `stat … literal`, `size <s>: section … opens with N sentences (max M)`, `size technical: section … has no [@…] citation and no at`. A bare-number stat from an older report gets a migration hint; give it a dump before `--strict`. A missing `at` on an edge is an error only in size `technical`. `--strict` turns every lint line into an error.
-   - **Mode.** After `choice: size <s>` it prints `choice: mode <m>` (no `mode` key means `ask`). It fails with `--check-choice <path>: mode must be ask or autopilot, not <m>`; under `autopilot` also with `--check-choice: autopilot needs "questions"` when the choice file has no `questions`, and with `--check-choice: autopilot chooses no extras, found <list>` when `features` hold a key no question names (`none` and `find` excepted).
-9. **Verify in a browser** at 1280 px and 390 px: `scrollWidth == 390`, no console errors, one link jumps and highlights, a link into a closed tab opens it; a note number opens the section's notes list and highlights the note; a `compare` shows one column at 390 px; tab labels and table headers render in the proportional font; when badges exist, one badge toggle changes the counter; with a video: the chapter list seeks the player. With no extension chosen: these base checks, plus every tab opens and every `[[link]]` resolves. Otherwise add the "Verify" list of every chosen extension.
-   - **Profile `web-research`** adds to step 9: at 390 px no horizontal scroll with all three reader depths; each depth button changes what shows (informed is the default, `general` hides `informed` and `professional` blocks, `professional` shows all); safety and action callouts, the first answer paragraph and the sources stay visible at every depth; every `[@S1]` link jumps to its `#src-S1` record; the find box shows a live count and `Suche zurücksetzen`/reset restores the page; a `table` shows labelled cards under 640 px; every `media` image loads and shows its credit and licence; a vertical `flow` fits the width.
-   - **Reader notes** add to step 9: select words in a paragraph → `Comment` appears → save → the notes button counts 1 and the words are highlighted; a reload keeps the note; the copied text's `Where` pointer resolves in `report.json`; `Clear` empties the list; at 390 px the open panel keeps `scrollWidth == 390`.
-10. **Location:** `<repo>/.scratch/reports/<topic>-<YYYY-MM-DD>[-vN].html`. All siblings share the stem: `<stem>.json`, `<stem>.choice.json`, `<stem>.data/` (dump), `<stem>.build/` (detector output), `<stem>.media/`. Earlier versions stay untouched. `open <file>`; give the answer in chat, not only the file. Under autopilot (the default) add one chat line: `Autopilot: size <s>, profile <p> (matched "<word>"), questions <ids>; left out: <ids>. Re-run with "interactive" to choose.`
+   `web-research` adds sources, media, resources and reader depths: read `references/web-research.md`.
+3. **Size and profile.** Autopilot: take the recommended size and this step's profile. Interactive: one `ask` call with two single-choice questions, before any outline exists:
+   - `size`: options `small`, `medium`, `detailed`, `technical`, label `` `<size>` <reader> ``, description `<questions> · <sentences> · <abilities>` from **Sizes**. `recommended` = `small` unless the request asks for more: `medium` on medium, main support, standard; `detailed` on detailed, full, everything; `technical` on technical, engineers, code-level, implementation.
+   - `profile`: options = the eight profiles, label `` `<profile>` ``, description = its trigger words, `recommended` = the step 2 match.
+
+   Without an `ask` tool: print both lists in chat and wait.
+4. **Draft the outline.** Collect the signals: row counts, enum/number/date fields, the words of the question. Write candidate questions in the chapters the size allows. A chapter is one reader goal ("What exists", "How it runs", "What is wrong", "What to do"). A candidate is one question the data answers, with an id (`q1`, `q2`, …), the cheapest ability that answers it (key from **Abilities**) and its signal with the number. Sources: each skeleton slot, each ability whose "Offer when" holds, the user's own words. Drop a candidate without a signal and one that restates another. Every chapter holds 2-4 candidates (`small`: 1-2); a chapter that cannot reach 2 candidates merges into its neighbour. Pre-check as many as the size allows: the ones the answer cannot stand without; the profile's "Leans on" abilities break ties. `small` offers only `none`, `tree` and `bars` candidates; `technical` adds a `flow` candidate for every question that names code and a `data` candidate for every collection a candidate names.
+5. **Choose the questions.** Autopilot: the pre-checked candidates. Interactive: one `ask` call:
+   - one question per chapter, id `ch<n>`, `multi: true`, text = the chapter name. Options = its candidates, label `` `q<n>` <question> ``, description `<ability key> · <signal>`. List the pre-checked candidates first, append ` ✓` to their label and start their description with `pre-checked: <reason>`. The first chapter's text starts with `Size: <s>; Profile: <p> (matched "<word>"); <n> candidates, <k> pre-checked`.
+   - `extras`, `multi: true`: the wiring abilities that apply (`crossfilter`, `badge-chart`) and `video`, label `` `<key>` <ability> ``. Omit it for `small`.
+
+   Without an `ask` tool: print the lists in chat and wait. A typed answer becomes a new candidate; tag it yourself. The features are the questions' ability keys plus the selected extras. Write `<stem>.choice.json` once, always with `size`: `{"profile", "size", "mode": "ask"|"autopilot", "questions": [{"id", "chapter", "text", "feature"}], "features": ["<key>", ...]}`. Leave it as written; a failing check means the report is wrong.
+6. **Run the chosen extensions.** Take each chosen ability to the skill **Abilities** names and follow its "Under report" branch (contract: **Under orchestration**). An extension adds only the selected blocks; its standalone recipe does not apply. Order inside a section: the answer first, then the `tree`, the diagrams it `drives`, `flow`/`mermaid`, a `board`, charts and `data` tables, `video` last. A chart or diagram never precedes the prose that explains it; every list, table, tree, chart and diagram follows a `p` that says what it shows, and a `tree` shares one lead `p` with the diagram it drives. The lede is prose only: a video goes last in the section whose question asked for it, else last in the first numbered section after the lede. Video: build once without the video block, render the video from that build, add the block, build again.
+7. **Shape `report.json`** (schema: `references/report-json.md`; prose: `skill://report-prose`). The first section answers `<question>` within the size's sentence budget. It renders as the lede under the title: no heading, so do not restate the title in it. Then one section per chosen question, chapters in order: `question: "<id>"`, `title` = the question in at most 8 words, `sub` = the chapter. Each opens with its claim and reason within the budget, then holds only the blocks its candidate named. Show `stats` only for numbers the prose names once. A section's last sentence does not recap its figure. Create an entity only for a thing with a place on the page (a tree row, a table row `anchor`, a tab `entity`) that the reader may open; without such places there are no entities and no links. Without `tree`, entities get `tree: false`. State each link once, in `parent` or `refs`; the build computes back-links. Every number comes from the dump or the code.
+8. **Build.** Run `python3 <skill-dir>/build.py report.json <out>.html --check-choice <stem>.choice.json --strict`; it aborts on unknown refs, badges and colours, and `--check-choice` must pass: fix the data, not the check. Fix or justify in chat every `lint:` line. `python3 <skill-dir>/build.py --help` lists every check and its fix.
+9. **Verify in a browser** at 1280 px and 390 px: `scrollWidth == 390`; no console errors; one link jumps and highlights; a link into a closed tab opens it; a note number opens or shows the section's note and highlights it; when badges exist, one badge toggle changes the counter. Add `references/web-research.md` (Verify) for that profile, `references/notes.md` (Verify) for reader notes, and the Verify list of every chosen extension.
+10. **Location and answer.** Write `<repo>/.scratch/reports/<topic>-<YYYY-MM-DD>[-vN].html` with its siblings; earlier versions stay untouched. `open <file>` and give the answer in chat, not only the file, plus the chat line from **Modes**.
+
+## Sizes
+
+|Size|Reader|Chapters and questions|Pre-checked|Opening sentences|Abilities offered|Evidence|
+|---|---|---|---|---|---|---|
+|`small`|wants the verdict on one screen|1 chapter, at most 2 questions|1 (the one the answer cannot stand without)|answer and each section at most 2|`none`, `tree`, `charts` as `bars` only; no extras question|notes in the prose; no evidence tables|
+|`medium`|wants the answer and its main support|2-4 chapters, at most 6 questions|at most 5|at most 3|all|numbered notes; `at` optional|
+|`detailed`|wants every finding|2-4 chapters, at most 8 questions|every candidate with a signal, up to the cap|at most 3|all; `data` offered for every collection with more than 30 rows|numbered notes; `at` optional|
+|`technical`|will change the code|2-4 chapters, no cap|as `detailed`|at most 3|all; `flow` offered for every question that names code; `data` for every collection the chosen questions name, without the 30-row threshold|inline grey `[@…]` brackets; `at` on every `flow`/`map` edge (build error); every section after the first cites (lint); identifiers may stay `code`; tree rows show the id|
 
 ## Abilities
 
 Tag each candidate with the cheapest ability that answers it: prose before a table, a table before a chart, a chart before a diagram. `skill://report-prose` is always on.
 
-|Key|Ability (skill: blocks)|Answers questions like|Offer when (signal)|Page cost|Needs|
-|---|---|---|---|---|---|
-|`none`|Prose (core: `p`, `argument`, `example`, `compare`, `callout`; `bullets`, `steps` only after a lead `p`)|why, what follows, what to do, verdict, how it works by example|always|1-6 sentences|—|
-|`tree`|Badge-filtered tree, static tables (`report-table`: `tree`, `table`, top-level `badges`)|what exists, which X has Y|a dump with ≥ 1 collection (collection and row counts)|one row per entity|—|
-|`data`|Sortable, searchable, paged table with CSV (`report-table`: `data`)|which rows, list every X|a collection with > 30 rows (largest collection, its rows)|one table, 25 rows a page|simple-datatables CDN|
-|`charts`|Bars, Vega-Lite charts with tooltips and selections (`report-charts`: `bars`, `vega`)|how many, distribution, over time, compare counts|an enum field with ≥ 3 values, a numeric or a date field (the field names)|one figure|vega CDN (`bars`: none)|
-|`crossfilter`|A chart click filters a table (`listen` on `data`)|which rows are behind this bar|candidates use `data` and `charts`|none|—|
-|`badge-chart`|A badge toggle filters a chart (tree `drives`)|the same counts for one category|candidates use `tree` and `charts`, chart rows carry entity ids|none|—|
-|`flow`|Levelled DFD (`report-flow`: `flow`, `lineage`, `states`)|how does X work, what becomes what, which states|the question names code or a pipeline (the matched phrase)|L0 + one figure per stage|—|
-|`map`|Dependency canvas (`report-diagram`: `map`)|what depends on what|the question names repos, packages, services, modules, or a link table has > 15 nodes (node count)|one large canvas|—|
-|`mermaid`|Sequence, class, ER, gantt, mindmap, sankey, railroad (`report-diagram`: `mermaid`)|who calls whom in which order, which tables and keys|the question asks for one of these notations (the notation)|one figure|mermaid CDN|
-|`board`|Moodboard canvas (`report-diagram`: `board`)|what is today vs. proposed, show screens side by side with the changes marked|the question asks for a moodboard, a canvas, or a before/after of screens (the matched phrase)|one large canvas|—|
-|`concepts`|UI concept per state with linked terms, dialog mockups (`report-diagram`: `concepts`, `mock`)|which variant, what the user sees and thinks, how the terms relate, what a dialog looks like today vs. proposed|the question weighs UI variants, names terms or a rename, or compares dialogs (the matched phrase)|one figure per variant question|—|
-|`video`|Chaptered, narrated manim explainer of the report's main concepts (`report-video`: `video`)|show it as an animation|the user asks for a video, animation, explainer; otherwise offered unchecked ("renders in minutes, needs manim; voice needs a TTS")|one player with chapters|manim, ffmpeg, a `.media/` folder|
-|`find`|Global find box (core)|—|automatic with a `tree` or `data` block; never offered|header field|—|
-
-## Sizes
-
-The size chosen in step 2 sets these budgets; `build.py` enforces the ones marked.
-
-|Size|Reader|Chapters and questions|Pre-checked|Opening sentences|Abilities offered|Evidence|
-|---|---|---|---|---|---|---|
-|`small`|wants the verdict on one screen|1 chapter, at most 2 questions|1 (the one the answer cannot stand without)|answer and each section at most 2|`none`, `tree`, `charts` as `bars` only; no extras question|notes in the prose; no evidence tables|
-|`medium`|wants the answer and its main support|2-4 chapters, at most 6 questions|at most 5|at most 3|all|notes (`[@…]` → numbered note, collapsed list per section); `at` optional|
-|`detailed`|wants every finding|2-4 chapters, no cap|every candidate with a signal|at most 3|all; `data` offered for every collection with more than 30 rows (as today)|notes (`[@…]` → numbered note, collapsed list per section); `at` optional|
-|`technical`|will change the code|as `detailed`|as `detailed`|at most 3|all; `flow` offered for every question that names code; `data` offered for every collection the chosen questions name, without the 30-row threshold|inline grey `[@…]` brackets; `at` on every `flow`/`map` edge (build error); every section after the first cites (lint); identifiers may stay `code`; tree rows show the id|
-
-Enforced in `build.py`: question cap (`small` 2, `medium` 6), feature keys (`small`: `none`, `tree`, `charts`, `find`), `vega` banned for `small`, `at` required for `technical`, opening-sentence lint (`small` 2, else 3), citation lint for `technical`, link density and list lints in every size. Everything else in the table is instruction to the agent.
-
-## Dispatch
-
-Each chosen feature goes to one skill. `skill://report-prose` is always on and never in this table.
-
-|Feature|Skill to read|
-|---|---|
-|`tree`, `data`|`skill://report-table`|
-|`charts`|`skill://report-charts`|
-|`flow`|`skill://report-flow`|
-|`map`, `mermaid`, `board`, `concepts`|`skill://report-diagram`|
-|`video`|`skill://report-video`|
-|`none`|core prose, no extension|
-|`crossfilter`|`skill://report-charts` and `skill://report-table`|
-|`badge-chart`|`skill://report-charts` and `skill://report-table`|
-|`find`|core, automatic, no extension|
-
-Under orchestration an extension returns only the blocks of the chosen features. A feature that is not chosen adds no `tree`, `flow`, `map` or table, even when the extension's standalone recipe starts with one.
+|Key|Blocks|Skill|Offer when (signal)|Needs|
+|---|---|---|---|---|
+|`none`|`p`, `argument`, `example`, `compare`, `callout`; `bullets`, `steps` after a lead `p`|core|always|—|
+|`tree`|`tree`, `table`, top-level `badges`|`report-table`|a dump with ≥ 1 collection (collection and row counts)|—|
+|`data`|`data` (sortable, searchable, paged, CSV)|`report-table`|a collection with > 30 rows (largest collection, its rows)|simple-datatables CDN|
+|`charts`|`bars`, `vega`|`report-charts`|an enum field with ≥ 3 values, a numeric or a date field (the field names)|vega CDN (`bars`: none)|
+|`crossfilter`|`listen` on `data`: a chart click filters a table|`report-charts`, `report-table`|candidates use `data` and `charts`|—|
+|`badge-chart`|tree `drives` a chart: a badge toggle filters it|`report-charts`, `report-table`|candidates use `tree` and `charts`, chart rows carry entity ids|—|
+|`flow`|`flow`, `lineage`, `states`|`report-flow`|the question names code or a pipeline (the matched phrase)|—|
+|`map`|`map` (dependency canvas)|`report-diagram`|the question names repos, packages, services, modules, or a link table has > 15 nodes|—|
+|`mermaid`|`mermaid` (sequence, class, ER, gantt, mindmap, sankey, railroad)|`report-diagram`|the question asks for one of these notations|mermaid CDN|
+|`board`|`board` (moodboard canvas)|`report-diagram`|a moodboard, a canvas, or a before/after of screens|—|
+|`concepts`|`concepts`, `mock`|`report-diagram`|UI variants, terms or a rename, dialogs compared|—|
+|`video`|`video` (chaptered, narrated manim explainer)|`report-video`|the user asks for a video, animation or explainer; otherwise offered unchecked ("renders in minutes, needs manim; voice needs a TTS")|manim, ffmpeg, a `.media/` folder|
+|`find`|header find box|core|automatic with a `tree` or `data` block; never offered|—|
 
 ## Reading contract
 
-This section owns the rules. The extensions point here.
+The extensions point here.
 
-- **Answer first.** The first section answers the question. The opening argues: claim, reason, consequence. `build.py` renders the header (title, find box), then that section, then the statistics and the change summary, then the other sections. Do not put counts, run details or source lists in an introduction. Put provenance in two places only. Top-level `meta` lines render in a collapsed "Sources and run details" disclosure under the title (German "Quellen und Laufdetails"), open in print. Evidence goes in `at` fields and `[@…]` citations next to the claim.
-- **Link labels.** `[[id]]` shows the entity `label`, else its `title`, else the id. Give every entity a short human `title` and, when the title is long, a short `label`. Ids are keys: never reader-facing text. Write `[[id|text]]` only when the sentence needs other wording. The full `title` stays on the link as a hover hint.
-- **Links.** Link a thing at most once per section, at its first mention, and only when its detail (a tree row, table row or tab) adds something the sentence does not say. At most 3 links per paragraph or list; a repeated mention is plain text; never write link lists, name the group and point to the table or tab instead (`skill://report-prose` rule 6). The build lints `links: section "<title>": a <type> block has <n> links (max 3)` and `links: section "<title>": [[<id>]] is linked <n> times (link once, then name it)`.
-- **Citations.** `[@source text]` in any inline text (`p`, `bullets`, `steps`, `callout`, `argument`, `example`, `compare`, captions, notes, entity `meta`, top-level `meta`). Outside size `technical` it renders in section prose as a numbered note: a superscript number linking to `#n-<section>-<n>` in a collapsed "Notes" list at the end of the section (German "Belege"); the same text in one section reuses its number, and the list opens when a number is clicked and in print. Under `technical` it renders inline as the literal text `[source text]` in muted grey. Top-level `meta` and the bibliography always stay inline grey brackets. A source id (`[@S1]`) always links to its bibliography record. The text is non-empty, on one line, and holds no `[`, `]` or backtick. Spaces, a path without a line, `:line` and `:start-end` are allowed. A malformed token stays literal text. A token inside a backtick code span stays literal. At most one per sentence, at the end, before the full stop. Example: `The import rejects bad dates [@src/import.py:88-94].`
-- **Where citations belong.** Use `[@…]` for the provenance of a claim: a file, a line, a dump, a page read. Use `` `code` `` for an identifier the sentence explains. Structured `at` fields (evidence tables, `lineage`, `states`) render as an inline grey bracket in every size; they never become notes. Write the bare value there, without `[@…]`. A source path does not go in a title, a node label, a tab label or an axis label.
-- **Lists.** A list supplements the argument, never replaces it. Every `bullets`/`steps` block follows a `p` that says what the list shows and why it matters (the first block of a tab counts as led when the tab has a `summary` or an `entity`). Use lists for parallel items (steps, options, criteria, open items), 3-7 items each; put reasons and recommendations into sentences or an `argument` (`skill://report-prose` rule 3). The build lints `lists: section "<title>": a <type> block has no lead sentence (put a p before it)` and, when a section holds at least 4 list items and more items than sentences of prose, `lists: section "<title>" has <i> list items and <s> sentences of prose`.
-- **One home.** State each piece of evidence once, where the reader checks the claim. Do not repeat a tree row's evidence in a table cell.
-- **Size.** The opening paragraph of every section stays within the size's sentence budget. Under `technical`, every section after the first cites a source.
-- **Web-research sources.** With a top-level `sources` list, an inline `[@S1]` whose text is exactly a source id renders in every size as a link to the bibliography record `#src-S1`, shown as a grey bracket, and adds no note. Any other `[@…]` text renders as **Citations** describes: a numbered note outside `technical`, an inline grey bracket under `technical`. A citation whose text looks like a source id (letters, then digits: `S1`, `R12`) but is in no `sources` record fails the build (in profile `web-research` also when `sources` is empty). Cite the record that backs the claim; do not paste URLs into prose.
-- **Reader depth (`web-research`).** Three cumulative depths: `general` sees `general` and unmarked blocks; `informed` adds `informed`; `professional` adds `professional`. A block or section with `reader: "<id>"` shows from that depth on; no `reader` means every depth. Put the short, safe, practical statement at `general`, the reasons at `informed`, the evidence detail at `professional`. The build refuses `reader` on the first section, on the answer paragraph (the first `p` of the first section) and on anything that holds a `safety` or `action` callout; the bibliography is never hidden. A note cited only from deeper blocks hides with them; the notes list keeps the marker numbers and counts only the notes the depth shows. Print shows every depth.
+- **Answer first.** The first section answers the question and renders as the lede: claim, reason, consequence, no heading. Counts, run details and source lists do not go in it. Provenance goes in two places only: top-level `meta` (a collapsed "Sources and run details" disclosure under the title) and `at` fields or `[@…]` citations next to the claim.
+- **Link labels.** `[[id]]` shows the entity `label`, else its `title`, else the id. Give every entity a short human `title` and, when the title is long, a short `label`. Write `[[id|text]]` only when the sentence needs other wording; the full `title` stays on the link as a hover hint.
+- **Citations per size.** Outside `technical` a `[@…]` renders as a numbered note at the end of its section; under `technical` as an inline grey bracket. A source id (`[@S1]`) always links to its bibliography record. Syntax: `references/report-json.md`.
+- **Link-only entities.** An entity with `tree: false` renders in one place: a table row `anchor` or a tab `entity`. Without a `table`, gather link-only entities in one `tabs` block.
+- **Ids are keys.** They are reader-facing only in tree rows under size `technical`.
 
-## Reader notes
+## Under orchestration
 
-Every page lets the reader comment on it. Select text and press **Comment**, or press the pencil next to a section title to comment on the whole section. The **Notes** button opens the panel: notes in page order, each with Edit and Delete; a click on a note jumps to its text. **Copy for agent** copies all notes as one Markdown block starting `# Notes on report`; **Clear** deletes them. Notes live in the browser per file (`localStorage`); nothing is uploaded. Every section and block carries `data-src`, its JSON pointer into `report.json`, so each note names the node to edit.
+The shared contract for every extension's "Under report" branch:
 
-When the user pastes a block starting `# Notes on report`:
+- The extension returns blocks and entities and does not build.
+- Size `small` reaches only `report-table` (`tree`, `table`) and `report-charts` with `bars`.
+- An entity has one owner: the first extension to create it owns it; the others reference it.
+- The orchestrator runs the build and the base verify of step 9; the extension runs only its own Verify delta.
 
-1. Open the `Source` file next to the HTML named under `File`.
-2. Per note, resolve `Where`: a JSON pointer `/sections/<i>/blocks/<j>[/tabs/<k>/blocks/<m>]`; `/sections/<i>` means the whole section; `entity <id>` names the entity in top-level `entities`. `Marked` and `Context` locate the words inside the node.
-3. Apply the comment under `skill://report-prose`. A note that needs data the dump lacks re-runs the dump.
-4. Write the next version `<topic>-<date>-v<N+1>` (step 10: earlier versions stay untouched). Its choice file copies the previous one; a note that asks for a new question or ability adds it there, and the chat names the addition. Build with step 8, verify with step 9.
-5. Answer in chat one line per note: its number, what changed, or why it was not done. Tell the user to press **Clear** on the old page.
+## References
 
-## report.json
-
-```
-title, lang, profile, meta: [inline line], numbered: true, since?, data_dir?, brand?
-stats: [[label, {count: "<collection>", where?: {field: value}} | {rows: "<table|data id>"} | {value, source}]]
-badges: { <cat>: { label, shape: square|round|pill|dashed|text, filter: any|hide,
-                   values: { <val>: { label?, color, desc? } } } }
-entities: [{ id, title, label?, parent?, order?, tree?: false, muted?,
-             badges: { <cat>: [val] }, meta: [inline], refs: [id] }]
-sections: [{ title, sub?, id?, question?: "<choice id>", change?, blocks: [block] }]
-sources?: [{ id, title, url, publisher?, year?, kind?, read?, note? }]
-readers?: { default?: "informed", label?, levels: [{ id: general|informed|professional, label, description? }] }
-```
-
-- `stats`: `count` reads `<report stem>.data/<collection>.json` (or `data_dir`); a bare number fails.
-- `brand`: see **Brand**.
-- `shape`: one per category. `filter: any` keeps a node while one of its values is on; `hide` drops a node with a switched-off value. `color`: purple blue green gray orange pink teal yellow red navy brown ink.
-- `tree: false`: link target only. Render places: a table row `anchor`, a tab `entity`. Without a `table`, gather link-only entities in one `tabs` block. Each entity renders in one place.
-- Inline text: `` `code` ``, `[[id]]`, `[[id|label]]`, `[@source text]`. One `lang`; identifiers stay as in the code. Rules: **Reading contract**.
-- Generic blocks: `p` (`text`); `bullets`, `steps` (`items: [inline]`); `callout` (`tone`: `answer`|`safety`|`action`|`note`, `title`, `text`, `items?: [inline]`; the tone name is printed as the label, colour only backs it up; under `web-research`, `safety` and `action` stay visible at every reader depth); `tabs` (`id`, `label`, `tabs: [{entity? | label, summary?, blocks}]`, `kind?`, `numbered?`; three or more blocks of one kind go in one `tabs`, each tab opens with its `entity` card or a `summary`; the tab label falls back to the entity `label`, then `title`, backticks stripped); `html` (`html`, escape hatch).
-- Explanation blocks (every profile, feature `none`). `argument` (`claim: inline`, `reasons: [inline]` 1-3, `conclusion: inline`; renders "Key point", "Because", "So"; errors: ``argument: `claim` is required and must not be empty`` (same for `conclusion`), ``argument: `reasons` needs 1 to 3 non-empty items``). `example` (`title: text`, `setup: inline`, `steps: [inline]` 1-6, `result: inline`; renders "Example", "Result"; errors: ``example: `{k}` is required and must not be empty`` for `title`, `setup`, `result`, ``example: `steps` needs 1 to 6 non-empty items``). `compare` (`title: text`, `columns: [{label, text?: inline, items?: [inline]}]` exactly 2, `verdict: inline`; renders "Comparison", "Verdict", two columns, one under 640 px; errors: ``compare: `columns` needs exactly 2 columns``, ``compare: column {n} needs `label` and `text` or `items` ``, ``compare: `{k}` is required and must not be empty`` for `title`, `verdict`). German labels (`lang: de`): Kernaussage, Gründe, Folgerung, Beispiel, Ergebnis, Gegenüberstellung, Fazit.
-- `web-research` blocks. `media` (`items: [{src, alt, caption, credit, href?, license?, license_url?}]`; `src` is a local file next to the output HTML or the `report.json`, rewritten relative to the output, a missing file fails; `alt`, `caption`, `credit` are required; `href` links the credit to the image page, `license_url` needs `license`; one or two columns on a wide page, one on a phone). `resources` (`items: [{title, url, description, audience?, kind?}]`, optional `label`; every `url` is an external http(s) link and opens as a compact card). Any block takes `reader` (above). Top-level `readers` holds the segmented-control labels (`label`, `description` as a string or `{de, en}`); all three ids are required, `default` is `informed` unless set.
-- `sources`: ids are unique (letters, digits, `.`, `_`, `-`), `title` and an http(s) `url` are required, `publisher`, `year`, `kind`, `read` (date read) and `note` are optional and shown under the linked title. The bibliography renders after the last authored section with `id="sources"`. Under `web-research` the page gets a skip link, a `nav` table of contents (section ids), `<main id="main">` and a report-wide find box (headings, prose, table cells, captions, resources, source records; `aria-live` count, clear button). Trees and `data` tables keep their own find.
-- `table` blocks in every profile emit `data-label` on each cell; under 640 px the rows render as labelled cards. `data` tables keep scroll and paging. `flow` with `dir: down` stays and fits a 390 px page without sideways scrolling.
-- **Change document** (what changed): start from the previous `report.json`, set `change: new|changed|removed` on the smallest part that differs (node, edge, row, item; a tab or section only when all of it changed) and top-level `since`. Removed parts stay, struck through. Do not mark inside a `new` or `removed` part. `change` is allowed on sections, blocks, tabs, entities, table rows, list items, flow/map nodes and edges, lineage types/steps, states and transitions, board canvases, lanes, cards and lane changes.
-
-## Brand
-
-A report is drawn in a brand: page colours, fonts and a logo. The default is `skaile` (`brands/skaile.json`, from `@skaile/brand`: violet accent, Inter, Plus Jakarta Sans headings, JetBrains Mono, the Skaile icon in the header and as favicon). Choice, first hit wins: top-level `brand` in `report.json` (a built-in name such as `github`, the look before brands, or a path relative to `report.json`) > the `REPORT_BRAND` environment variable (a path) > `skaile`.
-
-A brand file holds `page` (the colour tokens `ink mute rule hair paper wash acc hl` and every badge colour with its `-bg`), `fonts` (`sans`, `heading`, `mono` as CSS stacks, `load` as Google Fonts families like `"Inter:wght@400;600"`) and `logo` (an svg/png/jpg/webp next to the file, or `null`). It is merged over `skaile.json` key by key, so a client brand may set only `acc` and `logo`. The build fails on an unknown token, a value that is not a colour, or a missing logo file. The same file brands `report-video` through `REPORT_BRAND` (its keys `bg`, `fg`, `accent`, ...); each side ignores the other's keys.
-
-Icons are the platform's set: lucide, as in the Skaile frontend (`lucide.json`, extracted from `lucide-react`). The page's buttons (zoom, board tools, notes panel) use them; a `concepts` item names one by its lucide name (`folder-kanban`, `message-square`, `bot`, ...). A name missing from `lucide.json` fails the build; add it by extracting it from `lucide-react/dist/esm/icons/<name>.mjs`.
-
-## Files
-
-- `template.html`: layout, badge shapes, tree filter, tabs, link highlight, diagram interaction (hover, legend toggle, zoom), `map` and `board` controllers, `data`/`vega`/`mermaid` init, find box. The theme tokens come from the brand. Alpine, the fonts and the extension libraries load from CDNs; offline the plain tables, `bars` and mermaid source show, the page keeps working.
-- `brands/`: built-in brands (`skaile.json` with its logo, `github.json`). `lucide.json`: the icon set. `blocks/`: CSS and the browser runtime of `concepts` and `mock`, inlined into `<head>` once when a report uses them.
-- `build.py`: renderer, link checker and linter, stdlib only. It fails on unknown refs, nodes, kinds, icons, terms, state keys and listen targets, unbalanced child flows, links without a target, anchors rendered twice and invalid brands. It lints link density, lists without a lead, list-heavy sections, opening sentences, badge skew, missing `at` under technical.
-- `example.json`: one block of every type with its data in `example.data/` (the `board` screenshot is `example.data/board-screen.jpg`); the `video` block comes from `report-video/example.media/demo.block.json`. Build it from any directory: the `video` `src`/`poster`/`track` resolve next to the output HTML, else next to `report.json` (here `../report-video/example.media/`); the page gets `src` and `poster` rewritten relative to the output, and the `track` inlined as a `data:text/vtt` URI (not path-rewritten). `python3 build.py example.json example.html` prints `lint: 0 findings` (`example.html` is gitignored).
-- `test_readability.py`: behavioural tests on the rendered HTML (citations, footnotes, source links and bibliography, explanation blocks, link and list lints, tree rows, media validation and path rewriting, reader-depth wrappers and control, report-wide find markers and landmarks, responsive table labels, `board` validation and links, brands, `concepts` and `mock` validation). Run `python3 -m unittest test_readability` in this directory.
+- `references/report-json.md`: schema, block specs, page order (lede, chapter labels, contents), citation syntax, choice file, change documents.
+- `references/brand.md`: brands, fonts, icons.
+- `references/notes.md`: reader notes, revising from a pasted `# Notes on report` block, its verify list.
+- `references/web-research.md`: reader depth, sources, media, resources, its verify list.
