@@ -5,24 +5,23 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{{TITLE}}</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
-/* Theme: GitHub Primer Light. Every colour below is a token; badges pick one by name. */
-:root{--ink:#1f2328;--mute:#59636e;--rule:#d1d9e0;--hair:#eaeef2;--paper:#ffffff;--wash:#f6f8fa;--acc:#0969da;--hl:#fff8c5;
---purple:#8250df;--purple-bg:#fbefff;--blue:#0969da;--blue-bg:#ddf4ff;--green:#1a7f37;--green-bg:#dafbe1;--gray:#59636e;--gray-bg:#eff2f5;
---orange:#bc4c00;--orange-bg:#fff1e5;--pink:#bf3989;--pink-bg:#ffeff7;--teal:#146a70;--teal-bg:#d8f5f5;--yellow:#9a6700;--yellow-bg:#fff8c5;
---red:#cf222e;--red-bg:#ffebe9;--navy:#0550ae;--navy-bg:#ddf4ff;--brown:#953800;--brown-bg:#fff1e5;
---mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;--sans:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Noto Sans',sans-serif}
+/* Theme: the brand's tokens, written by build.py from brands/<name>.json. Badges pick a colour token by name. */
+{{THEME}}
 *{box-sizing:border-box}
 html{background:var(--paper);color:var(--ink);font:17px/1.65 var(--sans);-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
 ::selection{background:var(--acc);color:#fff}
 body{max-width:1180px;margin:0 auto;padding:56px 32px 96px}
 a{color:var(--acc);text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px}a:hover{text-decoration-color:currentColor}
 header{border-bottom:1px solid var(--ink);padding-bottom:20px;display:grid;grid-template-columns:1fr auto;gap:8px 32px;align-items:end}
+header .brand{display:block;grid-column:1/-1;height:28px;width:auto}
+h1,h2,h3{font-family:var(--head)}
 h1{font-size:32px;line-height:1.2;font-weight:700;letter-spacing:-.02em;margin:0}
+svg.ic{width:1em;height:1em;flex:none;vertical-align:-.125em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 header .provenance{color:var(--mute);font-size:12px;text-align:right}
 header .provenance summary{display:inline-block;list-style:none;cursor:pointer;border-radius:3px}
 header .provenance summary::-webkit-details-marker{display:none}
-header .provenance summary::before{content:"▸ "}header .provenance[open]>summary::before{content:"▾ "}
+header .provenance summary::before{content:"";display:inline-block;width:1em;height:1em;margin-right:3px;vertical-align:-.15em;background:currentColor;-webkit-mask:var(--ic-chevron-right) center/contain no-repeat;mask:var(--ic-chevron-right) center/contain no-repeat}
+header .provenance[open]>summary::before{-webkit-mask-image:var(--ic-chevron-down);mask-image:var(--ic-chevron-down)}
 header .provenance summary:hover{color:var(--ink)}
 header .provenance summary:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 header .provenance p,header .prov-print{margin:6px 0 0;overflow-wrap:anywhere}
@@ -344,7 +343,7 @@ table.rsp caption{caption-side:top;text-align:left;font-weight:600;color:var(--i
 .an-flash{background:var(--hl);transition:background 1.5s}
 .an-add{position:absolute;z-index:25;white-space:nowrap;font:600 13px/1.4 var(--sans);padding:5px 12px;border:1px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--paper);cursor:pointer}
 .an-sec{margin-left:8px;padding:0 6px;font:400 16px/1.4 var(--sans);vertical-align:1px;color:var(--mute);background:none;border:1px solid transparent;border-radius:6px;cursor:pointer;opacity:0;transition:opacity .15s}
-.an-sec::before{content:"✎"}.an-sec:hover{color:var(--ink);border-color:var(--rule)}
+.an-sec::before{content:"";display:inline-block;width:.9em;height:.9em;vertical-align:-.1em;background:currentColor;-webkit-mask:var(--ic-pencil-line) center/contain no-repeat;mask:var(--ic-pencil-line) center/contain no-repeat}.an-sec:hover{color:var(--ink);border-color:var(--rule)}
 h2:hover>.an-sec,h2:focus-within>.an-sec{opacity:1}
 @media(hover:none){.an-sec{opacity:1}}
 .an-fab{position:fixed;right:16px;bottom:16px;z-index:25;display:inline-flex;align-items:center;gap:8px;min-height:44px;font:600 14px var(--sans);padding:8px 14px;border:1px solid var(--ink);border-radius:999px;background:var(--paper);color:var(--ink);cursor:pointer}
@@ -460,9 +459,9 @@ const ZT={de:{hint:'Mausrad oder zwei Finger: zoomen · ziehen: verschieben · E
 function zoomFig(btn){const fig=btn.closest('.fg'),t=ZT[document.documentElement.lang.slice(0,2)]||ZT.en;
  let d=document.getElementById('zv');
  if(!d){d=document.createElement('dialog');d.id='zv';d.className='zv';
-  d.innerHTML=`<div class="zt"><b></b><span class="zh">${t.hint}</span><span><button type="button" data-z="out" aria-label="${t.zout}">−</button>`+
-   `<button type="button" data-z="fit">${t.fit}</button><button type="button" data-z="in" aria-label="${t.zin}">+</button>`+
-   `<button type="button" data-z="x" aria-label="${t.close}">✕</button></span></div><div class="zc"></div><div class="zl"></div>`;
+  d.innerHTML=`<div class="zt"><b></b><span class="zh">${t.hint}</span><span><button type="button" data-z="out" aria-label="${t.zout}">${IC.minus}</button>`+
+   `<button type="button" data-z="fit">${t.fit}</button><button type="button" data-z="in" aria-label="${t.zin}">${IC.plus}</button>`+
+   `<button type="button" data-z="x" aria-label="${t.close}">${IC.x}</button></span></div><div class="zc"></div><div class="zl"></div>`;
   document.body.append(d);zvWire(d)}
  /* the clone drops its ids (anchors stay unique); its markers resolve to the original's <defs> */
  const svg=fig.querySelector('svg.dg').cloneNode(true);svg.querySelectorAll('[id]').forEach(x=>x.removeAttribute('id'));
@@ -935,7 +934,7 @@ function anInit(){const secs=document.querySelectorAll('section[data-src]');if(!
  const fab=anMk('button','an-fab');fab.setAttribute('aria-controls','an-panel');fab.setAttribute('aria-expanded','false');
  fab.append(anMk('span','',anT.notes),anMk('span','an-n','0'));fab.addEventListener('click',()=>anPanel(anPanelEl.hidden));
  const P=anPanelEl=document.createElement('aside');P.id='an-panel';P.className='an-panel';P.hidden=true;P.setAttribute('aria-label',anT.notes);
- P.innerHTML=`<div class="an-ph"><b>${anT.notes}</b><button type="button" class="an-cl" aria-label="${close}">✕</button></div><ol class="an-ls"></ol>`+
+ P.innerHTML=`<div class="an-ph"><b>${anT.notes}</b><button type="button" class="an-cl" aria-label="${close}">${IC.x}</button></div><ol class="an-ls"></ol>`+
   `<div class="an-ft"><button type="button" class="an-pri" data-a="copy">${anT.copy}</button><button type="button" data-a="clear">${anT.clear}</button>`+
   `<span class="an-st" role="status" aria-live="polite"></span><textarea class="an-fb" readonly hidden rows="8" aria-label="${anT.copy}"></textarea></div>`;
  P.querySelector('.an-cl').addEventListener('click',()=>anPanel(false));

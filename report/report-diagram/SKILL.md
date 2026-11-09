@@ -1,9 +1,9 @@
 ---
 name: report-diagram
-description: "Dependency `map` canvases, `board` moodboards (screens today vs. proposed, changes marked) and mermaid notations (sequence, class, ER, C4, gantt, mindmap, sankey, railroad) with the notation-choice table. Use for 'what depends on what', 'who calls whom in which order', 'moodboard', 'before/after of screens', 'draw this as a diagram'."
+description: "Dependency `map` canvases, `board` moodboards (screens today vs. proposed, changes marked) `concepts` figures (UI variants per state with their linked terms), `mock` dialogs and mermaid notations (sequence, class, ER, C4, gantt, mindmap, sankey, railroad) with the notation-choice table. Use for 'what depends on what', 'who calls whom in which order', 'moodboard', 'before/after of screens', 'which UI variant', 'how do these terms relate', 'draw this as a diagram'."
 license: MIT
 metadata:
-  version: 0.2.1
+  version: 0.3.0
   publisher: skaile-ai
 ---
 
@@ -28,6 +28,8 @@ Reading contract: follow `skill://report` (citations, labels, answer-first).
 | Which input is valid (grammar) | `mermaid` `railroad-beta` |
 | C4 context or container | `mermaid` `C4Context`, only when the user asks (experimental syntax) |
 | Screens or parts today vs. proposed, side by side, the changes marked (moodboard, before/after) | `board` |
+| UI variants of one question (where a thing lives, how it is named), the terms and how they relate | `concepts` |
+| A dialog today vs. proposed, fields and buttons, numbered remarks | `mock` |
 
 A levelled DFD stays native (`flow` in `report-flow`): mermaid has no balancing, no `drives` and no evidence table per edge.
 
@@ -90,6 +92,41 @@ The browser renders `code` from the pinned CDN module `mermaid@11`. The build ch
 - Hover-fade does not apply to mermaid output. ⤢ opens the zoom view.
 - Do not use `mermaid@12`: its layout default differs from the tested one.
 
+## `concepts`: UI variants and their terms
+
+A `concepts` figure shows one UI question in states: the sidebar tree and the chat window as they look in each variant, what a user thinks there, and the terms the variants use. The reader picks a preset, flips switches, and sees every row marked against the baseline (new, moved, renamed, changed, gone). Hovering or tapping a term lights up every place it appears, across views, graph and glossary.
+
+```
+concepts: id, label, hint?, parts?: [views|graph|gloss] (default all three), at?,
+  presets: [{id, label, set: {<key>: bool}, desc?}], switches?: [{id, label, requires?: <key>}],
+  baseline?: preset id, start?: preset id, initial?: {<key>: bool}, switchesLabel?,
+  kinds?: {<kind>: {label, color}}, terms?: [{id, label, kind, def, aka?: [text], code?, where?: [{when?, text}]}],
+  views?: [{label, layout: tree|tabs, items: [item]}], thoughts?: [{text, tone?: good|mixed|bad, when?, term?}],
+  relations?: [{from, to, rel: has|is|uses|shows|controls, label?, when?}], graph?: {width, height, pos: {<term>: [x, y]}}
+item: {id, label, key?, when?, term?, icon?: lucide name, color?, avatar?, sq?, chip?, depth? (tree),
+       kind?: section|sel|heading (tree) | title|add|note|card (tabs), slot?: tab|head|more|body|composer|side (tabs), active?}
+when: {<key>: bool, ...} | {any: [{<key>: bool}, ...]}
+```
+
+- State keys are the keys the presets `set` plus the switch ids. A `when` holds when every key matches; `any` holds when one alternative does. An item without `when` is always there. The build fails on an unknown key, a non-boolean value, an unknown term, icon, colour or slot.
+- Item ids are unique per view (the build fails otherwise). Rows that are the same thing in two states (one under `when` A, the other under `when` B) share a `key`: at another depth the row is marked moved, with another label renamed, else changed. Without a shared `key` the pair reads as one new and one removed row.
+- `baseline` is today; `start` is the preset the page opens on (the recommendation). `requires` hides a switch until its key is on.
+- Icons are lucide names from `../report/lucide.json` (the platform set). Round avatar = belongs to a person, `sq` = belongs to a space or org: keep that rule when you draw agents.
+- `thoughts` are what a user would think in that state, short and in their voice; `tone` colours them. Write at most one or two per state.
+- `graph` needs a position for every term (about 960×500); place the terms so no edge crosses a box, and screenshot it. `gloss` cards list `aka` (old or rejected names), `code` (the name in code) and `where` (where the term shows, per state).
+
+## `mock`: dialogs side by side
+
+```
+mock: id, label?, notes?: [inline], panes: [{label, title, sub?, n?, body: [row], buttons?: [{label, primary?}]}]
+row: field {label, value?, off?, area?, ok?, n?} | {avatar: {text, color?, sq?}, fields: [field]}
+   | {tabs: [label], active?} | {chips: [label]} | {more: label, text?, fields?: [field], n?}
+```
+
+- A static HTML dialog in the page tokens, no screenshot: for proposals that do not exist yet. Panes sit side by side (today, proposal) and stack under 640 px.
+- `n` puts a numbered pin on a field, a disclosure or the title; `notes[n-1]` explains it below the figure. A pin without its note fails the build.
+- `off` greys a field (empty or default), `area` makes it a text area, `ok` shows a green check text beside it (`@iris available`), `more` is an open disclosure (advanced options, helper hint).
+
 ## Alone
 
 1. Pick the block from the table. Collect the relations from the code or data, every one with `path:line`.
@@ -101,9 +138,9 @@ The browser renders `code` from the pinned CDN module `mermaid@11`. The build ch
 ## Under report
 
 1. Do steps 1 to 3 of Alone for the selected blocks only; the `tree` in step 2 and the "only the block, its entities, the tree" list in step 3 apply only when the plan selected a tree. Hand the blocks and entities back to the orchestrator's section plan instead of building.
-2. Return only the `map`, `board` or `mermaid` blocks the section plan selected, plus the entities that their `ref` and `click` targets need. Add the `tree` of the nodes only when the plan selected it; a `ref`/`click` target can also be an entity that another selected block (table row `anchor`, tab `entity`) already owns. The standalone recipe uses a tree; the orchestration does not force one.
+2. Return only the `map`, `board`, `concepts`, `mock` or `mermaid` blocks the section plan selected, plus the entities that their `ref` and `click` targets need. Add the `tree` of the nodes only when the plan selected it; a `ref`/`click` target can also be an entity that another selected block (table row `anchor`, tab `entity`) already owns. The standalone recipe uses a tree; the orchestration does not force one.
 3. Size: under `technical` every `map` edge carries `path:line` in `at` (the build fails without it). `small` never reaches this skill.
-4. Order inside a section: the prose first, then the selected `tree` (if any), then the `map` it `drives`, then `mermaid` figures, then a `board`.
+4. Order inside a section: the prose first, then the selected `tree` (if any), then the `map` it `drives`, then `mermaid` figures, then a `board`, `concepts` or `mock`.
 5. The orchestrator builds and runs the full checks. Run the Verify list for your blocks.
 
 ## Verify
@@ -113,4 +150,6 @@ The browser renders `code` from the pinned CDN module `mermaid@11`. The build ch
 - `map` with a `tree`: a badge toggle removes boxes and their edges and changes the counter.
 - `mermaid`: the figure contains an `svg.dg`; ⤢ opens the zoom dialog with it; a click on a linked node jumps to the entity and highlights it. Without network the source text shows.
 - `board`: the select and ‹ › change the visible canvas; ⌘/Ctrl + wheel changes the zoom %; a plain wheel scrolls the page; a change arrow's link opens the other canvas and focuses its card; a hash to a card on canvas 2 opens canvas 2; "Read mode" stacks the canvases; at 390 px it starts in read mode; an image click opens the large view, Esc closes it.
+- `concepts`: each preset button changes the views and the change summary; a switch with `requires` appears only when its key is on; hovering a term highlights it in views, graph and glossary, a click pins it; at 390 px the views stack and the page does not scroll sideways.
+- `mock`: every pin has its note; at 390 px the panes stack.
 - Screenshot every diagram. Overlapping labels: shorten them or split the diagram.

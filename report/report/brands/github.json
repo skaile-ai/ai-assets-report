@@ -1,0 +1,45 @@
+{
+  "_source": "GitHub Primer Light: the report's look before brands; system fonts, no logo.",
+  "name": "",
+  "page": {
+    "ink": "#1f2328",
+    "mute": "#59636e",
+    "rule": "#d1d9e0",
+    "hair": "#eaeef2",
+    "paper": "#ffffff",
+    "wash": "#f6f8fa",
+    "acc": "#0969da",
+    "hl": "#fff8c5",
+    "purple": "#8250df",
+    "purple-bg": "#fbefff",
+    "blue": "#0969da",
+    "blue-bg": "#ddf4ff",
+    "green": "#1a7f37",
+    "green-bg": "#dafbe1",
+    "gray": "#59636e",
+    "gray-bg": "#eff2f5",
+    "orange": "#bc4c00",
+    "orange-bg": "#fff1e5",
+    "pink": "#bf3989",
+    "pink-bg": "#ffeff7",
+    "teal": "#146a70",
+    "teal-bg": "#d8f5f5",
+    "yellow": "#9a6700",
+    "yellow-bg": "#fff8c5",
+    "red": "#cf222e",
+    "red-bg": "#ffebe9",
+    "navy": "#0550ae",
+    "navy-bg": "#ddf4ff",
+    "brown": "#953800",
+    "brown-bg": "#fff1e5"
+  },
+  "fonts": {
+    "sans": "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif",
+    "heading": "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif",
+    "mono": "'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace",
+    "load": [
+      "JetBrains Mono:ital,wght@0,400;0,500;0,600;0,700;1,400"
+    ]
+  },
+  "logo": null
+}

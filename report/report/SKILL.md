@@ -3,7 +3,7 @@ name: report
 description: "Build one static HTML report people read front to back: an argued answer first, tables, trees, diagrams and charts as support (data sheet, pipeline explanation, dependency map, moodboard of screens, inventory, coverage) from live data or code. Use for 'report', 'overview page', 'data sheet', 'how does X work as a page'. Orchestrates report-prose, report-table, report-flow, report-diagram, report-charts, report-video. \"report autopilot: <question>\" builds without asking; a pasted \"# Notes on report\" block revises a built report."
 license: MIT
 metadata:
-  version: 0.3.0
+  version: 0.4.0
   publisher: skaile-ai
   requires: "report-prose, report-table, report-flow, report-diagram, report-charts, report-video"
 ---
@@ -72,6 +72,7 @@ Tag each candidate with the cheapest ability that answers it: prose before a tab
 |`map`|Dependency canvas (`report-diagram`: `map`)|what depends on what|the question names repos, packages, services, modules, or a link table has > 15 nodes (node count)|one large canvas|—|
 |`mermaid`|Sequence, class, ER, gantt, mindmap, sankey, railroad (`report-diagram`: `mermaid`)|who calls whom in which order, which tables and keys|the question asks for one of these notations (the notation)|one figure|mermaid CDN|
 |`board`|Moodboard canvas (`report-diagram`: `board`)|what is today vs. proposed, show screens side by side with the changes marked|the question asks for a moodboard, a canvas, or a before/after of screens (the matched phrase)|one large canvas|—|
+|`concepts`|UI concept per state with linked terms, dialog mockups (`report-diagram`: `concepts`, `mock`)|which variant, what the user sees and thinks, how the terms relate, what a dialog looks like today vs. proposed|the question weighs UI variants, names terms or a rename, or compares dialogs (the matched phrase)|one figure per variant question|—|
 |`video`|Chaptered, narrated manim explainer of the report's main concepts (`report-video`: `video`)|show it as an animation|the user asks for a video, animation, explainer; otherwise offered unchecked ("renders in minutes, needs manim; voice needs a TTS")|one player with chapters|manim, ffmpeg, a `.media/` folder|
 |`find`|Global find box (core)|—|automatic with a `tree` or `data` block; never offered|header field|—|
 
@@ -97,7 +98,7 @@ Each chosen feature goes to one skill. `skill://report-prose` is always on and n
 |`tree`, `data`|`skill://report-table`|
 |`charts`|`skill://report-charts`|
 |`flow`|`skill://report-flow`|
-|`map`, `mermaid`, `board`|`skill://report-diagram`|
+|`map`, `mermaid`, `board`, `concepts`|`skill://report-diagram`|
 |`video`|`skill://report-video`|
 |`none`|core prose, no extension|
 |`crossfilter`|`skill://report-charts` and `skill://report-table`|
@@ -123,7 +124,7 @@ This section owns the rules. The extensions point here.
 
 ## Reader notes
 
-Every page lets the reader comment on it. Select text and press **Comment**, or press ✎ next to a section title to comment on the whole section. The **Notes** button opens the panel: notes in page order, each with Edit and Delete; a click on a note jumps to its text. **Copy for agent** copies all notes as one Markdown block starting `# Notes on report`; **Clear** deletes them. Notes live in the browser per file (`localStorage`); nothing is uploaded. Every section and block carries `data-src`, its JSON pointer into `report.json`, so each note names the node to edit.
+Every page lets the reader comment on it. Select text and press **Comment**, or press the pencil next to a section title to comment on the whole section. The **Notes** button opens the panel: notes in page order, each with Edit and Delete; a click on a note jumps to its text. **Copy for agent** copies all notes as one Markdown block starting `# Notes on report`; **Clear** deletes them. Notes live in the browser per file (`localStorage`); nothing is uploaded. Every section and block carries `data-src`, its JSON pointer into `report.json`, so each note names the node to edit.
 
 When the user pastes a block starting `# Notes on report`:
 
@@ -136,7 +137,7 @@ When the user pastes a block starting `# Notes on report`:
 ## report.json
 
 ```
-title, lang, profile, meta: [inline line], numbered: true, since?, data_dir?
+title, lang, profile, meta: [inline line], numbered: true, since?, data_dir?, brand?
 stats: [[label, {count: "<collection>", where?: {field: value}} | {rows: "<table|data id>"} | {value, source}]]
 badges: { <cat>: { label, shape: square|round|pill|dashed|text, filter: any|hide,
                    values: { <val>: { label?, color, desc? } } } }
@@ -148,6 +149,7 @@ readers?: { default?: "informed", label?, levels: [{ id: general|informed|profes
 ```
 
 - `stats`: `count` reads `<report stem>.data/<collection>.json` (or `data_dir`); a bare number fails.
+- `brand`: see **Brand**.
 - `shape`: one per category. `filter: any` keeps a node while one of its values is on; `hide` drops a node with a switched-off value. `color`: purple blue green gray orange pink teal yellow red navy brown ink.
 - `tree: false`: link target only. Render places: a table row `anchor`, a tab `entity`. Without a `table`, gather link-only entities in one `tabs` block. Each entity renders in one place.
 - Inline text: `` `code` ``, `[[id]]`, `[[id|label]]`, `[@source text]`. One `lang`; identifiers stay as in the code. Rules: **Reading contract**.
@@ -158,9 +160,18 @@ readers?: { default?: "informed", label?, levels: [{ id: general|informed|profes
 - `table` blocks in every profile emit `data-label` on each cell; under 640 px the rows render as labelled cards. `data` tables keep scroll and paging. `flow` with `dir: down` stays and fits a 390 px page without sideways scrolling.
 - **Change document** (what changed): start from the previous `report.json`, set `change: new|changed|removed` on the smallest part that differs (node, edge, row, item; a tab or section only when all of it changed) and top-level `since`. Removed parts stay, struck through. Do not mark inside a `new` or `removed` part. `change` is allowed on sections, blocks, tabs, entities, table rows, list items, flow/map nodes and edges, lineage types/steps, states and transitions, board canvases, lanes, cards and lane changes.
 
+## Brand
+
+A report is drawn in a brand: page colours, fonts and a logo. The default is `skaile` (`brands/skaile.json`, from `@skaile/brand`: violet accent, Inter, Plus Jakarta Sans headings, JetBrains Mono, the Skaile icon in the header and as favicon). Choice, first hit wins: top-level `brand` in `report.json` (a built-in name such as `github`, the look before brands, or a path relative to `report.json`) > the `REPORT_BRAND` environment variable (a path) > `skaile`.
+
+A brand file holds `page` (the colour tokens `ink mute rule hair paper wash acc hl` and every badge colour with its `-bg`), `fonts` (`sans`, `heading`, `mono` as CSS stacks, `load` as Google Fonts families like `"Inter:wght@400;600"`) and `logo` (an svg/png/jpg/webp next to the file, or `null`). It is merged over `skaile.json` key by key, so a client brand may set only `acc` and `logo`. The build fails on an unknown token, a value that is not a colour, or a missing logo file. The same file brands `report-video` through `REPORT_BRAND` (its keys `bg`, `fg`, `accent`, ...); each side ignores the other's keys.
+
+Icons are the platform's set: lucide, as in the Skaile frontend (`lucide.json`, extracted from `lucide-react`). The page's buttons (zoom, board tools, notes panel) use them; a `concepts` item names one by its lucide name (`folder-kanban`, `message-square`, `bot`, ...). A name missing from `lucide.json` fails the build; add it by extracting it from `lucide-react/dist/esm/icons/<name>.mjs`.
+
 ## Files
 
-- `template.html`: theme tokens, layout, badge shapes, tree filter, tabs, link highlight, diagram interaction (hover, legend toggle, ⤢ zoom), `map` and `board` controllers, `data`/`vega`/`mermaid` init, find box. Alpine, the font and the extension libraries load from CDNs; offline the plain tables, `bars` and mermaid source show, the page keeps working.
-- `build.py`: renderer, link checker and linter, stdlib only. It fails on unknown refs, nodes, kinds and listen targets, unbalanced child flows, links without a target and anchors rendered twice. It lints link density, lists without a lead, list-heavy sections, opening sentences, badge skew, missing `at` under technical.
+- `template.html`: layout, badge shapes, tree filter, tabs, link highlight, diagram interaction (hover, legend toggle, zoom), `map` and `board` controllers, `data`/`vega`/`mermaid` init, find box. The theme tokens come from the brand. Alpine, the fonts and the extension libraries load from CDNs; offline the plain tables, `bars` and mermaid source show, the page keeps working.
+- `brands/`: built-in brands (`skaile.json` with its logo, `github.json`). `lucide.json`: the icon set. `blocks/`: CSS and the browser runtime of `concepts` and `mock`, inlined into `<head>` once when a report uses them.
+- `build.py`: renderer, link checker and linter, stdlib only. It fails on unknown refs, nodes, kinds, icons, terms, state keys and listen targets, unbalanced child flows, links without a target, anchors rendered twice and invalid brands. It lints link density, lists without a lead, list-heavy sections, opening sentences, badge skew, missing `at` under technical.
 - `example.json`: one block of every type with its data in `example.data/` (the `board` screenshot is `example.data/board-screen.jpg`); the `video` block comes from `report-video/example.media/demo.block.json`. Build it from any directory: the `video` `src`/`poster`/`track` resolve next to the output HTML, else next to `report.json` (here `../report-video/example.media/`); the page gets `src` and `poster` rewritten relative to the output, and the `track` inlined as a `data:text/vtt` URI (not path-rewritten). `python3 build.py example.json example.html` prints `lint: 0 findings` (`example.html` is gitignored).
-- `test_readability.py`: behavioural tests on the rendered HTML (citations, footnotes, source links and bibliography, explanation blocks, link and list lints, tree rows, media validation and path rewriting, reader-depth wrappers and control, report-wide find markers and landmarks, responsive table labels, `board` validation and links). Run `python3 -m unittest test_readability` in this directory.
+- `test_readability.py`: behavioural tests on the rendered HTML (citations, footnotes, source links and bibliography, explanation blocks, link and list lints, tree rows, media validation and path rewriting, reader-depth wrappers and control, report-wide find markers and landmarks, responsive table labels, `board` validation and links, brands, `concepts` and `mock` validation). Run `python3 -m unittest test_readability` in this directory.

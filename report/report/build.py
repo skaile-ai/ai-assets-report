@@ -19,7 +19,7 @@ import math
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 E = html.escape
 CITE = re.compile(r"\[@([^\[\]`\n]*)\]")  # inline citation: text without brackets, backticks or newlines
@@ -28,7 +28,7 @@ LINKS_SHOWN = 5  # per direction and tree row; the rest is counted
 COLORS = {"purple", "blue", "green", "gray", "orange", "pink", "teal", "yellow", "red", "navy", "brown", "ink"}
 CHANGE = {"new": "green", "changed": "orange", "removed": "red"}  # `change` value -> mark colour
 DIAGRAMS = {"flow", "lineage", "states", "map"}
-ID_FIGURES = {"mermaid", "vega", "video", "board"}  # figures with an id and a `#f-<id>` anchor but no nodes; their renderers register below
+ID_FIGURES = {"mermaid", "vega", "video", "board", "concepts", "mock"}  # figures with an id and a `#f-<id>` anchor but no nodes; their renderers register below
 FIND_TYPES = {"tree", "data"}  # block types that switch on the header find box
 PROFILES = {"explanation", "structure", "inventory", "critique", "comparison", "exploration", "change", "web-research"}  # top-level `profile`
 SIZES = ("small", "medium", "detailed", "technical")  # `size` in <stem>.choice.json; SKILL.md "Sizes"
@@ -68,6 +68,127 @@ HEAD["vega"] = (  # classic UMD builds; `defer` scripts run before DOMContentLoa
     '<script defer src="https://cdn.jsdelivr.net/npm/vega-lite@6"></script>\n'
     '<script defer src="https://cdn.jsdelivr.net/npm/vega-embed@7"></script>')
 VEGA_SCHEMA = "https://vega.github.io/schema/vega-lite/v6.json"
+
+# --------------------------------------------------------------------------- brand and icons
+HERE = Path(__file__).parent
+BRANDS = HERE / "brands"  # built-in brands: <name>.json; `skaile` is the default and the base every other brand is merged over
+DEFAULT_BRAND = "skaile"
+ICONS = json.loads((HERE / "lucide.json").read_text())["icons"]  # the platform's icon set (lucide), name -> inner SVG markup
+PAGE_TOKENS = {"ink", "mute", "rule", "hair", "paper", "wash", "acc", "hl"} | {c for k in COLORS - {"ink"} for c in (k, k + "-bg")}
+FONT_KEYS = ("sans", "heading", "mono")
+COLOR_VALUE = re.compile(r"^(#[0-9A-Fa-f]{3,8}|(rgb|hsl)a?\([0-9.,%/ a-z-]*\))$")
+FONT_STACK = re.compile(r"^[A-Za-z0-9 ,.'\"-]+$")  # family names, quotes and commas; nothing that ends the declaration
+FONT_LOAD = re.compile(r"^[A-Za-z0-9 ]+(:[A-Za-z0-9@;,.]+)?$")  # a Google Fonts `family=` value, spaces allowed
+LOGO_TYPES = {".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
+UI_ICONS = ("x", "minus", "plus")  # icons the template's scripts draw (zoom view, notes panel)
+MASK_ICONS = ("chevron-right", "chevron-down", "pencil-line")  # icons drawn by CSS (`::before`), as `--ic-<name>` masks
+
+
+def icon(name, cls="ic"):
+    """One icon of the platform set as inline SVG; it takes the text colour and the font size (1em)."""
+    if name not in ICONS:
+        fail(f"unknown icon {name!r}: use a lucide name from lucide.json")
+    return f'<svg class="{cls}" viewBox="0 0 24 24" aria-hidden="true">{ICONS[name]}</svg>'
+
+
+def icon_mask(name):
+    svg = (f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' "
+           f"stroke-linecap='round' stroke-linejoin='round'>{ICONS[name]}</svg>")
+    return f'url("data:image/svg+xml,{quote(svg, safe=" =/:,.-")}")'
+
+
+def load_brand(ref, base_dir):
+    """The brand a report is drawn with: `skaile.json`, with the chosen brand merged over it (`page`, `fonts` key by key).
+    Choice, first hit wins: report.json `brand` (a built-in name or a path relative to report.json) > `REPORT_BRAND`
+    (a path) > `skaile`. The same file brands report-video (its `bg`, `fg`, `colors`, ... keys); each side ignores the other's keys."""
+    def read(path, what):
+        try:
+            data = json.loads(path.read_text())
+        except (OSError, ValueError) as err:
+            fail(f"{what}: cannot read brand file {path}: {err}")
+        if not isinstance(data, dict):
+            fail(f"{what}: brand file {path} must hold an object")
+        return data
+
+    brand = read(BRANDS / f"{DEFAULT_BRAND}.json", "brand")
+    brand["_dir"] = BRANDS
+    what, path = None, None
+    if ref is not None:
+        if not isinstance(ref, str) or not ref.strip():
+            fail("`brand` must be a built-in brand name or a path to a brand JSON file")
+        what = f"brand {ref!r}"
+        builtin = BRANDS / f"{ref}.json"
+        path = builtin if re.fullmatch(r"[a-z0-9-]+", ref) and builtin.is_file() else Path(base_dir, ref).expanduser()
+        if not path.is_file():
+            names = ", ".join(sorted(p.stem for p in BRANDS.glob("*.json")))
+            fail(f"{what}: neither a built-in brand ({names}) nor a file")
+    elif os.environ.get("REPORT_BRAND"):
+        what, path = "REPORT_BRAND", Path(os.environ["REPORT_BRAND"]).expanduser()
+        if not path.is_file():
+            fail(f"REPORT_BRAND points to a missing file: {path}")
+    if path is not None and path.resolve() != (BRANDS / f"{DEFAULT_BRAND}.json").resolve():
+        over = read(path, what)
+        for k, v in over.items():
+            if k in ("page", "fonts") and isinstance(v, dict):
+                brand[k] = {**brand.get(k, {}), **v}
+            else:
+                brand[k] = v
+        brand["_dir"] = path.parent
+    what = what or "brand"
+    page, fonts = brand.get("page", {}), brand.get("fonts", {})
+    if set(page) != PAGE_TOKENS:
+        fail(f"{what}: `page` has unknown tokens {sorted(set(page) - PAGE_TOKENS)}" if set(page) - PAGE_TOKENS
+             else f"{what}: `page` misses tokens {sorted(PAGE_TOKENS - set(page))}")
+    for k, v in page.items():
+        if not isinstance(v, str) or not COLOR_VALUE.match(v.strip()):
+            fail(f"{what}: page.{k} must be a colour (#hex, rgb(), hsl()), not {v!r}")
+    for k in FONT_KEYS:
+        if not isinstance(fonts.get(k), str) or not FONT_STACK.match(fonts[k]):
+            fail(f"{what}: fonts.{k} must be a CSS font stack of family names")
+    load = fonts.get("load", [])
+    if not isinstance(load, list) or not all(isinstance(f, str) and FONT_LOAD.match(f) for f in load):
+        fail(f"{what}: fonts.load must list Google Fonts families like \"Inter:wght@400;600\"")
+    if set(fonts) - set(FONT_KEYS) - {"load"}:
+        fail(f"{what}: `fonts` has unknown keys {sorted(set(fonts) - set(FONT_KEYS) - {'load'})}")
+    logo = brand.get("logo")
+    if logo is not None:
+        lp = Path(brand["_dir"], logo) if isinstance(logo, str) else None
+        if lp is None or lp.suffix.lower() not in LOGO_TYPES or not lp.is_file():
+            fail(f"{what}: logo {logo!r} must be an existing {'/'.join(sorted(LOGO_TYPES))} file next to the brand file")
+    return brand
+
+
+def brand_css(brand):
+    """The page's font import and :root tokens: colours, font stacks and the CSS-drawn icons."""
+    fonts = brand["fonts"]
+    imp = ""
+    if fonts.get("load"):
+        fam = "&".join("family=" + f.strip().replace(" ", "+") for f in fonts["load"])
+        imp = f"@import url('https://fonts.googleapis.com/css2?{fam}&display=swap');\n"
+    tokens = [f"--{k}:{brand['page'][k].strip()}" for k in sorted(PAGE_TOKENS)]
+    tokens += [f"--{'head' if k == 'heading' else k}:{fonts[k]}" for k in FONT_KEYS]
+    tokens += [f"--ic-{n}:{icon_mask(n)}" for n in MASK_ICONS]
+    return imp + ":root{" + ";".join(tokens) + "}"
+
+
+def brand_logo(brand):
+    """The logo as a data URI <img> for the header and the favicon link, or ("", "") without a logo."""
+    if not brand.get("logo"):
+        return "", ""
+    lp = Path(brand["_dir"], brand["logo"])
+    uri = f"data:{LOGO_TYPES[lp.suffix.lower()]};base64,{base64.b64encode(lp.read_bytes()).decode()}"
+    return (f'<img class="brand" src="{uri}" alt="" aria-hidden="true">',
+            f'<link rel="icon" href="{uri}">')
+
+
+# `concepts` and `mock` ship their style (and the concepts runtime) in <head>, once, when the report uses them
+HEAD["concepts"] = (f'<style>{(HERE / "blocks/concepts.css").read_text()}</style>\n'
+                    f'<script>{(HERE / "blocks/concepts.js").read_text()}</script>')
+HEAD["mock"] = f'<style>{(HERE / "blocks/mock.css").read_text()}</style>'
+CONCEPT_RELS = ("has", "is", "uses", "shows", "controls")  # graph edge kinds: arrow, open "is a" arrow, arrow, teal dots, orange dots
+CONCEPT_PARTS = ("views", "graph", "gloss")
+CONCEPT_SLOTS = ("tab", "head", "more", "body", "composer", "side")  # where a `tabs` view item sits in the chat mock
+CONCEPT_TONES = ("good", "mixed", "bad")
 DATA_TYPES = {"number", "date", "string"}  # `data` column types
 MERMAID_HREF = re.compile(r'\bclick\s+\S+\s+(?:href\s+)?"#([^"]+)"')  # in-page `click <node> href "#id"` targets
 SHAPES = {"process", "store", "external", "decision", "data", "state"}
@@ -1231,7 +1352,7 @@ class Report:
             cap.append(f"<span>{caption_extra}</span>")
         cap.append(tools if tools is not None else
                    f'<button type="button" class="zb" onclick="zoomFig(this)" title="{E(self.t["zoom"])}" '
-                   f'aria-label="{E(self.t["zoom"])}">⤢</button>')
+                   f'aria-label="{E(self.t["zoom"])}">{icon("maximize-2")}</button>')
         return (f'<figure class="fg" id="{E(self.danchor(gid))}"><figcaption>{"".join(cap)}</figcaption><div class="dw">{svg}</div>'
                 f'{self.legend(b, used)}{after}</figure>')
 
@@ -1542,7 +1663,7 @@ class Report:
             if ref not in self.ents:
                 fail(f"{where}: unknown ref {ref}")
             e = self.ents[ref]
-            out.append(f'<p class="bok-e">{self.link(ref, "↗ " + str(e.get("label") or e.get("title") or ref))}</p>')
+            out.append(f'<p class="bok-e">{self.link(ref, str(e.get("label") or e.get("title") or ref))} {icon("arrow-up-right")}</p>')
         marks = card.get("marks", [])
         if not isinstance(marks, list):
             fail(f"{where}: `marks` must be a list of `<kind>[ qualifier]` strings")
@@ -1700,9 +1821,9 @@ class Report:
             opts.append(f'<option value="{E(self.danchor(gid, c["id"]))}">{i} / {len(canvases)} · {E(c["label"])}</option>')
         btn = lambda key, label, txt, cls="": (f'<button type="button"{cls} data-b="{key}" aria-label="{E(label)}" '
                                               f'title="{E(label)}">{txt}</button>')
-        tools = ('<span class="mtb bot">' + btn("prev", t["b_prev"], "‹") + f'<select aria-label="{E(t["b_canvas"])}">{"".join(opts)}</select>'
-                 + btn("next", t["b_next"], "›") + btn("out", t["b_zout"], "−", ' class="boz"')
-                 + '<output class="mc boz" aria-live="polite">100%</output>' + btn("in", t["b_zin"], "+", ' class="boz"')
+        tools = ('<span class="mtb bot">' + btn("prev", t["b_prev"], icon("chevron-left")) + f'<select aria-label="{E(t["b_canvas"])}">{"".join(opts)}</select>'
+                 + btn("next", t["b_next"], icon("chevron-right")) + btn("out", t["b_zout"], icon("minus"), ' class="boz"')
+                 + '<output class="mc boz" aria-live="polite">100%</output>' + btn("in", t["b_zin"], icon("plus"), ' class="boz"')
                  + btn("fit", t["m_fit"], E(t["m_fit"]), ' class="boz"')
                  + f'<button type="button" data-b="read" aria-pressed="false">{E(t["b_read"])}</button>'
                  + btn("full", t["m_full"], E(t["m_full"])) + "</span>")
@@ -1852,6 +1973,163 @@ class Report:
 
     def b_html(self, b):
         return b["html"]
+
+    def b_concepts(self, b):
+        """Terms of a UI concept in up to three linked parts (`report-diagram`): `views` (sidebar trees and chat mocks per state,
+        marked against a `baseline`), `graph` (terms and their relations) and `gloss` (one card per term). States are named
+        `presets` plus `switches`; `when` on any item says in which states it holds. The figure is drawn in the browser by
+        blocks/concepts.js from the spec embedded as JSON; this method checks the spec and resolves `icon` names to SVG."""
+        gid, where = b["id"], f'concepts {b["id"]}'
+        spec = {k: v for k, v in b.items() if k not in ("type", "id", "at")}
+        for k in ("label", "presets"):
+            if not spec.get(k):
+                fail(f"{where}: `{k}` is required")
+        parts = spec.setdefault("parts", list(CONCEPT_PARTS))
+        if not parts or set(parts) - set(CONCEPT_PARTS):
+            fail(f"{where}: `parts` must pick from {', '.join(CONCEPT_PARTS)}")
+        kinds, terms = spec.setdefault("kinds", {}), spec.setdefault("terms", [])
+        for k, v in kinds.items():
+            if not isinstance(v, dict) or not v.get("label") or v.get("color") not in COLORS:
+                fail(f"{where}: kind {k} needs a `label` and a `color` from {', '.join(sorted(COLORS))}")
+        tids = [t.get("id") for t in terms]
+        if len(set(tids)) != len(tids) or not all(tids):
+            fail(f"{where}: every term needs a unique `id`")
+        for t in terms:
+            if not t.get("label") or not t.get("def") or t.get("kind") not in kinds:
+                fail(f"{where}: term {t['id']} needs `label`, `def` and a `kind` from `kinds`")
+        presets, switches = spec["presets"], spec.setdefault("switches", [])
+        keys = {k for p in presets for k in p.get("set", {})} | {s.get("id") for s in switches}
+        pids = {p.get("id") for p in presets}
+        if not all(p.get("id") and p.get("label") and isinstance(p.get("set"), dict) for p in presets) or len(pids) != len(presets):
+            fail(f"{where}: every preset needs a unique `id`, a `label` and a `set` of state keys")
+        for s in switches:
+            if not s.get("id") or not s.get("label") or (s.get("requires") is not None and s["requires"] not in keys):
+                fail(f"{where}: switch {s.get('id')} needs `id`, `label` and a `requires` that names a state key")
+        for k in ("baseline", "start"):
+            if spec.get(k) is not None and spec[k] not in pids:
+                fail(f"{where}: `{k}` must name a preset, not {spec[k]!r}")
+        if spec.get("initial") is not None and (not isinstance(spec["initial"], dict) or set(spec["initial"]) - keys):
+            fail(f"{where}: `initial` may only set state keys ({', '.join(sorted(keys))})")
+
+        def when(x, at):
+            w = x.get("when")
+            if w is None:
+                return
+            for alt in (w["any"] if isinstance(w, dict) and isinstance(w.get("any"), list) else [w]):
+                if not isinstance(alt, dict) or set(alt) - keys or not all(isinstance(v, bool) for v in alt.values()):
+                    fail(f"{at}: `when` maps state keys ({', '.join(sorted(keys))}) to true/false, or holds {{any: [...]}}")
+
+        def term(x, at):
+            if x.get("term") is not None and x["term"] not in tids:
+                fail(f"{at}: unknown term {x['term']!r}")
+
+        def svg(x, at):
+            if x.get("icon") is not None:
+                if x["icon"] not in ICONS:
+                    fail(f"{at}: unknown icon {x['icon']!r}: use a lucide name from lucide.json")
+                x["svg"] = ICONS[x.pop("icon")]
+
+        for t in terms:
+            for w in t.get("where", []):
+                when(w, f"{where} term {t['id']}")
+        for v in spec.get("views", []) if "views" in parts else []:
+            at = f'{where} view {v.get("label")!r}'
+            if v.get("layout") not in ("tree", "tabs") or not isinstance(v.get("items"), list):
+                fail(f"{at}: needs `layout` tree or tabs and a list of `items`")
+            ids = [it.get("id") for it in v["items"]]
+            if len(set(ids)) != len(ids):
+                fail(f"{at}: item ids must be unique per view; give rows that are the same thing in two states one `key`")
+            for it in v["items"]:
+                if not it.get("id") or not it.get("label"):
+                    fail(f"{at}: every item needs `id` and `label`")
+                if v["layout"] == "tabs" and it.get("slot", "body") not in CONCEPT_SLOTS:
+                    fail(f"{at}: item {it['id']} slot must be one of {', '.join(CONCEPT_SLOTS)}")
+                if it.get("color") is not None and it["color"] not in COLORS:
+                    fail(f"{at}: item {it['id']} color {it['color']!r} is not a colour token")
+                when(it, f"{at} item {it['id']}")
+                term(it, f"{at} item {it['id']}")
+                svg(it, f"{at} item {it['id']}")
+        if "views" in parts and not spec.get("views"):
+            fail(f"{where}: part `views` needs `views`")
+        for th in spec.get("thoughts", []):
+            if not th.get("text") or th.get("tone", "mixed") not in CONCEPT_TONES:
+                fail(f"{where}: a thought needs `text` and a `tone` from {', '.join(CONCEPT_TONES)}")
+            when(th, f"{where} thought")
+            term(th, f"{where} thought")
+        if "graph" in parts:
+            pos = (spec.get("graph") or {}).get("pos", {})
+            if set(tids) - set(pos):
+                fail(f"{where}: graph.pos misses terms {sorted(set(tids) - set(pos))}")
+            for r in spec.get("relations", []):
+                if r.get("from") not in tids or r.get("to") not in tids or r.get("rel") not in CONCEPT_RELS:
+                    fail(f"{where}: relation {r.get('from')}->{r.get('to')} needs two terms and a `rel` from {', '.join(CONCEPT_RELS)}")
+                when(r, f"{where} relation {r['from']}->{r['to']}")
+        data = json.dumps(spec, ensure_ascii=False).replace("<", "\\u003c")
+        after = self.evidence([(E(spec["label"]), b["at"])]) if b.get("at") else ""
+        return (f'<figure class="cm" data-concepts id="{E(self.danchor(gid))}">'
+                f'<script type="application/json">{data}</script></figure>{after}')
+
+    def b_mock(self, b):
+        """Dialog mockups side by side (`report-diagram`), drawn as static HTML in the page's tokens. `panes`: [{label, title,
+        sub?, body: [...], buttons: [{label, primary?}]}]; a body row is a field {label, value?, off?, area?, n?, ok?},
+        a group {avatar: {text, color?, sq?}, fields: [field]}, {tabs: [label], active?}, {chips: [label]} or
+        {more: label, text?, fields?, n?} (an open disclosure). `n` numbers a pin that `notes` (1-based) explains."""
+        gid, where = b["id"], f'mock {b["id"]}'
+        notes = b.get("notes", [])
+        if not isinstance(b.get("panes"), list) or not b["panes"]:
+            fail(f"{where}: `panes` is required")
+
+        def pin(x, at):
+            n = x.get("n")
+            if n is None:
+                return ""
+            if not isinstance(n, int) or not 1 <= n <= len(notes):
+                fail(f"{at}: pin {n!r} has no note (notes 1..{len(notes)})")
+            return f' <span class="mk-n">{n}</span>'
+
+        def field(f, at):
+            if not f.get("label"):
+                fail(f"{at}: a field needs a `label`")
+            cls = "mk-in" + (" off" if f.get("off") else "") + (" area" if f.get("area") else "")
+            ok = f'<span class="mk-ok">{self.inline(f["ok"])}</span>' if f.get("ok") else ""
+            return (f'<label>{self.inline(f["label"])}{pin(f, at)}</label>'
+                    f'<div class="{cls}">{self.inline(f.get("value", ""))}</div>{ok}')
+
+        cols = []
+        for p in b["panes"]:
+            at = f'{where} pane {p.get("label")!r}'
+            if not p.get("label") or not p.get("title"):
+                fail(f"{at}: needs `label` and `title`")
+            rows = []
+            for r in p.get("body", []):
+                if "avatar" in r:
+                    av = r["avatar"]
+                    if av.get("color", "gray") not in COLORS:
+                        fail(f"{at}: avatar color {av['color']!r} is not a colour token")
+                    shape = ";border-radius:8px" if av.get("sq") else ""
+                    rows.append(f'<div class="mk-row"><div class="mk-av" style="--c:var(--{av.get("color", "gray")}){shape}">'
+                                f'{E(str(av.get("text", "")))}</div><div class="mk-f">'
+                                + "".join(field(f, at) for f in r.get("fields", [])) + "</div></div>")
+                elif "tabs" in r:
+                    rows.append('<div class="mk-tabs">' + "".join(
+                        f'<span class="{"on" if i == r.get("active", 0) else "x"}">{self.inline(x)}</span>'
+                        for i, x in enumerate(r["tabs"])) + "</div>")
+                elif "chips" in r:
+                    rows.append('<div class="mk-chips">' + "".join(f"<span>{self.inline(x)}</span>" for x in r["chips"]) + "</div>")
+                elif "more" in r:
+                    rows.append(f'<details open class="mk-more"><summary>{self.inline(r["more"])}{pin(r, at)}</summary><div class="mk-help">'
+                                + self.inline(r.get("text", "")) + "".join(f'<div class="mk-f">{field(f, at)}</div>' for f in r.get("fields", []))
+                                + "</div></details>")
+                else:
+                    rows.append(f'<div class="mk-f">{field(r, at)}</div>')
+            btns = "".join(f'<span class="mk-btn{" p" if x.get("primary") else ""}">{E(x["label"])}</span>' for x in p.get("buttons", []))
+            sub = f' <small>{self.inline(p["sub"])}{pin(p, at)}</small>' if p.get("sub") or p.get("n") else ""
+            cols.append(f'<div class="mk-col"><h5>{self.inline(p["label"])}</h5><div class="mk-dlg"><header>{self.inline(p["title"])}{sub}</header>'
+                        f'<div class="mk-bd">{"".join(rows)}</div><div class="mk-ft">{btns}</div></div></div>')
+        ol = ("<ol class=\"mk-notes\">" + "".join(f'<li><span class="mk-n">{i}</span>{self.inline(x)}</li>' for i, x in enumerate(notes, 1))
+              + "</ol>") if notes else ""
+        cap = f'<figcaption class="mk-cap">{self.inline(b["label"])}</figcaption>' if b.get("label") else ""
+        return f'<figure class="mk" id="{E(self.danchor(gid))}">{cap}<div class="mk-pair">{"".join(cols)}</div>{ol}</figure>'
 
     def b_mermaid(self, b):
         """Mermaid source (`report-diagram`) rendered in the browser from the CDN module in HEAD; the escaped
@@ -2368,7 +2646,9 @@ class Report:
                        f'<button type="button" aria-pressed="false" onclick="nodim(this)">{E(self.t["full"])}</button></div>')
         # reading order: title and tools, the first section (the answer), statistics and change summary, the rest, the bibliography
         content = parts[:1] + [x for x in (stats, summary) if x] + parts[1:] + ([bib] if bib else [])
-        hdr = f'<header data-report="{E(self.src.name)}">' if self.src else "<header>"
+        brand = load_brand(d.get("brand"), self.src.parent if self.src else Path.cwd())
+        logo, favicon = brand_logo(brand)
+        hdr = (f'<header data-report="{E(self.src.name)}">' if self.src else "<header>") + logo
         if wr:
             nav = (f'<nav class="toc" aria-label="{E(t["toc"])}"><details open><summary>{E(t["toc"])}</summary>'
                    f'<ol>{"".join(toc)}</ol></details></nav>')
@@ -2390,15 +2670,17 @@ class Report:
         if dead:
             fail("links without a target: " + ", ".join(dead[:12]) + " (an entity needs a tree row, a table `anchor` or a tab `entity`)")
         page = TEMPLATE.read_text()
-        head = "\n".join(HEAD[k] for k in sorted(used & HEAD.keys()))
-        vals = {"LANG": E(d.get("lang", "de")), "TITLE": E(d["title"]), "HEAD": head, "BODY": body}
-        return re.sub(r"\{\{(LANG|TITLE|HEAD|BODY)\}\}", lambda m: vals[m.group(1)], page)  # one pass: report text cannot inject a placeholder
+        ic = json.dumps({n: icon(n) for n in UI_ICONS}).replace("<", "\\u003c")
+        head = "\n".join([favicon, f"<script>const IC={ic};</script>"] + [HEAD[k] for k in sorted(used & HEAD.keys())])
+        vals = {"LANG": E(d.get("lang", "de")), "TITLE": E(d["title"]), "THEME": brand_css(brand), "HEAD": head, "BODY": body}
+        return re.sub(r"\{\{(LANG|TITLE|THEME|HEAD|BODY)\}\}", lambda m: vals[m.group(1)], page)  # one pass: report text cannot inject a placeholder
 
 
-CHOICE_KEYS = ("tree", "data", "charts", "crossfilter", "badge-chart", "find", "flow", "map", "mermaid", "board", "video")
+CHOICE_KEYS = ("tree", "data", "charts", "crossfilter", "badge-chart", "find", "flow", "map", "mermaid", "board", "concepts", "video")
 CHOICE_NO_BLOCK = ("none",)  # valid feature keys that never produce a block and are not reported
 CHOICE_BLOCKS = {"tree": "tree", "table": "tree", "data": "data", "vega": "charts", "bars": "charts",
-                 "flow": "flow", "lineage": "flow", "states": "flow", "map": "map", "mermaid": "mermaid", "board": "board", "video": "video"}
+                 "flow": "flow", "lineage": "flow", "states": "flow", "map": "map", "mermaid": "mermaid", "board": "board",
+                 "concepts": "concepts", "mock": "concepts", "video": "video"}
 
 
 def check_choice(data, path):

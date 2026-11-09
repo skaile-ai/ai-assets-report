@@ -951,12 +951,12 @@ class VerticalFlow(unittest.TestCase):
         return report().b_flow(b)
 
     def test_down_flow_fits_the_column(self):
-        svg = re.search(r"<svg [^>]*>", self.flow(dir="down")).group(0)
+        svg = re.search(r'<svg [^>]*class="dg[ "][^>]*>', self.flow(dir="down")).group(0)
         self.assertIn('class="dg dgv"', svg)
         self.assertRegex(svg, r'style="width:min\(100%,\d+px\);height:auto"')
 
     def test_right_flow_is_unchanged(self):
-        svg = re.search(r"<svg [^>]*>", self.flow()).group(0)
+        svg = re.search(r'<svg [^>]*class="dg[ "][^>]*>', self.flow()).group(0)
         self.assertIn('class="dg"', svg)
         self.assertIn("width:clamp(", svg)
 
@@ -1125,6 +1125,108 @@ class LinkAndListLints(unittest.TestCase):
     def test_long_paragraph_without_link_is_fine(self):
         lints = self.lints({"type": "p", "text": " ".join(["word"] * 80) + "."})
         self.assertEqual([x for x in lints if "0 links" in x or x.startswith("orphan")], [])
+
+
+def concepts(**extra):
+    b = {"type": "concepts", "id": "c", "label": "Terms", "parts": ["views", "gloss"],
+         "kinds": {"place": {"label": "Place", "color": "blue"}},
+         "terms": [{"id": "space", "label": "Space", "kind": "place", "def": "A room."}],
+         "presets": [{"id": "now", "label": "Now", "set": {"plan": False}}, {"id": "plan", "label": "Plan", "set": {"plan": True}}],
+         "baseline": "now",
+         "views": [{"label": "Sidebar", "layout": "tree", "items": [{"id": "s", "label": "Glass", "icon": "folder-kanban", "term": "space"}]}]}
+    b.update(extra)
+    return b
+
+
+class Brand(unittest.TestCase):
+    def page(self, **extra):
+        return report(sections=[section("Answer")], **extra).render()
+
+    def test_default_brand_is_skaile(self):
+        page = self.page()
+        self.assertIn("--acc:#7300ff", page)
+        self.assertIn("family=Plus+Jakarta+Sans", page)
+        self.assertIn('<img class="brand" src="data:image/svg+xml;base64,', page)
+        self.assertIn('<link rel="icon" href="data:image/svg+xml;base64,', page)
+
+    def test_builtin_brand_by_name_drops_the_logo(self):
+        page = self.page(brand="github")
+        self.assertIn("--acc:#0969da", page)
+        self.assertNotIn('class="brand"', page)
+
+    def test_brand_file_overrides_tokens_key_by_key(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "b.json").write_text(json.dumps({"page": {"acc": "#123456"}, "logo": None}))
+            page = build.Report({"title": "T", "lang": "en", "brand": "b.json", "sections": [section("A")]}, src=Path(tmp, "r.json")).render()
+        self.assertIn("--acc:#123456", page)
+        self.assertIn("--paper:#ffffff", page)  # untouched tokens come from skaile
+
+    def test_brand_rejects_a_value_that_is_no_colour(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "b.json").write_text(json.dumps({"page": {"acc": "red;}body{display:none"}}))
+            with self.assertRaises(SystemExit) as cm:
+                build.Report({"title": "T", "lang": "en", "brand": "b.json", "sections": [section("A")]}, src=Path(tmp, "r.json")).render()
+        self.assertIn("page.acc must be a colour", str(cm.exception))
+
+    def test_unknown_brand_name_fails(self):
+        with self.assertRaises(SystemExit) as cm:
+            self.page(brand="nope")
+        self.assertIn("neither a built-in brand", str(cm.exception))
+
+
+class ConceptsBlock(unittest.TestCase):
+    def spec(self, b):
+        out = report().b_concepts(b)
+        return json.loads(re.search(r'<script type="application/json">(.*?)</script>', out).group(1))
+
+    def test_icon_names_become_platform_svg(self):
+        item = self.spec(concepts())["views"][0]["items"][0]
+        self.assertNotIn("icon", item)
+        self.assertIn("<path", item["svg"])
+
+    def test_figure_carries_the_anchor(self):
+        self.assertIn('<figure class="cm" data-concepts id="f-c">', report().b_concepts(concepts()))
+
+    def test_when_with_an_unknown_state_key_fails(self):
+        views = [{"label": "S", "layout": "tree", "items": [{"id": "s", "label": "x", "when": {"tabs": True}}]}]
+        with self.assertRaises(SystemExit) as cm:
+            report().b_concepts(concepts(views=views))
+        self.assertIn("`when` maps state keys (plan)", str(cm.exception))
+
+    def test_unknown_term_fails(self):
+        views = [{"label": "S", "layout": "tree", "items": [{"id": "s", "label": "x", "term": "thread"}]}]
+        with self.assertRaises(SystemExit) as cm:
+            report().b_concepts(concepts(views=views))
+        self.assertIn("unknown term 'thread'", str(cm.exception))
+
+    def test_graph_needs_a_position_per_term(self):
+        with self.assertRaises(SystemExit) as cm:
+            report().b_concepts(concepts(parts=["graph"], graph={"pos": {}}))
+        self.assertIn("graph.pos misses terms ['space']", str(cm.exception))
+
+    def test_duplicate_item_id_in_a_view_fails(self):
+        items = [{"id": "s", "label": "x", "when": {"plan": False}}, {"id": "s", "label": "x", "depth": 1, "when": {"plan": True}}]
+        with self.assertRaises(SystemExit) as cm:
+            report().b_concepts(concepts(views=[{"label": "S", "layout": "tree", "items": items}]))
+        self.assertIn("item ids must be unique per view", str(cm.exception))
+
+    def test_runtime_ships_once_in_head(self):
+        page = report(sections=[{"title": "A", "blocks": [{"type": "p", "text": "x."}, concepts(), concepts(id="d")]}]).render()
+        self.assertEqual(page.count("figure[data-concepts]"), 1)
+
+
+class MockBlock(unittest.TestCase):
+    PANE = {"label": "Today", "title": "Create agent", "body": [{"label": "Name", "value": "Clerk", "n": 1}], "buttons": [{"label": "Save", "primary": True}]}
+
+    def test_pins_point_at_notes(self):
+        out = report().b_mock({"type": "mock", "id": "m", "panes": [self.PANE], "notes": ["Name twice."]})
+        self.assertIn('<label>Name <span class="mk-n">1</span></label>', out)
+        self.assertIn('<li><span class="mk-n">1</span>Name twice.</li>', out)
+
+    def test_pin_without_note_fails(self):
+        with self.assertRaises(SystemExit) as cm:
+            report().b_mock({"type": "mock", "id": "m", "panes": [self.PANE]})
+        self.assertIn("pin 1 has no note", str(cm.exception))
 
 
 if __name__ == "__main__":
