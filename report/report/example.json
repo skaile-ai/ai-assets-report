@@ -1020,6 +1020,32 @@
             }
           ],
           "verdict": "Der Vorschlag lohnt sich, weil die Autorin auf einer Seite schreibt, prüft und freigibt."
+        },
+        {
+          "type": "gallery",
+          "label": "Editor-Screens",
+          "items": [
+            {
+              "src": "example.data/board-screen.jpg",
+              "title": "Editor heute",
+              "caption": "Screen-Liste, Blöcke und Vorschau auf einer Seite.",
+              "badges": {"aud": ["teen"]},
+              "notes": [
+                {"x": 12, "y": 18, "w": 22, "h": 60, "text": "Die Screen-Liste nimmt ein Drittel der Breite ein.", "sev": 2},
+                {"x": 70, "y": 12, "text": "Zwei Knöpfe wirken gleich wichtig; der Hauptknopf fehlt.", "sev": 3, "ref": "pause"},
+                {"x": 88, "y": 85, "text": "Die Vorschau ist klein, aber lesbar."}
+              ]
+            },
+            {
+              "src": "example.data/board-screen.jpg",
+              "title": "Editor im Vorschlag",
+              "caption": "Gleiche Seite nach dem Umbau; „Vorher“ zeigt den alten Stand.",
+              "before": "example.data/board-screen-before.jpg",
+              "notes": [
+                {"x": 50, "y": 40, "text": "Die Mitte hat jetzt einen klaren Schwerpunkt.", "sev": 0}
+              ]
+            }
+          ]
         }
       ]
     },

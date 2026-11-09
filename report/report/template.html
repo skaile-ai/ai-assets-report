@@ -328,6 +328,34 @@ summary{min-height:24px}
 .mf img{display:block;width:100%;height:auto;max-height:440px;object-fit:contain;background:var(--wash)}
 .mf figcaption{padding:12px 14px;font-size:var(--fs-m);line-height:1.5;border-top:1px solid var(--hair)}
 .mf-c{display:block}.mf-cr,.mf-l{font-size:var(--fs-s);color:var(--mute)}.mf-l::before{content:" · "}
+/* screenshot gallery (`gallery`): thumbnails with numbered note pins at percent positions; a click opens #gl-dlg (glOpen) */
+.gl{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;margin:22px 0}
+@media(max-width:640px){.gl{grid-template-columns:minmax(0,1fr)}}
+.gl-i{margin:0;min-width:0;border:1px solid var(--rule);border-radius:6px;overflow:hidden;background:var(--paper);scroll-margin-top:80px}
+.gl-i.chg{border-color:var(--c);box-shadow:inset 3px 0 var(--c)}.gl-i.c-removed .gl-t{text-decoration:line-through;text-decoration-color:var(--red)}
+.gl-o{display:block;width:100%;max-height:420px;overflow:hidden;padding:0;margin:0;border:0;border-radius:0;background:var(--wash);cursor:zoom-in;font:inherit;color:inherit;text-align:left}
+.gl-o:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.gl-f{position:relative;display:block}.gl-f img{display:block;width:100%;height:auto}
+.gl-p{position:absolute;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:600 var(--fs-xs)/1 var(--mono);color:#fff;background:var(--acc);box-shadow:0 0 0 2px var(--paper);pointer-events:none}
+.gl-b{position:absolute;border:2px solid var(--acc);border-radius:3px;pointer-events:none}
+.gl-p[data-sev="1"],.gl-s[data-sev="1"]{background:var(--yellow)}.gl-p[data-sev="2"],.gl-s[data-sev="2"]{background:var(--orange)}
+.gl-p[data-sev="3"],.gl-p[data-sev="4"],.gl-s[data-sev="3"],.gl-s[data-sev="4"]{background:var(--red)}
+.gl-b[data-sev="1"]{border-color:var(--yellow)}.gl-b[data-sev="2"]{border-color:var(--orange)}.gl-b[data-sev="3"],.gl-b[data-sev="4"]{border-color:var(--red)}
+.gl-i figcaption{padding:10px 12px;font-size:var(--fs-s);line-height:1.5;border-top:1px solid var(--hair);overflow-wrap:anywhere}
+.gl-cap{display:block;margin-top:4px}.gl-c{display:block;margin-top:4px;font-size:var(--fs-xs);color:var(--mute)}
+.gl-n{display:none;margin:0;padding:8px 12px 10px 2.4em;font-size:var(--fs-s);line-height:1.5;overflow-wrap:anywhere}.gl-n li{margin:2px 0;padding:2px 4px;border-radius:4px}
+.gl-s{font:600 var(--fs-xs)/1.4 var(--mono);padding:0 5px;border-radius:4px;color:#fff;background:var(--acc)}
+@media print{.gl-n{display:block}.gl-o{max-height:none}.gl-i{break-inside:avoid}}
+.gld .bod-h button[hidden]{display:none}
+.gld-b{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,340px)}
+.gld-i{min-height:0;overflow:auto;padding:12px;display:grid;justify-items:center;align-items:start}
+.gld-i .gl-f{width:fit-content;max-width:100%}.gld-i .gl-f img{width:auto;max-width:100%}
+.gld .gl-p{pointer-events:auto;cursor:pointer}.gld .gl-p:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.gld .gl-p.on,.gld .gl-p.hv{box-shadow:0 0 0 3px var(--ink);transform:translate(-50%,-50%) scale(1.25);z-index:1}
+.gld.bf .gl-p,.gld.bf .gl-b{display:none}
+.gld-n{min-height:0;overflow:auto;border-left:1px solid var(--rule)}.gld-n .gl-n{display:block}.gld-n li.on{background:var(--hl)}
+.gld-b:has(>.gld-n[hidden]){grid-template-columns:minmax(0,1fr)}
+@media(max-width:640px){.gld-b{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}.gld-n{max-height:40dvh;border-left:0;border-top:1px solid var(--rule)}}
 /* resources and bibliography */
 ul.res{list-style:none;margin:12px 0 22px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px}
 .rc{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border:1px solid var(--rule);border-radius:6px;background:var(--paper)}
@@ -721,6 +749,46 @@ function boardInit(fig){const vp=fig.querySelector('.bov'),world=vp.firstElement
  /* a board in a closed tab has no size at init: fit once it gets one */
  w0=vp.clientWidth;new ResizeObserver(()=>{if(!w0&&vp.clientWidth)fitCanvas(false);w0=vp.clientWidth}).observe(vp)}
 addEventListener('DOMContentLoaded',()=>document.querySelectorAll('.fg.bo').forEach(boardInit));
+/* gallery lightbox: one dialog for every `gallery` block, opened by a delegated click on a thumbnail (.gl-o). Closes like
+   boImg (close button, backdrop, Escape) and returns focus to the thumbnail of the item last shown. ← →: the neighbours in
+   the same .gl; Before/Now swaps the image (pins hidden on Before); a pin marks its note, hovering a note marks its pin. */
+function glShow(d,fig){const gl=fig.closest('.gl'),all=[...gl.querySelectorAll('.gl-i')],f=fig.querySelector('.gl-f').cloneNode(true);
+ f.querySelector('img').removeAttribute('loading');
+ f.querySelectorAll('.gl-p').forEach(p=>{p.tabIndex=0;p.setAttribute('role','button')});
+ d.querySelector('.gld-i').replaceChildren(f);
+ const n=fig.querySelector('.gl-n');d.querySelector('.gld-n').replaceChildren(...(n?[n.cloneNode(true)]:[]));
+ d.querySelector('.gld-n').hidden=!n;
+ const title=fig.querySelector('.gl-t').textContent,cap=fig.querySelector('.gl-cap');
+ d.querySelector('.bod-h b').textContent=title;
+ d.querySelector('.bod-h span').textContent=`${all.indexOf(fig)+1} / ${all.length}`+(cap?` · ${cap.textContent}`:'');
+ d.setAttribute('aria-label',title);d.classList.remove('bf');
+ const tg=d.querySelector('.gld-t');tg.hidden=!fig.dataset.before;tg.textContent=gl.dataset.bf;
+ d.querySelector('.gld-x').textContent=gl.dataset.close;d._fig=fig;d._from=fig.querySelector('.gl-o')}
+function glPin(d,p){const ps=[...d.querySelectorAll('.gld-i .gl-p')],k=ps.indexOf(p),lis=[...d.querySelectorAll('.gld-n li')];
+ ps.forEach((x,i)=>x.classList.toggle('on',i===k));lis.forEach((x,i)=>x.classList.toggle('on',i===k));
+ if(lis[k])lis[k].scrollIntoView({block:'nearest'})}
+function glHover(d,e){const li=e.target.closest?e.target.closest('.gld-n li'):null,ps=d.querySelectorAll('.gld-i .gl-p');
+ ps.forEach(p=>p.classList.remove('hv'));if(li&&ps[+li.dataset.n-1])ps[+li.dataset.n-1].classList.add('hv')}
+function glOpen(o){let d=document.getElementById('gl-dlg');
+ if(!d){d=document.createElement('dialog');d.id='gl-dlg';d.className='bod gld';
+  d.innerHTML='<div class="bod-h"><div><b></b><span></span></div><button type="button" class="gld-t" hidden></button>'+
+   '<button type="button" class="gld-x"></button></div><div class="gld-b"><div class="gld-i"></div><div class="gld-n"></div></div>';
+  document.body.append(d);d.querySelector('.gld-x').addEventListener('click',()=>d.close());
+  d.addEventListener('click',e=>{if(e.target===d||e.target.classList.contains('gld-i')){d.close();return}
+   if(e.target.closest('.gld-n a')){d._from=null;d.close();return}
+   const p=e.target.closest('.gld-i .gl-p');if(p)glPin(d,p)});
+  d.addEventListener('keydown',e=>{
+   if(e.key==='ArrowRight'||e.key==='ArrowLeft'){const all=[...d._fig.closest('.gl').querySelectorAll('.gl-i')];
+    const nx=all[all.indexOf(d._fig)+(e.key==='ArrowRight'?1:-1)];e.preventDefault();if(nx)glShow(d,nx);return}
+   if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('gl-p')){e.preventDefault();glPin(d,e.target)}});
+  d.addEventListener('mouseover',e=>glHover(d,e));d.addEventListener('focusin',e=>glHover(d,e));
+  d.querySelector('.gld-t').addEventListener('click',e=>{const fig=d._fig,gl=fig.closest('.gl'),bf=d.classList.toggle('bf');
+   e.currentTarget.textContent=bf?gl.dataset.now:gl.dataset.bf;
+   d.querySelector('.gld-i img').src=bf?fig.dataset.before:fig.querySelector('.gl-f img').getAttribute('src')});
+  d.addEventListener('close',()=>{d.querySelector('.gld-i').replaceChildren();d.querySelector('.gld-n').replaceChildren();
+   if(d._from){d._from.focus({preventScroll:true});d._from=null}})}
+ glShow(d,o.closest('.gl-i'));d.showModal();d.querySelector('.gld-x').focus()}
+document.addEventListener('click',e=>{const o=e.target.closest&&e.target.closest('.gl-o');if(o&&!o.closest('dialog'))glOpen(o)});
 /* Find box in the header (only when the report has a tree or a data table). Every tree filters by its own row text;
    any other feature listens for `find` on document (detail.q) and reports its visible count in FIND.parts[name]. */
 const FIND={q:'',parts:{}};

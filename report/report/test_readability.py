@@ -685,6 +685,95 @@ class MediaBlock(unittest.TestCase):
         self.assertIn("`items` must be a non-empty list", fails(self.media))
 
 
+class GalleryBlock(unittest.TestCase):
+    BADGES = {"kind": {"label": "Kind", "values": {"list": {"color": "blue"}}}}
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = Path(self.tmp.name)
+        (self.dir / "out").mkdir()
+        (self.dir / "r.media").mkdir()
+        for name in ("a.png", "b.png"):
+            (self.dir / "r.media" / name).write_bytes(b"x")
+
+    def item(self, **extra):
+        return {"src": "r.media/a.png", "title": "Orders", "caption": "All orders.", **extra}
+
+    def notes(self):
+        return [{"x": 10, "y": 20, "text": "Two primary buttons.", "sev": 3, "ref": "alpha"},
+                {"x": 50.5, "y": 60, "w": 20, "h": 10, "text": "Tiny targets."}]
+
+    def gallery(self, *items, **extra):
+        r = report(badges=self.BADGES)
+        r.out_dir, r.src = self.dir / "out", self.dir / "r.json"
+        return r.b_gallery({"type": "gallery", "items": list(items), **extra})
+
+    def page(self, *items):
+        data = {"title": "T", "lang": "en", "entities": [{"id": "alpha", "title": "Alpha", "label": "A", "tree": False}],
+                "sections": [{"title": "Answer", "blocks": [{"type": "gallery", "items": list(items)}]}]}
+        return body(build.Report(data, out_dir=self.dir / "out", src=self.dir / "r.json").render())
+
+    def test_pins_one_per_note_with_box_and_note_list(self):
+        out = self.gallery(self.item(notes=self.notes()))
+        self.assertEqual(out.count('class="gl-p"'), 2)
+        self.assertIn('<span class="gl-p" data-sev="3" style="left:10%;top:20%">1</span>', out)
+        self.assertIn('<span class="gl-b" style="left:50.5%;top:60%;width:20%;height:10%"></span>', out)
+        self.assertIn('<ol class="gl-n"><li data-n="1"><b class="gl-s" data-sev="3">S3</b> Two primary buttons. → '
+                      '<a href="#e-alpha"', out)
+        self.assertIn('<span class="gl-c">2 notes</span>', out)
+        self.assertIn('<button type="button" class="gl-o" aria-label="Open Orders">', out)
+        self.assertIn('alt="Orders"', out)  # alt defaults to title
+
+    def test_src_and_before_are_rewritten_relative_to_the_output(self):
+        out = self.gallery(self.item(before="r.media/b.png"))
+        self.assertIn('<img src="../r.media/a.png"', out)
+        self.assertIn('data-before="../r.media/b.png"', out)
+
+    def test_entity_anchor_and_badges(self):
+        out = self.gallery(self.item(entity="alpha", badges={"kind": ["list"]}))
+        self.assertIn('<figure class="gl-i" id="e-alpha">', out)
+        self.assertIn(">list</span>", out)
+        self.assertNotIn(' id="', self.gallery(self.item()))
+
+    def test_entity_anchor_is_a_link_target_on_the_page(self):
+        out = self.page(self.item(entity="alpha", caption="See [[alpha]]."))
+        self.assertIn('id="e-alpha"', out)
+
+    def test_validation_messages(self):
+        cases = [
+            ((), "gallery: `items` must be a non-empty list"),
+            ((self.item(src=""),), "gallery item 1: `src` is required and must not be empty"),
+            ((self.item(title="  "),), "gallery item 1: `title` is required and must not be empty"),
+            ((self.item(), self.item(src="https://x.org/a.png")),
+             "gallery item 2: `src` must be a local file next to the report, not a URL"),
+            ((self.item(before="//x.org/a.png"),), "gallery item 1: `before` must be a local file next to the report, not a URL"),
+            ((self.item(notes=[{"x": 101, "y": 1, "text": "t"}]),), "gallery item 1 note 1: x and y must be numbers from 0 to 100"),
+            ((self.item(notes=[{"x": 1, "text": "t"}]),), "gallery item 1 note 1: x and y must be numbers from 0 to 100"),
+            ((self.item(notes=[{"x": 1, "y": 1, "w": -1, "text": "t"}]),), "gallery item 1 note 1: w and h must be numbers from 0 to 100"),
+            ((self.item(notes=[{"x": 1, "y": 1, "text": "t"}, {"x": 1, "y": 1, "sev": 5, "text": "t"}]),),
+             "gallery item 1 note 2: `sev` must be an integer 0-4"),
+            ((self.item(notes=[{"x": 1, "y": 1, "sev": 2.5, "text": "t"}]),), "gallery item 1 note 1: `sev` must be an integer 0-4"),
+            ((self.item(src="r.media/none.png"),), "gallery item 1: file not found r.media/none.png"),
+        ]
+        for items, msg in cases:
+            with self.subTest(msg=msg):
+                self.assertIn(msg, fails(self.gallery, *items))
+
+    def test_unknown_refs_fail(self):
+        self.assertIn("unknown ref zzz", fails(self.gallery, self.item(notes=[{"x": 1, "y": 1, "text": "t", "ref": "zzz"}])))
+        self.assertIn("gallery item 1: unknown ref zzz", fails(self.gallery, self.item(entity="zzz")))
+
+    def test_choice_check_fails_when_gallery_is_not_chosen(self):
+        data = {"sections": [section("Answer"), {"title": "Screens", "blocks": [{"type": "gallery", "items": [self.item()]}]}]}
+        with tempfile.NamedTemporaryFile("w", suffix=".choice.json", delete=False) as f:
+            json.dump({"profile": "critique", "features": ["none"]}, f)
+        self.assertIn("used but not chosen: gallery", fails(build.check_choice, data, f.name))
+        with tempfile.NamedTemporaryFile("w", suffix=".choice.json", delete=False) as f:
+            json.dump({"profile": "critique", "features": ["gallery"], "size": "small"}, f)
+        self.assertEqual(build.check_choice(data, f.name), "small")
+
+
 class ResourcesAndCallouts(unittest.TestCase):
     def test_resources_render_external_cards(self):
         out = wr().b_resources({"type": "resources", "items": [

@@ -74,7 +74,7 @@ FIND_TYPES = {"tree", "data"}  # block types that switch on the header find box
 PROFILES = {"explanation", "structure", "inventory", "critique", "comparison", "exploration", "change", "web-research"}  # top-level `profile`
 SIZES = ("small", "medium", "detailed", "technical")  # `size` in <stem>.choice.json; SKILL.md "Sizes"
 SIZE_QUESTIONS = {"small": 2, "medium": 6, "detailed": 8}  # max chosen questions; technical has no cap
-SIZE_FEATURES = {"small": {"none", "tree", "charts", "find"}}  # feature keys a size allows; other sizes allow all
+SIZE_FEATURES = {"small": {"none", "tree", "charts", "find", "gallery"}}  # feature keys a size allows; other sizes allow all
 SIZE_SENTENCES = {"small": 2}  # max sentences in a section's opening `p`; other sizes 3
 SIZE_SENTENCES_DEFAULT = 3
 READERS = ("general", "informed", "professional")  # reader depths, shallow to deep; a block's `reader` is the minimum depth that shows it
@@ -274,7 +274,8 @@ TXT = {
                      "+ − 0: Zoom · Bild klicken: groß · Lesemodus: alles untereinander",
           "notes": "Belege", "note_n": "Beleg {n}", "legend": "Legende", "filters": "Filter",
            "arg_claim": "Kernaussage", "arg_why": "Gründe", "arg_so": "Folgerung", "ex": "Beispiel", "ex_result": "Ergebnis",
-           "cmp": "Gegenüberstellung", "cmp_verdict": "Fazit"},
+           "cmp": "Gegenüberstellung", "cmp_verdict": "Fazit",
+           "g_open": "{t} öffnen", "g_notes": "{n} Hinweise", "g_note1": "1 Hinweis", "g_before": "Vorher", "g_now": "Jetzt"},
     "en": {"ev": "Evidence", "el": "Element", "at": "Evidence", "from": "From", "to": "To", "fn": "Function",
            "note": "Change", "trigger": "Trigger", "guard": "Guard", "up": "Part of",
            "process": "process", "store": "data store", "external": "external", "boundary": "neighbour from parent level",
@@ -308,7 +309,8 @@ TXT = {
                      "+ − 0: zoom · click an image: enlarge · read mode: everything stacked",
           "notes": "Notes", "note_n": "Note {n}", "legend": "Legend", "filters": "Filters",
            "arg_claim": "Key point", "arg_why": "Because", "arg_so": "So", "ex": "Example", "ex_result": "Result",
-           "cmp": "Comparison", "cmp_verdict": "Verdict"},
+           "cmp": "Comparison", "cmp_verdict": "Verdict",
+           "g_open": "Open {t}", "g_notes": "{n} notes", "g_note1": "1 note", "g_before": "Before", "g_now": "Now"},
 }
 
 
@@ -2280,6 +2282,85 @@ class Report:
                         f'<span class="mf-cr">{credit}</span>{licence}</figcaption></figure>')
         return f'<div class="gal" data-n="{min(len(figs), 2)}">{"".join(figs)}</div>'
 
+    def b_gallery(self, b):
+        """Screenshots with numbered note pins: `items: [{src, title, alt?, caption?, entity?, badges?: {cat: [val]}, before?,
+        change?, notes?: [{x, y, w?, h?, text, sev?, ref?}]}]`, optional `label`. `src`/`before` are local files (rewritten
+        relative to the output); note x, y, w, h are percent of the image. A thumbnail opens the lightbox (template `glOpen`)."""
+        items = b.get("items")
+        if not isinstance(items, list) or not items:
+            fail("gallery: `items` must be a non-empty list")
+        t = self.t
+        pct = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 100
+        scope = self.scope(items)
+        figs = []
+        for i, it in enumerate(items, 1):
+            where = f"gallery item {i}"
+            if not isinstance(it, dict):
+                fail(f"{where}: must be an object")
+            for k in ("src", "title"):
+                if not isinstance(it.get(k), str) or not it[k].strip():
+                    fail(f"{where}: `{k}` is required and must not be empty")
+            for k in ("src", "before"):
+                if it.get(k) is not None and (not isinstance(it[k], str) or NOT_LOCAL.match(it[k])):
+                    fail(f"{where}: `{k}` must be a local file next to the report, not a URL")
+            eid = it.get("entity")
+            if eid is not None and eid not in self.ents:
+                fail(f"{where}: unknown ref {eid}")
+            notes = it.get("notes") or []
+            if not isinstance(notes, list):
+                fail(f"{where}: `notes` must be a list")
+            for j, n in enumerate(notes, 1):
+                nw = f"{where} note {j}"
+                if not isinstance(n, dict):
+                    fail(f"{nw}: must be an object")
+                if not (pct(n.get("x")) and pct(n.get("y"))):
+                    fail(f"{nw}: x and y must be numbers from 0 to 100")
+                if any(n.get(k) is not None and not pct(n[k]) for k in ("w", "h")):
+                    fail(f"{nw}: w and h must be numbers from 0 to 100")
+                sev = n.get("sev")
+                if sev is not None and (not isinstance(sev, int) or isinstance(sev, bool) or not 0 <= sev <= 4):
+                    fail(f"{nw}: `sev` must be an integer 0-4")
+                if not isinstance(n.get("text"), str) or not n["text"].strip():
+                    fail(f"{nw}: `text` is required and must not be empty")
+            badges = it.get("badges") or {}
+            if not isinstance(badges, dict) or not all(isinstance(v, list) for v in badges.values()):
+                fail(f"{where}: `badges` must map a category to a list of values")
+            path = self.media_path(where, it["src"])
+            before = self.media_path(where, it["before"]) if it.get("before") is not None else None
+            k, cls, mk = self.state(it, scope)
+
+            def fig(it=it, notes=notes, badges=badges, path=path, mk=mk):
+                pins = []
+                for j, n in enumerate(notes, 1):
+                    sev = f' data-sev="{n["sev"]}"' if n.get("sev") is not None else ""
+                    if n.get("w") is not None or n.get("h") is not None:
+                        pins.append(f'<span class="gl-b"{sev} style="left:{n["x"]}%;top:{n["y"]}%;'
+                                    f'width:{n.get("w") or 0}%;height:{n.get("h") or 0}%"></span>')
+                    pins.append(f'<span class="gl-p"{sev} style="left:{n["x"]}%;top:{n["y"]}%">{j}</span>')
+                img = f'<img src="{E(path)}" alt="{E(it.get("alt") or it["title"])}" loading="lazy" decoding="async">'
+                btn = (f'<button type="button" class="gl-o" aria-label="{E(t["g_open"].format(t=it["title"]))}">'
+                       f'<span class="gl-f">{img}{"".join(pins)}</span></button>')
+                bgs = " ".join(self.badge(c, v, False) for c, vs in badges.items() for v in vs)
+                cap = f'<span class="gl-cap">{self.inline(it["caption"])}</span>' if it.get("caption") else ""
+                cnt = ""
+                if notes:
+                    cnt = f'<span class="gl-c">{E(t["g_note1"] if len(notes) == 1 else t["g_notes"].format(n=len(notes)))}</span>'
+                lis = []
+                for j, n in enumerate(notes, 1):
+                    sev = f'<b class="gl-s" data-sev="{n["sev"]}">S{n["sev"]}</b> ' if n.get("sev") is not None else ""
+                    ref = f' → {self.link(n["ref"])}' if n.get("ref") is not None else ""
+                    lis.append(f'<li data-n="{j}">{sev}{self.inline(n["text"])}{ref}</li>')
+                ol = f'<ol class="gl-n">{"".join(lis)}</ol>' if lis else ""
+                return (f'{btn}<figcaption>{mk}<b class="gl-t">{E(it["title"])}</b>{" " + bgs if bgs else ""}'
+                        f'{cap}{cnt}</figcaption>{ol}')
+            fid = f' id="{E(self.anchor(eid))}"' if eid is not None else ""
+            bf = f' data-before="{E(before)}"' if before else ""
+            figs.append(f'<figure class="gl-i{cls}"{fid}{bf}>{self.inside(k, fig)}</figure>')
+        label = b.get("label")
+        lab = f' data-label="{E(label)}" role="group" aria-label="{E(label)}"' if label else ""
+        return (f'<div class="gl"{lab} data-close="{E(t["b_close"])}" data-bf="{E(t["g_before"])}" '
+                f'data-now="{E(t["g_now"])}">{"".join(figs)}</div>')
+
     def b_resources(self, b):
         """Curated external resources (`web-research`): `items: [{title, url, description, audience?, kind?}]`, optional `label`.
         Every url is external (http/https)."""
@@ -2790,7 +2871,7 @@ class Report:
               for h in MERMAID_HREF.findall(b.get("code", ""))}
         dead = sorted(({html.unescape(h) for h in re.findall(r'href="#([^"]+)"', body)} | mm) - ids)
         if dead:
-            fail("links without a target: " + ", ".join(dead[:12]) + " (an entity needs a tree row, a table `anchor` or a tab `entity`)")
+            fail("links without a target: " + ", ".join(dead[:12]) + " (an entity needs a tree row, a table `anchor`, a tab `entity` or a gallery item `entity`)")
         page = TEMPLATE.read_text()
         ic = json.dumps({n: icon(n) for n in UI_ICONS}).replace("<", "\\u003c")
         head = "\n".join([favicon, f"<script>const IC={ic};</script>"] + [HEAD[k] for k in sorted(used & HEAD.keys())])
@@ -2798,11 +2879,12 @@ class Report:
         return re.sub(r"\{\{(LANG|TITLE|THEME|HEAD|BODY)\}\}", lambda m: vals[m.group(1)], page)  # one pass: report text cannot inject a placeholder
 
 
-CHOICE_KEYS = ("tree", "data", "charts", "crossfilter", "badge-chart", "find", "flow", "map", "mermaid", "board", "concepts", "video")
+CHOICE_KEYS = ("tree", "data", "charts", "crossfilter", "badge-chart", "find", "flow", "map", "mermaid", "board", "concepts", "video",
+               "gallery")
 CHOICE_NO_BLOCK = ("none",)  # valid feature keys that never produce a block and are not reported
 CHOICE_BLOCKS = {"tree": "tree", "table": "tree", "data": "data", "vega": "charts", "bars": "charts",
                  "flow": "flow", "lineage": "flow", "states": "flow", "map": "map", "mermaid": "mermaid", "board": "board",
-                 "concepts": "concepts", "mock": "concepts", "video": "video"}
+                 "concepts": "concepts", "mock": "concepts", "video": "video", "gallery": "gallery"}
 
 
 def check_choice(data, path):
