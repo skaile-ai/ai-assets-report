@@ -178,7 +178,9 @@
   function mount(fig) {
     const spec = JSON.parse(fig.querySelector('script[type="application/json"]').textContent)
     const presetOf = (id) => spec.presets.find((p) => p.id === id)
-    const base = presetOf(spec.baseline)
+    // A preset compares against its own `vs` (null = against nothing), else against the figure's `baseline`.
+    const baseOf = (p) => presetOf(p && 'vs' in p ? p.vs : spec.baseline)
+    const comparing = Boolean(spec.baseline) || spec.presets.some((p) => p.vs)
     let state = { ...(spec.initial || presetOf(spec.start || spec.presets[0].id).set) }
     let marks = true
     let pinned = null
@@ -194,10 +196,11 @@
           return `<button type="button" class="cm-sw" role="switch" data-switch="${s.id}" aria-checked="${Boolean(state[s.id])}"${disabled ? ' disabled' : ''}><span class="k"></span><span class="${s.mono ? 'm' : ''}">${esc(s.label)}</span>${s.desc ? `<small>${esc(s.desc)}</small>` : ''}</button>`
         })
         .join('')
-      const diffing = Boolean(base) && marks && active?.id !== spec.baseline
+      const base = baseOf(active)
+      const diffing = Boolean(base) && marks && active?.id !== base.id
       const ref = diffing ? base.set : state
-      const marksSw = base
-        ? `<button type="button" class="cm-sw" role="switch" data-marks aria-checked="${marks}"${active?.id === spec.baseline ? ' disabled' : ''}><span class="k"></span><span>${L.marks}</span>${diffing ? summary(spec, state, base.set, base.label) : ''}</button>`
+      const marksSw = comparing
+        ? `<button type="button" class="cm-sw" role="switch" data-marks aria-checked="${marks}"${!base || active?.id === base.id ? ' disabled' : ''}><span class="k"></span><span>${L.marks}</span>${diffing ? summary(spec, state, base.set, base.label) : ''}</button>`
         : ''
       const views = (spec.views || [])
         .map((v) => {

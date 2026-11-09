@@ -1210,6 +1210,12 @@ class ConceptsBlock(unittest.TestCase):
             report().b_concepts(concepts(views=[{"label": "S", "layout": "tree", "items": items}]))
         self.assertIn("item ids must be unique per view", str(cm.exception))
 
+    def test_preset_vs_must_name_another_preset(self):
+        presets = [{"id": "now", "label": "Now", "set": {"plan": False}}, {"id": "plan", "label": "Plan", "set": {"plan": True}, "vs": "plan"}]
+        with self.assertRaises(SystemExit) as cm:
+            report().b_concepts(concepts(presets=presets))
+        self.assertIn("preset plan `vs` must name another preset", str(cm.exception))
+
     def test_runtime_ships_once_in_head(self):
         page = report(sections=[{"title": "A", "blocks": [{"type": "p", "text": "x."}, concepts(), concepts(id="d")]}]).render()
         self.assertEqual(page.count("figure[data-concepts]"), 1)

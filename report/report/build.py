@@ -2008,6 +2008,9 @@ class Report:
         for k in ("baseline", "start"):
             if spec.get(k) is not None and spec[k] not in pids:
                 fail(f"{where}: `{k}` must name a preset, not {spec[k]!r}")
+        for p in presets:
+            if p.get("vs") is not None and (p["vs"] not in pids or p["vs"] == p["id"]):
+                fail(f"{where}: preset {p['id']} `vs` must name another preset, not {p['vs']!r}")
         if spec.get("initial") is not None and (not isinstance(spec["initial"], dict) or set(spec["initial"]) - keys):
             fail(f"{where}: `initial` may only set state keys ({', '.join(sorted(keys))})")
 

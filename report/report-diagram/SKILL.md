@@ -3,7 +3,7 @@ name: report-diagram
 description: "Dependency `map` canvases, `board` moodboards (screens today vs. proposed, changes marked) `concepts` figures (UI variants per state with their linked terms), `mock` dialogs and mermaid notations (sequence, class, ER, C4, gantt, mindmap, sankey, railroad) with the notation-choice table. Use for 'what depends on what', 'who calls whom in which order', 'moodboard', 'before/after of screens', 'which UI variant', 'how do these terms relate', 'draw this as a diagram'."
 license: MIT
 metadata:
-  version: 0.3.0
+  version: 0.3.1
   publisher: skaile-ai
 ---
 
@@ -98,7 +98,7 @@ A `concepts` figure shows one UI question in states: the sidebar tree and the ch
 
 ```
 concepts: id, label, hint?, parts?: [views|graph|gloss] (default all three), at?,
-  presets: [{id, label, set: {<key>: bool}, desc?}], switches?: [{id, label, requires?: <key>}],
+  presets: [{id, label, set: {<key>: bool}, desc?, vs?: preset id|null}], switches?: [{id, label, requires?: <key>}],
   baseline?: preset id, start?: preset id, initial?: {<key>: bool}, switchesLabel?,
   kinds?: {<kind>: {label, color}}, terms?: [{id, label, kind, def, aka?: [text], code?, where?: [{when?, text}]}],
   views?: [{label, layout: tree|tabs, items: [item]}], thoughts?: [{text, tone?: good|mixed|bad, when?, term?}],
@@ -110,7 +110,7 @@ when: {<key>: bool, ...} | {any: [{<key>: bool}, ...]}
 
 - State keys are the keys the presets `set` plus the switch ids. A `when` holds when every key matches; `any` holds when one alternative does. An item without `when` is always there. The build fails on an unknown key, a non-boolean value, an unknown term, icon, colour or slot.
 - Item ids are unique per view (the build fails otherwise). Rows that are the same thing in two states (one under `when` A, the other under `when` B) share a `key`: at another depth the row is marked moved, with another label renamed, else changed. Without a shared `key` the pair reads as one new and one removed row.
-- `baseline` is today; `start` is the preset the page opens on (the recommendation). `requires` hides a switch until its key is on.
+- `baseline` is today; `start` is the preset the page opens on (the recommendation). `requires` hides a switch until its key is on. A preset's `vs` overrides the baseline for that preset, so a sequence of stands reads step by step (`main` → `next` with `vs: "main"` → two proposals with `vs: "next"`); `vs: null` shows that preset without marks.
 - Icons are lucide names from `../report/lucide.json` (the platform set). Round avatar = belongs to a person, `sq` = belongs to a space or org: keep that rule when you draw agents.
 - `thoughts` are what a user would think in that state, short and in their voice; `tone` colours them. Write at most one or two per state.
 - `graph` needs a position for every term (about 960×500); place the terms so no edge crosses a box, and screenshot it. `gloss` cards list `aka` (old or rejected names), `code` (the name in code) and `where` (where the term shows, per state).
