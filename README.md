@@ -61,7 +61,7 @@ Every report is one HTML file built by the stdlib `report/build.py`; the extra l
 In `report/report/`:
 
 - `SKILL.md`: the workflow; `references/` holds the `report.json` schema, brands, reader notes and the web-research profile.
-- `template.html`: layout, type scale, badge shapes, tree filter, tabs, contents, link highlight, diagram interaction (hover, legend toggle, zoom), `map` and `board` controllers, `data`/`vega`/`mermaid` init, find box, reader notes. The theme tokens come from the brand. Alpine, the fonts and the extension libraries load from CDNs; offline the plain tables, `bars` and mermaid source show, the page keeps working.
+- `template.html`: layout, type scale, badge shapes, tree filter, tabs, diagram interaction (hover, legend toggle, scroll cue, zoom) and find box as native custom elements defined inline (`<r-tree>`, `<r-tabs>`, `<r-diagram>`, `<r-find>`; light DOM, no library, so they work offline), contents, link highlight, `map` and `board` controllers, `data`/`vega`/`mermaid` init, reader notes. The theme tokens come from the brand. The fonts and the extension libraries load from CDNs; offline the plain tables, `bars` and mermaid source show, the page keeps working.
 - `brands/`: built-in brands (`skaile.json` with its logo, `github.json`). `lucide.json`: the icon set. `blocks/`: CSS and the browser runtime of `concepts` and `mock`, inlined into `<head>` once when a report uses them.
 - `build.py`: renderer, choice checker, link checker and linter, stdlib only. It fails on unknown refs, nodes, kinds, icons, terms, state keys, badge defaults and listen targets, unbalanced child flows, links without a target, anchors rendered twice and invalid brands. `python3 build.py --help` lists every lint and its fix.
 - `example.json`: one block of every type with its data in `example.data/` (the `board` screenshot is `example.data/board-screen.jpg`); the `video` block comes from `report-video/example.media/demo.block.json`. Build it from any directory: the `video` `src`/`poster`/`track` resolve next to the output HTML, else next to `report.json` (here `../report-video/example.media/`); the page gets `src` and `poster` rewritten relative to the output, and the `track` inlined as a `data:text/vtt` URI (not path-rewritten). `python3 build.py example.json example.html` prints `lint: 0 findings` (`example.html` is gitignored).
@@ -74,6 +74,7 @@ cd report && python3 -m unittest discover -s report -p 'test_readability.py'
 for m in report report-table report-flow report-diagram report-charts report-video; do
   python3 report/report/build.py report/$m/example.json /tmp/$m.html --strict
 done
+python3 report/report/build.py report/report/catalog.json /tmp/catalog.html --strict
 ```
 
 `skaile.manifest.yaml` is the publish inventory; `skaile library index ai-assets-report` keeps it in step with the files on disk.

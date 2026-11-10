@@ -3,6 +3,7 @@ node_modules/
 *.log
 .scratch/
 example.html
+catalog.html
 __pycache__/
 *.voice/
 media/

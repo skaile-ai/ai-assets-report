@@ -2,6 +2,8 @@
 
 The data file `build.py` renders. Read it in workflow step 7 (`skill://report`). The extension skills specify their own blocks (`report-flow/NOTATION.md`, `report-diagram`, `report-table`, `report-charts`, `report-video`).
 
+`catalog.json` beside `build.py` shows every block type once: when to use it and when not, the rendered block and its minimal JSON. Copy a block's JSON from there as a starting point.
+
 ```
 title, lang, profile, meta: [inline line], numbered: true, since?, data_dir?, brand?
 stats: [[label, {count: "<collection>", where?: {field: value}} | {rows: "<table|data id>"} | {value, source}]]

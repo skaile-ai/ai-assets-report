@@ -908,11 +908,11 @@ class WebResearchPage(unittest.TestCase):
 
     def test_find_box_has_live_count_clear_and_scope(self):
         page = body(wr().render())
-        self.assertRegex(page, r'<input id="find" type="search" placeholder="[^"]+" aria-label="Im Bericht suchen" aria-controls="main" '
-                               r'data-hit="Treffer" data-hits="Treffer" data-hidden="\+\{n\} in geschlossenen Teilen" data-row="Zeile" data-rows="Zeilen" '
-                               r'data-pos="\{i\} von \{n\}">')
-        self.assertIn('<button type="button" id="findx" class="fclr" hidden>Suche zurücksetzen</button>', page)
-        self.assertIn('<span id="findn" role="status" aria-live="polite"></span>', page)
+        self.assertIn('<r-find data-hit="Treffer" data-hits="Treffer" data-hidden="+{n} in geschlossenen Teilen" data-row="Zeile" '
+                      'data-rows="Zeilen" data-pos="{i} von {n}"><input id="find" type="search" placeholder="Suchen…" '
+                      'aria-label="Im Bericht suchen" aria-controls="main">', page)
+        self.assertIn('<button type="button" class="fclr" hidden>Suche zurücksetzen</button>', page)
+        self.assertIn('<span class="fcnt" role="status" aria-live="polite"></span></r-find>', page)
         self.assertTrue(page.index('id="find"') < page.index("<main"))
         # the sources are inside the searched region
         self.assertTrue(page.index("<main") < page.index('id="src-S1"') < page.index("</main>"))
@@ -927,12 +927,20 @@ class WebResearchPage(unittest.TestCase):
     def test_find_box_searches_the_whole_page_in_every_profile(self):
         r = report(badges={}, sections=[{"title": "S", "blocks": [{"type": "data", "id": "d", "columns": [{"key": "a"}], "rows": [{"a": "x"}]}]}])
         page = body(r.render())
-        self.assertIn('<input id="find" type="search" placeholder="Find…" aria-label="Search the report" aria-controls="main" '
-                      'data-hit="match" data-hits="matches" data-hidden="+{n} in closed parts" data-row="row" data-rows="rows" data-pos="{i} of {n}">', page)
+        self.assertIn('<r-find data-hit="match" data-hits="matches" data-hidden="+{n} in closed parts" data-row="row" data-rows="rows" '
+                      'data-pos="{i} of {n}"><input id="find" type="search" placeholder="Find…" aria-label="Search the report" '
+                      'aria-controls="main">', page)
         self.assertIn('<main id="main" tabindex="-1" data-find-scope>', page)
-        self.assertIn('id="findx"', page)
+        self.assertIn('class="fclr"', page)
         # a contents list alone (no tree, no table) brings the box too
-        self.assertIn('id="find"', body(PageStructure.five()))
+        self.assertIn('<r-find ', body(PageStructure.five()))
+
+    def test_find_box_is_a_custom_element_without_the_old_wrapper(self):
+        page = wr().render()
+        self.assertIn("customElements.define('r-find'", page)
+        self.assertIn("html:not(.js) r-find{display:none}", page)
+        for old in ('<div class="find">', 'id="findx"', 'id="findn"', "findN(", "rfRun(", "FIND.parts", "window.TF"):
+            self.assertNotIn(old, page)
 
     def test_whole_page_with_every_new_block_builds(self):
         tmp = tempfile.TemporaryDirectory()
@@ -1543,10 +1551,10 @@ class RepeatedChrome(unittest.TestCase):
         self.assertEqual([x for x in r.lint() if x.startswith("badge st=ok")], [])
 
     def test_default_chip_is_hidden_on_rows_but_listed_in_legend(self):
-        self.assertEqual(self.badged().b_tree({"type": "tree"}).count(">Fine</span>"), 8)
+        self.assertEqual(self.badged().b_tree({"type": "tree"}).count(">Fine</button>"), 8)
         tree = self.badged(default="ok").b_tree({"type": "tree"})
-        self.assertEqual(tree.count(">Fine</span>"), 1)
-        self.assertEqual(tree.count(">Broken</span>"), 4)
+        self.assertEqual(tree.count(">Fine</button>"), 1)
+        self.assertEqual(tree.count(">Broken</button>"), 4)
         self.assertIn('data-b="{&quot;kind&quot;: [&quot;k&quot;], &quot;st&quot;: [&quot;ok&quot;]}"', tree)
 
     def test_filter_chip_names_its_row_or_category(self):
@@ -1554,6 +1562,39 @@ class RepeatedChrome(unittest.TestCase):
         self.assertIn('aria-label="filter: Broken (E8)"', tree)  # a row chip: value and row title
         self.assertIn('aria-label="filter: Kindly (E0)"', tree)  # the kind chip too
         self.assertIn('aria-label="filter: Fine (st)"', tree)  # the legend: value and category
+
+    def test_tree_is_an_r_tree_element_configured_by_data_attributes(self):
+        tree = self.badged().b_tree({"type": "tree", "filter": ["st"], "count_label": "things"})
+        self.assertTrue(tree.startswith('<r-tree data-cats="[{&quot;key&quot;: &quot;st&quot;, &quot;mode&quot;: &quot;any&quot;}]" '
+                                        'data-label="things" data-drives="[]">'))
+        self.assertTrue(tree.endswith("</r-tree>"))
+        self.assertIn('<span class="cnt"></span><button type="button" data-reset disabled>Reset</button>', tree)
+
+    def test_filter_chip_is_a_disabled_button_until_the_script_runs(self):
+        tree = self.badged().b_tree({"type": "tree"})
+        self.assertIn('<button type="button" class="bg s-round tg" style="--c:var(--gray);--cb:var(--gray-bg)" data-k="st:bad" '
+                      'aria-label="filter: Broken (E8)" aria-pressed="true" disabled>Broken</button>', tree)
+        self.assertNotIn('role="button"', tree)
+
+    def test_badges_outside_a_tree_are_never_toggles(self):
+        r = self.badged()
+        tabs = r.b_tabs({"type": "tabs", "tabs": [{"entity": "e8", "label": "E8", "blocks": []}]})
+        self.assertIn(">Broken</span>", tabs)
+        self.assertNotIn("tg", re.findall(r'class="([^"]*)"', tabs))
+        self.assertNotIn("data-k=", tabs)
+
+    def test_page_with_a_tree_has_no_alpine(self):
+        page = self.badged().render()
+        self.assertIn("<r-tree ", page)
+        self.assertIn("customElements.define('r-tree'", page)
+        self.assertNotIn("alpinejs", page)
+        self.assertNotIn("x-cloak", page)
+        self.assertEqual(re.findall(r'\s(?:x-[\w.-]+|@[\w.-]+|:[\w.-]+)=', page), [])
+
+    def test_without_js_tree_controls_hide_and_rows_show(self):
+        page = self.badged().render()
+        self.assertIn("html:not(.js) .ctl{display:none}", page)
+        self.assertNotIn('style="display:none"', body(page))
 
     def test_unknown_default_fails(self):
         self.assertIn("badge st: default nope is not one of its values", fails(self.badged, default="nope"))
@@ -1564,6 +1605,20 @@ class RepeatedChrome(unittest.TestCase):
         self.assertNotIn('class="tt"', same)
         other = r.b_tabs({"type": "tabs", "tabs": [{"entity": "alpha", "label": "First", "blocks": []}]})
         self.assertIn('<span class="tt">Alpha</span>', other)
+
+    def test_tabs_render_as_r_tabs_element(self):
+        page = report(sections=[{"title": "S", "blocks": [{"type": "tabs", "id": "x", "label": "Parts", "tabs": [
+            {"label": "a", "blocks": [{"type": "p", "text": "First."}]},
+            {"label": "b", "blocks": [{"type": "p", "text": "Second."}]}]}]}]).render()
+        html = body(page)
+        self.assertIn('<r-tabs data-src="sections/0/blocks/0" id="t-x"><div class="tl" role="tablist" aria-label="Parts">', html)
+        self.assertIn('id="t-x-2-b" aria-controls="t-x-2" aria-selected="false" tabindex="-1"', html)
+        self.assertIn('<div class="tp on" role="tabpanel" id="t-x-1" aria-labelledby="t-x-1-b">', html)
+        self.assertIn('</r-tabs>', html)
+        self.assertNotIn('class="tabs"', html)
+        self.assertIn("customElements.define('r-tabs'", page)
+        self.assertNotIn("function tab(", page)
+        self.assertIn("html:not(.js) .tl{display:none}", page)
 
 
 class NarrowScreens(unittest.TestCase):
@@ -1580,6 +1635,19 @@ class NarrowScreens(unittest.TestCase):
         self.assertIn('</svg></div><div class="fgb"><span class="dwh" hidden>Scroll sideways →</span><button type="button" class="zb"', out)
         self.assertIn('<span class="zbt">Enlarge</span></button>', out)  # a word beside ⤢ on touch screens
         self.assertNotIn('class="zb"', out[:out.index("</figcaption>")])
+
+    def test_figures_are_r_diagram_elements_without_inline_handlers(self):
+        b = {"type": "flow", "id": "f", "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
+             "edges": [{"from": "a", "to": "b"}, {"from": "b", "to": "a", "kind": "error"}]}
+        out = report().b_flow(b)
+        self.assertTrue(out.startswith('<r-diagram><figure class="fg" id="f-f">'))
+        self.assertTrue(out.endswith("</figure></r-diagram>"))
+        self.assertIn('<button type="button" class="lk" data-k="error" aria-pressed="true"', out)  # toggles wired by the element
+        self.assertNotIn("onclick", out)
+        page = report(sections=[{"title": "S", "blocks": [b]}]).render()
+        self.assertIn("customElements.define('r-diagram'", page)
+        for gone in ("zoomFig", "dwCue", "dgFocus", "zvWire"):
+            self.assertNotIn(gone, page)
 
     def test_level_chips_and_drill_marker_are_explained_in_the_legend(self):
         top = {"type": "flow", "id": "f", "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "edges": [{"from": "a", "to": "b"}]}
@@ -1705,6 +1773,41 @@ class TreeColumns(unittest.TestCase):
     def test_no_shared_meta_keeps_the_plain_tree(self):
         out = self.tree([["a: 1"], ["b: 2"]])
         self.assertIn('<div class="tree"><ul', out)
+
+
+class Catalog(unittest.TestCase):
+    """catalog.json shows every block type `build.py` renders: one section per type with a use/avoid sentence,
+    the live block and its JSON as source. A new `b_<type>` renderer without a catalog section fails here."""
+    PATH = Path(__file__).with_name("catalog.json")
+
+    def load(self):
+        return json.loads(self.PATH.read_text())
+
+    def test_every_renderer_has_a_block_in_the_catalog(self):
+        rendered = {name[2:] for name in dir(build.Report) if name.startswith("b_") and callable(getattr(build.Report, name))}
+        used = {b["type"] for sec in self.load()["sections"] for b in build.walk(sec.get("blocks", []))}
+        self.assertEqual(rendered, used, "catalog.json needs exactly one section per b_<type> renderer in build.py")
+
+    def test_each_section_holds_use_sentence_live_block_and_its_json(self):
+        secs = self.load()["sections"][1:]
+        self.assertEqual(len(secs), len({s["blocks"][1]["type"] for s in secs}), "one section per block type")
+        for sec in secs:
+            with self.subTest(section=sec["title"]):
+                use, live, src = sec["blocks"]
+                self.assertEqual(use["type"], "p")
+                self.assertRegex(use["text"], r"^Use it .+\. Avoid it .+\.")
+                self.assertTrue(sec["title"].startswith(live["type"] + ": "))
+                self.assertTrue(sec.get("sub"))
+                m = re.fullmatch(r'<pre class="cat-json"[^>]*><code>(.*)</code></pre>', src["html"], re.S)
+                self.assertIsNotNone(m, "the third block is the block's JSON in a pre")
+                self.assertEqual(json.loads(build.html.unescape(m.group(1))), live, "the shown JSON is the live block")
+
+    def test_catalog_renders_without_lint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            rep = build.Report(self.load(), out_dir=Path(tmp), src=self.PATH)
+            page = rep.render()
+            self.assertEqual(rep.lint(), [])
+        self.assertEqual(len(re.findall(r'<pre\b[^>]*class="cat-json"', page)), len(self.load()["sections"]) - 1)
 
 
 if __name__ == "__main__":

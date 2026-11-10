@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="Loan desk screen: member card field, list of three books, and a Check out button">
+  <rect width="800" height="500" fill="#ffffff"/>
+  <rect width="800" height="56" fill="#24313d"/>
+  <text x="24" y="36" font-family="sans-serif" font-size="22" fill="#ffffff">Loan desk</text>
+  <text x="24" y="104" font-family="sans-serif" font-size="16" fill="#24313d">Member card</text>
+  <rect x="24" y="116" width="360" height="40" rx="4" fill="#ffffff" stroke="#9aa5b1"/>
+  <text x="36" y="142" font-family="monospace" font-size="16" fill="#24313d">M-20417</text>
+  <text x="24" y="200" font-family="sans-serif" font-size="16" fill="#24313d">Books on the counter</text>
+  <g font-family="sans-serif" font-size="15" fill="#24313d">
+    <rect x="24" y="212" width="752" height="44" fill="#f1f4f7"/><text x="36" y="240">The Hobbit · due in three weeks</text>
+    <rect x="24" y="262" width="752" height="44" fill="#f1f4f7"/><text x="36" y="290">Atlas of Rivers · due in three weeks</text>
+    <rect x="24" y="312" width="752" height="44" fill="#fbe9e7"/><text x="36" y="340">Cooking for One · reserved by another member</text>
+  </g>
+  <rect x="24" y="420" width="140" height="44" rx="4" fill="#ffffff" stroke="#9aa5b1"/>
+  <text x="58" y="448" font-family="sans-serif" font-size="16" fill="#24313d">Cancel</text>
+  <rect x="180" y="420" width="140" height="44" rx="4" fill="#ffffff" stroke="#9aa5b1"/>
+  <text x="206" y="448" font-family="sans-serif" font-size="16" fill="#24313d">Check out</text>
+</svg>

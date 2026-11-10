@@ -3,7 +3,7 @@ name: report
 description: "Build one static HTML report read front to back: argued answer first, tables, trees, diagrams and charts as support. Use for 'report', 'overview page', 'data sheet', 'how does X work as a page'. Autopilot by default; 'report interactive: <question>' asks first; a pasted '# Notes on report' block revises it."
 license: MIT
 metadata:
-  version: 0.9.0
+  version: 0.10.0
   publisher: skaile-ai
   requires: "report-prose, report-table, report-flow, report-diagram, report-charts, report-video"
 ---
@@ -120,6 +120,7 @@ The shared contract for every extension's "Under report" branch:
 ## References
 
 - `references/report-json.md`: schema, block specs, page order (lede, chapter labels, contents), citation syntax, choice file, change documents.
+- `catalog.json`: one section per block type, in a small library-lending domain: when to use it and when not, the live block, its JSON. Build it with `python3 build.py catalog.json catalog.html` to see every block; `test_readability.Catalog` fails when a `b_<type>` renderer has no section.
 - `references/brand.md`: brands, fonts, icons.
 - `references/notes.md`: reader notes, revising from a pasted `# Notes on report` block, its verify list.
 - `references/web-research.md`: reader depth, sources, media, resources, its verify list.

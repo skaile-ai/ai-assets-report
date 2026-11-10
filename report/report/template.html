@@ -63,8 +63,8 @@ figcaption code,.lg code,details.notes code,.notes-1 code,.xr code,.src code{fon
 .fg>figcaption{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;font-size:var(--fs-s);color:var(--mute);margin:0 0 8px}
 .fg>figcaption b{color:var(--ink);font-weight:600}
 .lvl{font-size:var(--fs-xs);font-weight:600;line-height:1.6;padding:0 5px;border:1px solid var(--ink);color:var(--ink)}
-.dw{overflow-x:auto;padding:2px 0}
-/* row under the frame: "scroll sideways" hint (dwCue shows it only while the frame overflows) and the ⤢ zoom button at the right */
+r-diagram{display:block}.dw{overflow-x:auto;padding:2px 0}
+/* row under the frame: "scroll sideways" hint (<r-diagram> shows it only while the frame overflows) and the ⤢ zoom button at the right */
 .fgb{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:4px 0 0}.fgb:not(:has(>:not([hidden]))),html:not(.js) .fgb{display:none}
 .dwh{font-size:var(--fs-xs);color:var(--mute)}@media print{.fgb{display:none}}
 .dg{display:block;max-width:none;color:var(--ink)}.dg text{font-variant-ligatures:none;font-feature-settings:"calt" 0,"liga" 0}
@@ -207,11 +207,13 @@ table.bars .b span{display:block;height:8px;background:var(--bar,var(--ink))}
 .s-pill{border-radius:999px;border-color:transparent;padding:0 9px}
 .s-dashed{border-radius:0;border-style:dashed}
 .s-text{border-color:transparent;background:none;font-weight:600;padding:0 2px}
-.tg{cursor:pointer;user-select:none;transition:opacity .15s,filter .15s}.tg:hover{filter:brightness(.92)}
+/* filter chips are <button>s inside <r-tree>; disabled until its script starts, so without JS they read as plain badges */
+r-tree{display:block}
+.tg{cursor:pointer;user-select:none;transition:opacity .15s,filter .15s}.tg:hover{filter:brightness(.92)}.tg:disabled{cursor:auto;filter:none}
 .tg.off{opacity:.35;text-decoration:line-through;filter:grayscale(1)}.tg:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
 dl.legend{display:grid;grid-template-columns:170px max-content minmax(0,1fr);gap:8px 12px;margin:0 0 12px;padding:12px 14px;background:var(--wash);border-radius:6px;font-size:var(--fs-xs)}
 dl.legend dt{color:var(--mute)}dl.legend dd{margin:0;grid-column:2/-1;display:grid;grid-template-columns:subgrid;row-gap:4px;align-items:baseline}dl.legend dd>.bg{justify-self:start}
-.ctl{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:var(--fs-xs);color:var(--mute);margin:0 0 14px}
+.ctl{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:var(--fs-xs);color:var(--mute);margin:0 0 14px}html:not(.js) .ctl{display:none}
 details.flt{margin:0}details.flt>summary{font-size:var(--fs-s);color:var(--mute);cursor:pointer;margin:0 0 8px}
 @media not all and (max-width:800px){details.flt[open]>summary{display:none}}
 .cnt{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
@@ -243,7 +245,7 @@ li.has-kids>.row .tt{font-weight:600}li.muted>.row .tt{color:var(--mute);font-we
 .row.hit,tr.hit{background:var(--hl);transition:background 1.5s}
 tr{scroll-margin-top:80px}
 /* tabs: a scrollable bar (a carousel on a phone), one panel open */
-.tabs{margin:0 0 28px}
+r-tabs{display:block;margin:0 0 28px}
 .tl{position:relative;display:flex;overflow-x:auto;scroll-snap-type:x proximity;border-bottom:1px solid var(--ink);scrollbar-width:thin}
 .tl>[role=tab]{flex:none;scroll-snap-align:start;font:var(--fs-s)/1.5 var(--sans);color:var(--mute);background:none;cursor:pointer;
  border:1px solid transparent;border-bottom:0;border-radius:6px 6px 0 0;margin-bottom:-1px;padding:6px 12px 5px;white-space:nowrap}
@@ -255,7 +257,6 @@ tr{scroll-margin-top:80px}
 .tp{padding-top:14px}.tp>.card{border-bottom:1px solid var(--hair);padding-bottom:10px;margin-bottom:8px}
 .tp>.card .tt{font-weight:600}.tp>.sum{color:var(--mute);font-size:var(--fs-s);margin:0 0 8px}
 .js .tp:not(.on){display:none}html:not(.js) .tl{display:none}
-[x-cloak]{display:none}
 @media(max-width:800px){
  body{padding:32px 18px}
  header{grid-template-columns:1fr}header .provenance,header .prov-print{text-align:left}
@@ -278,18 +279,18 @@ ul.ste li.chg,ol.ste li.chg,tr.chg>td,.row.chg{background:var(--cb)}tr.chg>td:fi
 .nd.chg .bx{stroke:var(--c)!important;fill:var(--cb)!important;stroke-width:2.4!important}.nd.c-removed .bx{stroke-dasharray:4 3}
 .ln.chg{stroke:var(--c);stroke-width:2}.ln.c-removed{stroke-dasharray:3 3}.el.chg{fill:var(--c);font-weight:600}
 .tl button.dim{opacity:.5}.cdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--c);margin-right:6px;vertical-align:1px}
-@media print{.ctl,.tg{cursor:auto}.row.hit,tr.hit{background:none}.tl{display:none}.tp{display:block!important}.chgbar button,.zb,.find{display:none}.provenance{display:none}header .prov-print{display:block}}
-.find{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:12px}.find .fclr{flex:none}#findn{min-width:0}
+@media print{.ctl,.tg{cursor:auto}.row.hit,tr.hit{background:none}.tl{display:none}.tp{display:block!important}.chgbar button,.zb,r-find{display:none}.provenance{display:none}header .prov-print{display:block}}
+r-find{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:12px}r-find .fclr{flex:none}
 #find{flex:1 1 180px;max-width:360px;min-width:0;min-height:44px;font:var(--fs-m) var(--sans);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:8px 12px}
 #find:focus{outline:2px solid var(--acc);outline-offset:-1px}
-#findn{font-size:var(--fs-xs);color:var(--mute);font-variant-numeric:tabular-nums}
+.fcnt{min-width:0;font-size:var(--fs-s);color:var(--mute);font-variant-numeric:tabular-nums}
 /* data tables (`data` block): simple-datatables' stylesheet loads after this one, so its overrides carry .datatable-wrapper */
 .csv{margin-left:auto;font:var(--fs-xs)/1.4 var(--mono);padding:0 8px;border:1px solid var(--rule);background:var(--paper);border-radius:6px;cursor:pointer;color:var(--ink)}.csv:hover{background:var(--wash)}
 .datatable-wrapper{font:inherit}
 .datatable-wrapper .datatable-container{overflow-x:auto}
 .datatable-wrapper .datatable-top,.datatable-wrapper .datatable-bottom{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 14px;padding:6px 0}
 .datatable-wrapper .datatable-top::after,.datatable-wrapper .datatable-bottom::after{display:none}
-/* the chrome (search, rows-per-page, info, pages) is page furniture: small muted sans, like #findn, not code */
+/* the chrome (search, rows-per-page, info, pages) is page furniture: small muted sans, like the find count (.fcnt), not code */
 .datatable-wrapper .datatable-dropdown,.datatable-wrapper .datatable-dropdown label{font:var(--fs-xs)/1.4 var(--sans);color:var(--mute)}
 .datatable-wrapper .datatable-input,.datatable-wrapper .datatable-selector{font:var(--fs-xs)/1.4 var(--sans);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:3px 8px}
 .datatable-wrapper .datatable-selector{margin-right:4px}
@@ -336,7 +337,7 @@ a.src{color:var(--acc);text-decoration:underline;text-decoration-color:var(--rul
  nav.toc a{padding:12px 0}
 }
 /* header tools (web-research): reader depth, find, contents */
-.wrtools{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:12px 28px}.wrtools .find{flex:1 1 360px}
+.wrtools{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:12px 28px}.wrtools r-find{flex:1 1 360px}
 .rdc{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px}.rdl{font-size:var(--fs-s);font-weight:600}
 .seg{display:inline-flex;border:1px solid var(--ink);border-radius:6px}
 .seg button{font:600 var(--fs-s)/1.2 var(--sans);min-height:44px;padding:8px 16px;border:0;border-right:1px solid var(--rule);background:var(--paper);color:var(--ink);cursor:pointer}
@@ -344,7 +345,7 @@ a.src{color:var(--acc);text-decoration:underline;text-decoration-color:var(--rul
 .seg button[aria-pressed=true]{background:var(--ink);color:#fff}
 .rdd{flex:1 1 240px;font-size:var(--fs-s);color:var(--mute)}html:not(.js) .rdc{display:none}
 .fclr{min-height:44px;font:var(--fs-s) var(--sans);padding:8px 14px;border:1px solid var(--rule);background:var(--paper);border-radius:6px;cursor:pointer;color:var(--ink);white-space:nowrap}.fclr:hover{background:var(--wash)}
-html:not(.js) .fclr{display:none}.fclr[hidden]{display:none}#findn{font-size:var(--fs-s)}
+html:not(.js) r-find{display:none}.fclr[hidden]{display:none}
 #find::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;display:none}
 /* find: a faint tint on the matching block, the term itself in the highlight colour, the match stepped to in the accent */
 .fm{background:var(--wash);box-shadow:0 0 0 3px var(--wash);border-radius:2px}
@@ -492,13 +493,25 @@ h2:hover>.an-sec,h2:focus-within>.an-sec{opacity:1}
 @media print{.an-fab,.an-add,.an-sec,.an-panel{display:none}}
 </style>
 <script>
-/* One filter per tree. FILTER holds the toggleable categories of that tree. `drives`: figure ids of
-   diagrams showing the same entities (node data-e); a map hides the filtered boxes, others fade them. */
-function treeFilter(cats,label,drives=[]){return{off:{},v:{},count:'',q:'',shown:0,
- init(){(window.TF=window.TF||new Set()).add(this);this.recalc();window.addEventListener('hashchange',()=>this.reveal());this.$nextTick(()=>this.reveal())},
- t(k){this.off={...this.off,[k]:!this.off[k]};this.recalc()},
- reset(){this.off={};this.recalc()},
- recalc(){const o=this.off,q=this.q,v={};let shown=0,total=0;
+/* <r-tree>: one filter per tree, light DOM over the markup build.py renders (legend chips .tg[data-k], .cnt, [data-reset], ul.tr).
+   data-cats: the toggleable categories [{key,mode}] (mode any: a row passes while one of its values is on; hide: it leaves when
+   any of its values is off). data-label: the count's noun. data-drives: figure ids of diagrams showing the same entities
+   (node data-e); a map or chart hides the filtered ones, others fade them. Without JS the chips stay disabled and every row shows.
+   The find box: the tree follows the `find` event (detail.q) and reports its shown rows with FIND.rows(this, n). */
+customElements.define('r-tree',class extends HTMLElement{
+ connectedCallback(){/* defined in <head>: the children parse after the start tag, so start once the document is in */
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>this.start(),{once:true});else this.start()}
+ disconnectedCallback(){FIND.rows(this,null);document.removeEventListener('find',this._fq);removeEventListener('hashchange',this._rv)}
+ start(){if(!this.isConnected||this._rv)return;const D=this.dataset;
+  this.cats=JSON.parse(D.cats||'[]');this.label=D.label||'';this.drives=JSON.parse(D.drives||'[]');
+  this.off={};this.v={};this.q=FIND.q;this.shown=0;
+  this.querySelectorAll('.tg[data-k]').forEach(b=>{b.disabled=false});
+  this.addEventListener('click',e=>{const b=e.target.closest('.tg[data-k],[data-reset]');if(!b||!this.contains(b))return;
+   if('reset' in b.dataset)this.reset();else{this.off[b.dataset.k]=!this.off[b.dataset.k];this.recalc()}});
+  this._fq=e=>{this.q=e.detail.q;this.recalc()};document.addEventListener('find',this._fq);this.recalc();
+  this._rv=()=>this.reveal();addEventListener('hashchange',this._rv);this.reveal()}
+ reset(){this.off={};this.recalc()}
+ recalc(){const o=this.off,q=this.q,cats=this.cats,v={};let shown=0,total=0;
   /* own: this node's badges pass; up: every ancestor's badges pass. */
   const walk=(li,up)=>{const vals=JSON.parse(li.dataset.b||'{}');let own=true;
    for(const c of cats){const a=vals[c.key]||[];if(!a.length)continue;
@@ -509,35 +522,53 @@ function treeFilter(cats,label,drives=[]){return{off:{},v:{},count:'',q:'',shown
    let ok=up&&own;
    if((kids.length&&!('leaf' in li.dataset))||!hit)ok=ok&&kids.some(Boolean);
    if('count' in li.dataset){total++;if(ok)shown++}
-   v[li.dataset.id]=ok;return ok};
-  this.$root.querySelectorAll('ul.tr>li').forEach(li=>walk(li,true));this.v=v;this.shown=shown;this.count=shown+' / '+total+' '+label;findN();
+   li.style.display=ok?'':'none';v[li.dataset.id]=ok;return ok};
+  this.querySelectorAll('ul.tr>li').forEach(li=>walk(li,true));this.v=v;this.shown=shown;
+  const any=Object.values(o).some(Boolean);
+  this.querySelectorAll('.tg[data-k]').forEach(b=>{const f=!!o[b.dataset.k];b.classList.toggle('off',f);b.setAttribute('aria-pressed',!f)});
+  const r=this.querySelector('[data-reset]');if(r)r.disabled=!any;
+  const n=this.querySelector('.cnt');if(n)n.textContent=shown+' / '+total+' '+this.label;
+  FIND.rows(this,shown);
   const hide=new Set(Object.keys(v).filter(k=>!v[k]));
-  for(const id of drives){const f=document.getElementById(id),svg=f&&f.querySelector('svg.dg');
+  for(const id of this.drives){const f=document.getElementById(id),svg=f&&f.querySelector('svg.dg');
    if(f&&f.querySelector('.vg')){f._hide=hide;f.dispatchEvent(new Event('treefilter'));continue}if(!svg)continue;f._hide=hide;
    if(svg.classList.contains('mp')){f.dispatchEvent(new Event('treefilter'));continue}
    const gone=new Set();svg.querySelectorAll('[data-e]').forEach(n=>{const h=hide.has(n.dataset.e);n.classList.toggle('fx',h);if(h)gone.add(n.dataset.n)});
-   svg.querySelectorAll('[data-f]').forEach(x=>x.classList.toggle('fx',gone.has(x.dataset.f)||gone.has(x.dataset.t)))}},
+   svg.querySelectorAll('[data-f]').forEach(x=>x.classList.toggle('fx',gone.has(x.dataset.f)||gone.has(x.dataset.t)))}}
+ /* a link to a row the filter hides: clear the filter so the target shows */
  reveal(){const id=decodeURIComponent(location.hash.slice(1));if(!id)return;const el=document.getElementById(id);
-  if(!el||!this.$root.contains(el))return;
-  if(el.closest('li')&&!this.v[el.closest('li').dataset.id]){this.reset()}}}}
-/* Tabs: one open panel per .tabs; arrow keys move along the bar; without JS every panel shows. */
+  if(!el||!this.contains(el))return;const li=el.closest('li');
+  if(li&&this.v[li.dataset.id]===false){this.reset();el.scrollIntoView()}}});
+/* the page runs scripts: rules under .js hide what a script will open (closed tabs, the tab bar's no-JS fallback, …) */
 document.documentElement.classList.add('js');
-function tab(btn,focus){const tl=btn.parentElement;
- for(const b of tl.children){const on=b===btn;b.setAttribute('aria-selected',on);b.tabIndex=on?0:-1;
-  document.getElementById(b.getAttribute('aria-controls')).classList.toggle('on',on)}
- tl.scrollTo({left:btn.offsetLeft-(tl.clientWidth-btn.offsetWidth)/2,behavior:'smooth'});if(focus)btn.focus()}
-addEventListener('click',e=>{const b=e.target.closest('.tl>[role=tab]');if(b)tab(b)});
+/* <r-tabs>: one open panel per tab block, light DOM over the markup build.py renders (.tl[role=tablist] of buttons
+   [role=tab][aria-controls], then .tp[role=tabpanel] panels; .on marks the open one). Click or arrow/Home/End keys switch;
+   the selected tab alone sits in the tab order. show(el) opens the panel holding el (reveal() calls it for links into a
+   closed tab). Without JS every panel shows and the bar hides; print shows every panel. */
+customElements.define('r-tabs',class extends HTMLElement{
+ connectedCallback(){/* defined in <head>: the children parse after the start tag, so start once the document is in */
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>this.start(),{once:true});else this.start()}
+ get tl(){return this.querySelector(':scope>.tl')}
+ start(){const tl=this.tl;if(!tl||this._on)return;this._on=true;
+  tl.addEventListener('click',e=>{const b=e.target.closest('[role=tab]');if(b&&b.parentElement===tl)this.select(b)});
+  tl.addEventListener('keydown',e=>{const b=e.target.closest('[role=tab]');if(!b||b.parentElement!==tl)return;
+   const all=[...tl.children],i=all.indexOf(b),n=all.length;
+   const j={ArrowRight:i+1,ArrowLeft:i-1+n,Home:0,End:n-1}[e.key];if(j===undefined)return;e.preventDefault();this.select(all[j%n],true)})}
+ select(btn,focus){const tl=this.tl;
+  for(const b of tl.children){const on=b===btn;b.setAttribute('aria-selected',on);b.tabIndex=on?0:-1;
+   document.getElementById(b.getAttribute('aria-controls')).classList.toggle('on',on)}
+  tl.scrollTo({left:btn.offsetLeft-(tl.clientWidth-btn.offsetWidth)/2,behavior:'smooth'});if(focus)btn.focus()}
+ /* open this block's panel around el; true when it was closed */
+ show(el){const p=[...this.children].find(c=>c.classList.contains('tp')&&c.contains(el));
+  if(!p||p.classList.contains('on'))return false;this.select(document.getElementById(p.id+'-b'));return true}});
 addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.vch button');if(!b)return;const v=b.closest('figure').querySelector('video');v.currentTime=+b.dataset.t;v.play()});
-addEventListener('keydown',e=>{const b=e.target.closest&&e.target.closest('.tl>[role=tab]');if(!b)return;
- const all=[...b.parentElement.children],i=all.indexOf(b),n=all.length;
- const j={ArrowRight:i+1,ArrowLeft:i-1+n,Home:0,End:n-1}[e.key];if(j===undefined)return;e.preventDefault();tab(all[j%n],true)});
 /* Cross-link highlight for every target, inside or outside a tree; a target in a closed tab opens it first. */
 addEventListener('hashchange',hit);addEventListener('DOMContentLoaded',hit);
 function nodim(b){b.setAttribute('aria-pressed',document.documentElement.classList.toggle('nodim'))}
 /* open whatever hides el: a deeper reader level, a closed <details>, closed tabs; true when something opened */
 function reveal(el){let opened=rdReveal(el);
  const dn=el.closest('details');if(dn&&!dn.open){dn.open=true;opened=true}
- for(let p=el.closest('.tp');p;p=p.parentElement.closest('.tp'))if(!p.classList.contains('on')){tab(document.getElementById(p.id+'-b'));opened=true}
+ for(let t=el.closest('r-tabs');t;t=t.parentElement.closest('r-tabs'))if(t.show(el))opened=true
  return opened}
 function hit(){const id=decodeURIComponent(location.hash.slice(1));if(!id)return;
  const el=document.getElementById(id);if(!el)return;
@@ -549,81 +580,92 @@ addEventListener('afterprint',()=>{printClosed.forEach(d=>d.open=false);printClo
 /* a link to the current hash fires no hashchange: run hit() so a closed notes list reopens and the note flashes again */
 addEventListener('click',e=>{if(e.defaultPrevented||!e.target.closest)return;const a=e.target.closest('a[href^="#"]');
  if(a&&a.hash&&a.hash===location.hash)hit()});
-/* Diagrams. Hover or focus a node (or an edge label): its edges and neighbours stay, the rest fades,
-   its labels move on top. A legend button with data-k hides one edge kind; a node left without a
-   visible edge fades. ⤢ (.zb) opens the diagram in a full-screen view: wheel or two fingers zoom,
-   drag pans, + − 0 and arrow keys work, Esc closes, a node link closes the view and jumps. */
-function dgFocus(svg,n,lab){const key=n||(lab?lab.dataset.f+'>'+lab.dataset.t:'');if(svg._fk===key)return;svg._fk=key;
- svg.classList.toggle('focus',!!key);svg.querySelectorAll('.on').forEach(x=>x.classList.remove('on'));if(!key)return;
- const on=new Set(n?[n]:[lab.dataset.f,lab.dataset.t]);
- svg.querySelectorAll('[data-f]').forEach(x=>{if(x.classList.contains('kh'))return;const d=x.dataset;
-  if(n?d.f===n||d.t===n:d.f===lab.dataset.f&&d.t===lab.dataset.t&&d.k===lab.dataset.k){x.classList.add('on');on.add(d.f);on.add(d.t)}});
- svg.querySelectorAll('[data-n]').forEach(x=>{if(on.has(x.dataset.n))x.classList.add('on')});
- svg.querySelectorAll('text.el.on,g.ml.on').forEach(x=>svg.append(x))}
-addEventListener('mouseover',e=>{const svg=e.target.closest&&e.target.closest('svg.dg');if(!svg)return;
- const n=e.target.closest('[data-n]');dgFocus(svg,n&&n.dataset.n,!n&&e.target.closest('text.el[data-f],g.ml[data-f]'))});
-addEventListener('mouseout',e=>{const svg=e.target.closest&&e.target.closest('svg.dg');if(svg&&!svg.contains(e.relatedTarget))dgFocus(svg)});
-addEventListener('focusin',e=>{const n=e.target.matches&&(e.target.matches('a.dgl')?e.target.querySelector('[data-n]'):e.target.matches('g.mn')&&e.target);
- if(n)dgFocus(n.closest('svg.dg'),n.dataset.n)});
-addEventListener('focusout',e=>{if(e.target.matches&&e.target.matches('a.dgl,g.mn'))dgFocus(e.target.closest('svg.dg'))});
-addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.lg .lk');if(!b)return;
- const svg=b.closest('.fg,.zv').querySelector('svg.dg'),on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);
- svg.querySelectorAll('[data-k]').forEach(x=>{if(x.dataset.k===b.dataset.k)x.classList.toggle('kh',!on)});
- const all=new Set(),vis=new Set();
- svg.querySelectorAll('path[data-f]').forEach(x=>{for(const s of x.classList.contains('kh')?[all]:[all,vis]){s.add(x.dataset.f);s.add(x.dataset.t)}});
- svg.querySelectorAll('[data-n]').forEach(x=>x.classList.toggle('iso',all.has(x.dataset.n)&&!vis.has(x.dataset.n)));
- svg._fk=null;dgFocus(svg)});
-/* sideways cue: a frame narrower than its diagram says so under it, until the reader has scrolled to its end once;
-   recomputed when the frame or its content changes size (window resize, a tab shown, a late render) */
-function dwCue(w){const h=w.parentNode.querySelector(':scope>.fgb>.dwh');if(!h)return;
- const over=w.scrollWidth>w.clientWidth+1;if(over&&w.scrollLeft+w.clientWidth>=w.scrollWidth-2)w._end=true;
- h.hidden=!over||!!w._end}
-addEventListener('DOMContentLoaded',()=>{const ro=new ResizeObserver(es=>es.forEach(e=>dwCue(e.target.closest('.dw'))));
- document.querySelectorAll('.fg>.dw').forEach(w=>{ro.observe(w);if(w.firstElementChild)ro.observe(w.firstElementChild);
-  w.addEventListener('scroll',()=>dwCue(w),{passive:true});dwCue(w)})});
+/* <r-diagram>: one figure build.py figure() renders (figure.fg: caption, .dw frame with svg.dg, .fgb row with the sideways hint
+   .dwh and the ⤢ button .zb, legend .lg), light DOM. Hover or focus a node (or an edge label): its edges and neighbours stay,
+   the rest fades, its labels move on top. A legend button with data-k hides one edge kind; a node left without a visible edge
+   fades. The hint shows while the frame is narrower than its diagram, until the reader has scrolled to its end once; it is
+   recomputed when the frame or its content changes size (window resize, a tab shown, a late render such as mermaid).
+   ⤢ opens the diagram in one shared full-screen view (dialog.zv): wheel or two fingers zoom, drag pans, + − 0 and arrow keys
+   work, Esc closes, a node link closes the view and jumps. Without JS the frame scrolls and .fgb stays hidden.
+   Figures nest (a board card): each element handles only what its own figure holds. */
 const ZT={de:{hint:'Mausrad oder zwei Finger: zoomen · ziehen: verschieben · Esc: schließen',fit:'Einpassen',close:'Schließen',zin:'Vergrößern',zout:'Verkleinern'},
  en:{hint:'Wheel or two fingers: zoom · drag: pan · Esc: close',fit:'Fit',close:'Close',zin:'Zoom in',zout:'Zoom out'}};
-function zoomFig(btn){const fig=btn.closest('.fg'),t=ZT[document.documentElement.lang.slice(0,2)]||ZT.en;
- let d=document.getElementById('zv');
- if(!d){d=document.createElement('dialog');d.id='zv';d.className='zv';
+const RDiagram=class extends HTMLElement{
+ connectedCallback(){/* defined in <head>: the children parse after the start tag, so start once the document is in */
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>this.start(),{once:true});else this.start()}
+ start(){if(!this.isConnected||this._on)return;this._on=true;RDiagram.wire(this);
+  const w=this.querySelector(':scope>.fg>.dw'),h=this.querySelector(':scope>.fg>.fgb>.dwh');
+  if(w&&h){const cue=()=>{const over=w.scrollWidth>w.clientWidth+1;if(over&&w.scrollLeft+w.clientWidth>=w.scrollWidth-2)this._end=true;
+    h.hidden=!over||!!this._end};
+   const ro=new ResizeObserver(cue);ro.observe(w);if(w.firstElementChild)ro.observe(w.firstElementChild);
+   w.addEventListener('scroll',cue,{passive:true});cue()}
+  this.addEventListener('click',e=>{const b=e.target.closest('.zb');if(b&&b.closest('r-diagram')===this)this.zoom()})}
+ /* hover, focus and legend toggles under root: this element, or the zoom view showing a clone */
+ static wire(root){const own=x=>x&&x.closest('r-diagram,.zv')===root,F=RDiagram.focus;
+  root.addEventListener('mouseover',e=>{const svg=e.target.closest('svg.dg');if(!own(svg))return;
+   const n=e.target.closest('[data-n]');F(svg,n&&n.dataset.n,!n&&e.target.closest('text.el[data-f],g.ml[data-f]'))});
+  root.addEventListener('mouseout',e=>{const svg=e.target.closest('svg.dg');if(own(svg)&&!svg.contains(e.relatedTarget))F(svg)});
+  root.addEventListener('focusin',e=>{const t=e.target,n=t.matches('a.dgl')?t.querySelector('[data-n]'):t.matches('g.mn')&&t;
+   if(n&&own(n))F(n.closest('svg.dg'),n.dataset.n)});
+  root.addEventListener('focusout',e=>{if(e.target.matches('a.dgl,g.mn')&&own(e.target))F(e.target.closest('svg.dg'))});
+  root.addEventListener('click',e=>{const b=e.target.closest('.lg .lk');if(!own(b))return;
+   const svg=root.querySelector('svg.dg'),on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);
+   svg.querySelectorAll('[data-k]').forEach(x=>{if(x.dataset.k===b.dataset.k)x.classList.toggle('kh',!on)});
+   const all=new Set(),vis=new Set();
+   svg.querySelectorAll('path[data-f]').forEach(x=>{for(const s of x.classList.contains('kh')?[all]:[all,vis]){s.add(x.dataset.f);s.add(x.dataset.t)}});
+   svg.querySelectorAll('[data-n]').forEach(x=>x.classList.toggle('iso',all.has(x.dataset.n)&&!vis.has(x.dataset.n)));
+   svg._fk=null;F(svg)})}
+ /* n: the node in focus, lab: the edge label in focus, neither: none */
+ static focus(svg,n,lab){const key=n||(lab?lab.dataset.f+'>'+lab.dataset.t:'');if(svg._fk===key)return;svg._fk=key;
+  svg.classList.toggle('focus',!!key);svg.querySelectorAll('.on').forEach(x=>x.classList.remove('on'));if(!key)return;
+  const on=new Set(n?[n]:[lab.dataset.f,lab.dataset.t]);
+  svg.querySelectorAll('[data-f]').forEach(x=>{if(x.classList.contains('kh'))return;const d=x.dataset;
+   if(n?d.f===n||d.t===n:d.f===lab.dataset.f&&d.t===lab.dataset.t&&d.k===lab.dataset.k){x.classList.add('on');on.add(d.f);on.add(d.t)}});
+  svg.querySelectorAll('[data-n]').forEach(x=>{if(on.has(x.dataset.n))x.classList.add('on')});
+  svg.querySelectorAll('text.el.on,g.ml.on').forEach(x=>svg.append(x))}
+ zoom(){const fig=this.querySelector(':scope>.fg'),d=RDiagram.view();
+  /* the clone drops its ids (anchors stay unique); its markers resolve to the original's <defs> */
+  const svg=fig.querySelector('svg.dg').cloneNode(true);svg.querySelectorAll('[id]').forEach(x=>x.removeAttribute('id'));
+  for(const a of ['style','width','height'])svg.removeAttribute(a);svg._fk=null;svg.classList.remove('focus');svg.querySelectorAll('.on').forEach(x=>x.classList.remove('on'));
+  d.querySelector('.zc').replaceChildren(svg);
+  const lg=fig.querySelector(':scope>.lg');d.querySelector('.zl').replaceChildren(...(lg?[lg.cloneNode(true)]:[]));
+  const cap=fig.querySelector('figcaption b'),name=cap?cap.textContent:svg.getAttribute('aria-label');
+  d.querySelector('.zt b').textContent=name;d.setAttribute('aria-label',name);
+  const v=svg.viewBox.baseVal;d._svg=svg;d._vb=[v.x,v.y,v.width,v.height];d.showModal()}
+ /* the zoom view, built on first use; closing it returns focus to the ⤢ that opened it (native dialog) */
+ static view(){let d=document.getElementById('zv');if(d)return d;const t=ZT[document.documentElement.lang.slice(0,2)]||ZT.en;
+  d=document.createElement('dialog');d.id='zv';d.className='zv';
   d.innerHTML=`<div class="zt"><b></b><span class="zh">${t.hint}</span><span><button type="button" data-z="out" aria-label="${t.zout}">${IC.minus}</button>`+
    `<button type="button" data-z="fit">${t.fit}</button><button type="button" data-z="in" aria-label="${t.zin}">${IC.plus}</button>`+
    `<button type="button" data-z="x" aria-label="${t.close}">${IC.x}</button></span></div><div class="zc"></div><div class="zl"></div>`;
-  document.body.append(d);zvWire(d)}
- /* the clone drops its ids (anchors stay unique); its markers resolve to the original's <defs> */
- const svg=fig.querySelector('svg.dg').cloneNode(true);svg.querySelectorAll('[id]').forEach(x=>x.removeAttribute('id'));
- for(const a of ['style','width','height'])svg.removeAttribute(a);svg._fk=null;svg.classList.remove('focus');svg.querySelectorAll('.on').forEach(x=>x.classList.remove('on'));
- d.querySelector('.zc').replaceChildren(svg);
- const lg=fig.querySelector(':scope>.lg');d.querySelector('.zl').replaceChildren(...(lg?[lg.cloneNode(true)]:[]));
- const cap=fig.querySelector('figcaption b'),name=cap?cap.textContent:svg.getAttribute('aria-label');
- d.querySelector('.zt b').textContent=name;d.setAttribute('aria-label',name);
- const v=svg.viewBox.baseVal;d._svg=svg;d._vb=[v.x,v.y,v.width,v.height];d.showModal()}
-function zvWire(d){const c=d.querySelector('.zc'),pts=new Map();let st=null,moved=false;
- const vb=()=>d._svg.viewBox.baseVal;
- const fit=()=>{const v=vb();[v.x,v.y,v.width,v.height]=d._vb};
- const zoom=(f,cx,cy)=>{const v=vb(),r=c.getBoundingClientRect();
-  const p=new DOMPoint(cx??r.left+r.width/2,cy??r.top+r.height/2).matrixTransform(d._svg.getScreenCTM().inverse());
-  f=v.width/Math.min(Math.max(v.width/f,d._vb[2]/12),d._vb[2]*1.5);
-  v.x=p.x-(p.x-v.x)/f;v.y=p.y-(p.y-v.y)/f;v.width/=f;v.height/=f};
- const pan=(dx,dy)=>{const s=d._svg.getScreenCTM().a,v=vb();v.x-=dx/s;v.y-=dy/s};
- c.addEventListener('wheel',e=>{e.preventDefault();zoom(Math.exp(-(e.deltaMode===1?e.deltaY*16:e.deltaY)*.0015),e.clientX,e.clientY)},{passive:false});
- c.addEventListener('pointerdown',e=>{if(e.button)return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pts.size===1){moved=false;st={x:e.clientX,y:e.clientY}}});
- c.addEventListener('pointermove',e=>{const p=pts.get(e.pointerId);if(!p)return;
-  if(pts.size===2){const [a,b]=[...pts.values()],d0=Math.hypot(a.x-b.x,a.y-b.y);p.x=e.clientX;p.y=e.clientY;
-   const d1=Math.hypot(a.x-b.x,a.y-b.y);if(d0)zoom(d1/d0,(a.x+b.x)/2,(a.y+b.y)/2);moved=true;return}
-  if(!moved&&Math.hypot(e.clientX-st.x,e.clientY-st.y)<4)return;
-  /* capture only once dragging: a plain click must still reach the node link */
-  if(!moved){moved=true;c.setPointerCapture(e.pointerId);c.classList.add('drag')}
-  pan(e.clientX-p.x,e.clientY-p.y);p.x=e.clientX;p.y=e.clientY});
- const up=e=>{pts.delete(e.pointerId);if(!pts.size)c.classList.remove('drag')};
- c.addEventListener('pointerup',up);c.addEventListener('pointercancel',up);
- c.addEventListener('click',e=>{if(moved){e.preventDefault();e.stopPropagation();moved=false}else if(e.target.closest('a'))d.close()},true);
- d.querySelector('.zt').addEventListener('click',e=>{const z=e.target.closest('[data-z]');if(!z)return;
-  ({x:()=>d.close(),fit,in:()=>zoom(1.4),out:()=>zoom(1/1.4)})[z.dataset.z]()});
- d.addEventListener('keydown',e=>{const k={'+':()=>zoom(1.4),'=':()=>zoom(1.4),'-':()=>zoom(1/1.4),'0':fit,
-  ArrowLeft:()=>pan(60,0),ArrowRight:()=>pan(-60,0),ArrowUp:()=>pan(0,60),ArrowDown:()=>pan(0,-60)}[e.key];
-  if(k&&!e.target.closest('.lg')){e.preventDefault();k()}});
- d.addEventListener('close',()=>d.querySelector('.zc').replaceChildren())}
+  document.body.append(d);RDiagram.wire(d);
+  const c=d.querySelector('.zc'),pts=new Map();let st=null,moved=false;
+  const vb=()=>d._svg.viewBox.baseVal;
+  const fit=()=>{const v=vb();[v.x,v.y,v.width,v.height]=d._vb};
+  const zoom=(f,cx,cy)=>{const v=vb(),r=c.getBoundingClientRect();
+   const p=new DOMPoint(cx??r.left+r.width/2,cy??r.top+r.height/2).matrixTransform(d._svg.getScreenCTM().inverse());
+   f=v.width/Math.min(Math.max(v.width/f,d._vb[2]/12),d._vb[2]*1.5);
+   v.x=p.x-(p.x-v.x)/f;v.y=p.y-(p.y-v.y)/f;v.width/=f;v.height/=f};
+  const pan=(dx,dy)=>{const s=d._svg.getScreenCTM().a,v=vb();v.x-=dx/s;v.y-=dy/s};
+  c.addEventListener('wheel',e=>{e.preventDefault();zoom(Math.exp(-(e.deltaMode===1?e.deltaY*16:e.deltaY)*.0015),e.clientX,e.clientY)},{passive:false});
+  c.addEventListener('pointerdown',e=>{if(e.button)return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pts.size===1){moved=false;st={x:e.clientX,y:e.clientY}}});
+  c.addEventListener('pointermove',e=>{const p=pts.get(e.pointerId);if(!p)return;
+   if(pts.size===2){const [a,b]=[...pts.values()],d0=Math.hypot(a.x-b.x,a.y-b.y);p.x=e.clientX;p.y=e.clientY;
+    const d1=Math.hypot(a.x-b.x,a.y-b.y);if(d0)zoom(d1/d0,(a.x+b.x)/2,(a.y+b.y)/2);moved=true;return}
+   if(!moved&&Math.hypot(e.clientX-st.x,e.clientY-st.y)<4)return;
+   /* capture only once dragging: a plain click must still reach the node link */
+   if(!moved){moved=true;c.setPointerCapture(e.pointerId);c.classList.add('drag')}
+   pan(e.clientX-p.x,e.clientY-p.y);p.x=e.clientX;p.y=e.clientY});
+  const up=e=>{pts.delete(e.pointerId);if(!pts.size)c.classList.remove('drag')};
+  c.addEventListener('pointerup',up);c.addEventListener('pointercancel',up);
+  c.addEventListener('click',e=>{if(moved){e.preventDefault();e.stopPropagation();moved=false}else if(e.target.closest('a'))d.close()},true);
+  d.querySelector('.zt').addEventListener('click',e=>{const z=e.target.closest('[data-z]');if(!z)return;
+   ({x:()=>d.close(),fit,in:()=>zoom(1.4),out:()=>zoom(1/1.4)})[z.dataset.z]()});
+  d.addEventListener('keydown',e=>{const k={'+':()=>zoom(1.4),'=':()=>zoom(1.4),'-':()=>zoom(1/1.4),'0':fit,
+   ArrowLeft:()=>pan(60,0),ArrowRight:()=>pan(-60,0),ArrowUp:()=>pan(0,60),ArrowDown:()=>pan(0,-60)}[e.key];
+   if(k&&!e.target.closest('.lg')){e.preventDefault();k()}});
+  d.addEventListener('close',()=>d.querySelector('.zc').replaceChildren());return d}};
+customElements.define('r-diagram',RDiagram);
 /* Map (`map` block), after the deps-map page: drag a box to move it, click it to grey it out
    (its edges grey with it), ⌘/Ctrl-click or ↗ follows its link, drag the background to pan,
    ⌘/Ctrl + wheel, a trackpad pinch or two fingers zoom. Edges are curves between box sides; ends on
@@ -864,24 +906,67 @@ function glOpen(o){let d=document.getElementById('gl-dlg');
    if(d._from){d._from.focus({preventScroll:true});d._from=null}})}
  glShow(d,o.closest('.gl-i'));d.showModal();d.querySelector('.gld-x').focus()}
 document.addEventListener('click',e=>{const o=e.target.closest&&e.target.closest('.gl-o');if(o&&!o.closest('dialog'))glOpen(o)});
-/* Find box in the header: one search over the whole page (<main data-find-scope>, below). Every tree filters by its own row text;
-   any other feature listens for `find` on document (detail.q) and reports its visible count in FIND.parts[name] (a number counts
-   rows). Counts read "3 matches · 2 rows": page matches first, then the tree and table rows added up. */
-const FIND={q:'',parts:{}};
-function findN(){const n=document.getElementById('findn');if(!n)return;const box=document.getElementById('find'),tf=[...(window.TF||[])];
- const{page,...rest}=FIND.parts,nums=Object.values(rest).filter(v=>typeof v==='number'),rows=tf.length||nums.length?
-  [tf.reduce((s,t)=>s+t.shown,0)+nums.reduce((s,v)=>s+v,0)]:[];
- const out=[...(page!==undefined?[page]:[]),...rows.filter(k=>k).map(k=>k+' '+(k===1?box.dataset.row:box.dataset.rows)),...Object.values(rest).filter(v=>typeof v!=='number')];
- n.textContent=FIND.q?out.join(' · '):''}
-addEventListener('DOMContentLoaded',()=>{const box=document.getElementById('find');if(!box)return;let timer;
- box.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>{FIND.q=box.value.trim().toLowerCase();
-  for(const tf of window.TF||[]){tf.q=FIND.q;tf.recalc()}
-  document.dispatchEvent(new CustomEvent('find',{detail:{q:FIND.q}}));findN()},120)})});
+/* <r-find>: the find box in the header, light DOM over the markup build.py renders (input#find, button.fclr, span.fcnt).
+   It searches the whole page (<main data-find-scope>). Units are the outermost headings, paragraphs, list items, table cells and
+   captions; trees (and their filter legend), data tables and diagrams keep their own find, the contents list only repeats the
+   headings. A unit that matches (case and accents ignored) gets a faint .fm tint, and every occurrence of the term in it is painted
+   with the CSS Custom Highlight API (::highlight(find); the unit stepped to: ::highlight(findc)). Enter jumps to the next visible
+   match, Shift+Enter to the previous one. Escape and the one Clear control (the native ✕ of type=search is hidden in CSS; Clear
+   shows only while the box has text) empty the box. The count reads "3 matches +2 in closed parts · 5 rows" ("2 of 3 matches"
+   once stepped): visible page matches, matches in hidden parts (reader depth, closed tab or details), then the tree and table rows
+   added up; its words come from data-hit, -hits, -hidden, -row, -rows, -pos. Without JS the box is hidden (html:not(.js) r-find).
+   window.FIND is what other features use, with or without a box on the page:
+   FIND.q          the term: trimmed, lower case, '' for none. Each change fires `find` on document (detail.q): filter, then report.
+   FIND.rows(k,n)  k (a tree passes itself, data tables 'dt') shows n rows now; n null drops k. The count adds them all up.
+   FIND.rerun()    what the page shows changed (reader depth): match the page again. */
+const FIND={q:'',el:null,counts:new Map(),
+ rows(k,n){if(n==null)this.counts.delete(k);else this.counts.set(k,n);if(this.el)this.el.count()},
+ rerun(){if(this.el&&this.q)this.el.run()}};
+customElements.define('r-find',class extends HTMLElement{
+ static SEL='h2,h3,h4,p,li,td,th,figcaption,caption,dt,dd';
+ static fold(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+ static seen(el){return el.checkVisibility?el.checkVisibility():!!el.getClientRects().length}  // closed <details> content still has rects
+ connectedCallback(){/* defined in <head>: the children parse after the start tag, so start once the document is in */
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>this.start(),{once:true});else this.start()}
+ disconnectedCallback(){if(FIND.el===this)FIND.el=null}
+ start(){if(!this.isConnected||this.box)return;
+  this.box=this.querySelector('input');this.x=this.querySelector('.fclr');this.out=this.querySelector('.fcnt');
+  this.scope=document.querySelector('[data-find-scope]');this.hl=!!(window.Highlight&&CSS.highlights);
+  this.i=-1;this.vis=0;this.hid=0;this.R=new Map();FIND.el=this;
+  this.box.addEventListener('input',()=>{this.x.hidden=!this.box.value;clearTimeout(this.t);this.t=setTimeout(()=>this.set(),120)});
+  this.box.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();this.next(e.shiftKey)}
+   else if(e.key==='Escape'&&this.box.value){e.preventDefault();this.clear()}});
+  this.x.addEventListener('click',()=>this.clear());
+  this.x.hidden=!this.box.value;if(this.box.value)this.set()}
+ set(){clearTimeout(this.t);FIND.q=this.box.value.trim().toLowerCase();
+  document.dispatchEvent(new CustomEvent('find',{detail:{q:FIND.q}}));this.run()}
+ clear(){this.box.value='';this.x.hidden=true;this.set();this.box.focus()}
+ units(){const S=this.constructor.SEL;if(!this.scope)return[];
+  return[...this.scope.querySelectorAll(S)].filter(el=>!el.parentElement.closest(S)&&!el.closest('ul.tr,details.flt,nav.toc,.datatable-wrapper,table.dt,svg,.zv'))}
+ /* the term's ranges in one unit: fold char by char and keep, per folded char, its text node and offset (folding changes lengths) */
+ ranges(el,q){const w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT),at=[],out=[],fold=this.constructor.fold;let s='',n;
+  while((n=w.nextNode())){const d=n.data;for(let i=0;i<d.length;i++){const f=fold(d[i]);s+=f;for(let k=0;k<f.length;k++)at.push([n,i])}}
+  for(let i=s.indexOf(q);i>=0;i=s.indexOf(q,i+q.length)){const a=at[i],b=at[i+q.length-1],r=document.createRange();r.setStart(a[0],a[1]);r.setEnd(b[0],b[1]+1);out.push(r)}
+  return out}
+ run(){const C=this.constructor,q=FIND.q?C.fold(FIND.q):'';this.vis=0;this.hid=0;this.i=-1;this.R=new Map();
+  for(const el of this.units()){const m=!!q&&C.fold(el.textContent).includes(q);el.classList.toggle('fm',m);
+   if(m){C.seen(el)?this.vis++:this.hid++;if(this.hl)this.R.set(el,this.ranges(el,q))}}
+  if(this.hl){CSS.highlights.delete('findc');if(q)CSS.highlights.set('find',new Highlight(...[...this.R.values()].flat()));else CSS.highlights.delete('find')}
+  this.count()}
+ next(back){if(!this.scope)return;const m=[...this.scope.querySelectorAll('.fm')].filter(this.constructor.seen);if(!m.length)return;
+  this.vis=m.length;this.i=this.i<0?(back?m.length-1:0):(this.i+(back?-1:1)+m.length)%m.length;
+  m[this.i].scrollIntoView({block:'center',behavior:'smooth'});
+  if(this.hl){const h=new Highlight(...(this.R.get(m[this.i])||[]));h.priority=1;CSS.highlights.set('findc',h)}this.count()}
+ count(){if(!this.out)return;const D=this.dataset,q=FIND.q,out=[];let rows=0;for(const n of FIND.counts.values())rows+=n;
+  if(q&&this.scope)out.push((this.i>=0?(D.pos||'{i}/{n}').replace('{i}',this.i+1).replace('{n}',this.vis):this.vis)+' '+
+   ((this.vis===1?D.hit:D.hits)||'')+(this.hid?' '+(D.hidden||'+{n}').replace('{n}',this.hid):''));
+  if(q&&rows)out.push(rows+' '+(rows===1?D.row:D.rows));
+  this.out.textContent=out.join(' · ')}});
 /* Data tables (`data` block). window.DT comes from a module script in <head> (simple-datatables, only when the report has a `data`
    block) and fires `dt-ready`; without it the plain tables stay. Each table.dt gets `el._dt` (the DataTable) and
    `el._dtFilter(col, values|null, source='filter')`: keep only rows whose cell text in column `col` equals one of `values`
    (exact match; null or [] removes that filter) — for a chart selection. Sources AND together; 'search' (the table's own box,
-   hidden by CSS when the page has the header find) and 'find' (the header box) match by substring. Counts (`FIND.parts.dt`)
+   hidden by CSS when the page has the header find) and 'find' (the header box) match by substring. Counts (FIND.rows('dt', n))
    follow every change. CSV exports every row. tableRender gives every rendered body cell `data-label` (its column header) and the
    table its ARIA roles, which the narrow-screen card layout needs (the library re-renders rows, so markup from build.py would not last).
    `dt-init` fires on document once all tables are upgraded (a chart that listens to a table waits for it). */
@@ -889,7 +974,7 @@ const DTL={de:{placeholder:'Tabelle durchsuchen…',searchTitle:'In der Tabelle 
  en:{placeholder:'Search table…',searchTitle:'Search within table',searchLabel:'Search',sortHint:'Activate to sort',pageTitle:'Page {page}',perPage:'rows per page',noRows:'No rows',info:'Showing {start} to {end} of {rows} rows',noResults:'No row matches the search'}};
 const dtAll=()=>[...document.querySelectorAll('table.dt')].filter(e=>e._dt);
 function dtCount(){const t=dtAll();if(!t.length)return;
- FIND.parts.dt=t.reduce((s,e)=>s+(e._dtN??e._dt.data.data.length),0);findN()}
+ FIND.rows('dt',t.reduce((s,e)=>s+(e._dtN??e._dt.data.data.length),0))}
 function dtInit(){if(!window.DT)return;const L=DTL[document.documentElement.lang.slice(0,2)]||DTL.en;
  const text=c=>(c.text??(typeof c.data==='string'?c.data:'')).trim();
  document.querySelectorAll('table.dt').forEach(el=>{if(el._dt)return;const c=JSON.parse(el.dataset.dt||'{}');
@@ -985,7 +1070,7 @@ function rdSet(id,save){const c=document.querySelector('.rdc');if(!c||!RD.includ
  document.documentElement.dataset.depth=id;rdCount(RD.indexOf(id));
  for(const b of c.querySelectorAll('button')){const on=b.dataset.depth===id;b.setAttribute('aria-pressed',on);if(on)c.querySelector('.rdd').textContent=b.dataset.desc||''}
  if(save){try{sessionStorage.setItem('report:depth:'+location.pathname,id)}catch(_){}}
- if(FIND.q&&document.querySelector('[data-find-scope]'))rfRun();return true}
+ FIND.rerun();return true}
 addEventListener('beforeprint',()=>{if(document.documentElement.dataset.depth)rdCount(RD.length-1)});
 addEventListener('afterprint',()=>{const id=document.documentElement.dataset.depth;if(id)rdCount(RD.indexOf(id))});
 function rdReveal(el){let changed=false;
@@ -996,42 +1081,6 @@ addEventListener('DOMContentLoaded',()=>{const c=document.querySelector('.rdc');
  try{const s=sessionStorage.getItem('report:depth:'+location.pathname);if(RD.includes(s))id=s}catch(_){}
  rdSet(id,false);const el=location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)));if(el&&rdReveal(el))el.scrollIntoView()});
 addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.rdc button');if(b)rdSet(b.dataset.depth,true)});
-/* Report-wide find (<main data-find-scope>, every profile). Units are the outermost headings, paragraphs, list items, table
-   cells and captions; trees (and their filter legend), data tables and diagrams keep their own find, the contents list only
-   repeats the headings. A unit that matches (case and accents ignored) gets a faint .fm tint, and every occurrence of the term
-   in it is painted with the CSS Custom Highlight API (::highlight(find); the unit stepped to: ::highlight(findc)).
-   The count (FIND.parts.page) covers visible units only; matches in hidden parts (reader depth, closed tab or details) are
-   added as "+n in closed parts". Enter jumps to the next match, Shift+Enter to the previous one; the count then reads "2 of 13". */
-const RF_SEL='h2,h3,h4,p,li,td,th,figcaption,caption,dt,dd';let rfI=-1,rfVis=0,rfHid=0,rfR=new Map();
-const rfFold=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-const rfSeen=el=>el.checkVisibility?el.checkVisibility():!!el.getClientRects().length;  // closed <details> content still has rects
-const rfHL=!!(window.Highlight&&CSS.highlights);
-function rfUnits(){const root=document.querySelector('[data-find-scope]');if(!root)return[];
- return[...root.querySelectorAll(RF_SEL)].filter(el=>!el.parentElement.closest(RF_SEL)&&!el.closest('ul.tr,details.flt,nav.toc,.datatable-wrapper,table.dt,svg,.zv'))}
-/* the term's ranges in one unit: fold char by char and keep, per folded char, its text node and offset (folding changes lengths) */
-function rfRanges(el,q){const w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT),at=[],out=[];let s='',n;
- while((n=w.nextNode())){const d=n.data;for(let i=0;i<d.length;i++){const f=rfFold(d[i]);s+=f;for(let k=0;k<f.length;k++)at.push([n,i])}}
- for(let i=s.indexOf(q);i>=0;i=s.indexOf(q,i+q.length)){const a=at[i],b=at[i+q.length-1],r=document.createRange();r.setStart(a[0],a[1]);r.setEnd(b[0],b[1]+1);out.push(r)}
- return out}
-function rfCount(){const box=document.getElementById('find'),D=box.dataset,word=k=>(k===1?D.hit:D.hits)||'';
- if(!FIND.q){delete FIND.parts.page;findN();return}
- const pos=rfI>=0?(D.pos||'{i}/{n}').replace('{i}',rfI+1).replace('{n}',rfVis)+' '+word(rfVis):rfVis+' '+word(rfVis);
- FIND.parts.page=pos+(rfHid?' '+(D.hidden||'+{n}').replace('{n}',rfHid):'');findN()}
-function rfRun(){const q=FIND.q?rfFold(FIND.q):'';rfVis=0;rfHid=0;rfI=-1;rfR=new Map();
- for(const el of rfUnits()){const m=!!q&&rfFold(el.textContent).includes(q);el.classList.toggle('fm',m);
-  if(m){rfSeen(el)?rfVis++:rfHid++;if(rfHL)rfR.set(el,rfRanges(el,q))}}
- if(rfHL){CSS.highlights.delete('findc');if(q)CSS.highlights.set('find',new Highlight(...[...rfR.values()].flat()));else CSS.highlights.delete('find')}
- rfCount()}
-document.addEventListener('find',()=>{if(document.querySelector('[data-find-scope]'))rfRun()});
-function rfNext(back){const m=[...document.querySelectorAll('.fm')].filter(rfSeen);if(!m.length)return;
- rfVis=m.length;rfI=(rfI+(back?-1:1)+m.length)%m.length;m[rfI].scrollIntoView({block:'center',behavior:'smooth'});
- if(rfHL){const h=new Highlight(...(rfR.get(m[rfI])||[]));h.priority=1;CSS.highlights.set('findc',h)}rfCount()}
-addEventListener('keydown',e=>{if(e.target.id==='find'&&e.key==='Enter'&&document.querySelector('[data-find-scope]')){e.preventDefault();rfNext(e.shiftKey)}});
-/* one clear control: the native ✕ of type=search is hidden in CSS; "Clear search" shows only while the box has text */
-addEventListener('input',e=>{if(e.target.id==='find')document.getElementById('findx').hidden=!e.target.value});
-addEventListener('DOMContentLoaded',()=>{const b=document.getElementById('find'),x=document.getElementById('findx');if(b&&x)x.hidden=!b.value});
-addEventListener('click',e=>{if(!e.target.closest||!e.target.closest('#findx'))return;const b=document.getElementById('find');
- b.value='';b.dispatchEvent(new Event('input',{bubbles:true}));b.focus()});
 /* contents and tree filters: open on a wide screen, closed on a phone (the markup is open, so it stays usable without JS) */
 addEventListener('DOMContentLoaded',()=>{if(!matchMedia('(max-width:800px)').matches)return;
  document.querySelectorAll('nav.toc details,details.flt').forEach(d=>{d.open=false})});
@@ -1191,7 +1240,6 @@ function anInit(){const secs=document.querySelectorAll('section[data-src]');if(!
  anRefresh()}
 addEventListener('DOMContentLoaded',anInit);
 </script>
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
 {{HEAD}}
 </head>
 <body>

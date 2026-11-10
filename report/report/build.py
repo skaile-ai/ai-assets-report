@@ -703,8 +703,10 @@ class Report:
 
     # -- badges ----------------------------------------------------------
     def badge(self, cat, val, toggle, ctx=""):
-        """A value chip; `toggle` makes it a filter button whose accessible name adds `ctx` (the row title, or the
-        category in the legend): a screen reader lists many chips with the same value and needs to tell them apart."""
+        """A value chip; `toggle` makes it a filter button of the enclosing <r-tree> (only b_tree renders toggles) whose
+        accessible name adds `ctx` (the row title, or the category in the legend): a screen reader lists many chips with
+        the same value and needs to tell them apart. The button starts disabled; the tree's script enables it, so without
+        JS it is an inert badge."""
         c = self.cats.get(cat)
         if not c or val not in c["values"]:
             fail(f"badge {cat}:{val} is not declared")
@@ -717,9 +719,8 @@ class Report:
             return f'<span class="bg s-{shape}" style="{style}">{label}</span>'
         k = f"{cat}:{val}"
         name = self.t["chip"].format(v=v.get("label", val), ctx=ctx)
-        return (f'<span class="bg s-{shape} tg" style="{style}" role="button" tabindex="0" aria-label="{E(name)}" '
-                f':aria-pressed="!off[\'{k}\']" :class="off[\'{k}\'] &amp;&amp; \'off\'" '
-                f'@click="t(\'{k}\')" @keydown.enter.prevent="t(\'{k}\')" @keydown.space.prevent="t(\'{k}\')">{label}</span>')
+        return (f'<button type="button" class="bg s-{shape} tg" style="{style}" data-k="{E(k)}" aria-label="{E(name)}" '
+                f'aria-pressed="true" disabled>{label}</button>')
 
     # -- blocks ----------------------------------------------------------
     def source(self, value):
@@ -1411,9 +1412,9 @@ class Report:
         return "ck" + (f' {v["dash"]}' if v.get("dash") else ""), f' style="--k:var(--{v.get("color", "ink")})"'
 
     def figure(self, b, svg, used, caption_extra="", after="", tools=None):
-        """Caption, diagram, legend. The ⤢ zoom button sits in a row under the frame, beside the sideways-scroll
-        hint the page script shows while the frame overflows; `tools` replaces the button with a caption
-        toolbar (a map has its own)."""
+        """Caption, diagram, legend, inside <r-diagram> (template: hover/focus highlight, legend toggles, scroll hint, zoom).
+        The ⤢ zoom button sits in a row under the frame, beside the sideways-scroll hint the element shows while the frame
+        overflows; `tools` replaces the button with a caption toolbar (a map has its own)."""
         gid = b["id"]
         cap, pn = [], None
         lvl = b.get("_level", 0)
@@ -1437,18 +1438,18 @@ class Report:
             cap.append(f"<span>{caption_extra}</span>")
         if tools:
             cap.append(tools)
-        # under the frame: the scroll hint (shown by the page script only while the frame overflows) and the
+        # under the frame: the scroll hint (shown by <r-diagram> only while the frame overflows) and the
         # zoom button, so on a phone both sit right below the diagram instead of above its caption
         zb = ("" if tools is not None else
-              f'<button type="button" class="zb" onclick="zoomFig(this)" title="{E(self.t["zoom"])}" '
+              f'<button type="button" class="zb" title="{E(self.t["zoom"])}" '
               f'aria-label="{E(self.t["zoom"])}">{icon("maximize-2")}<span class="zbt">{E(self.t["zoom_s"])}</span></button>')
         lg = self.legend(b, used, lvl if has_lvl else None)
         if lg and lg in self.legends_seen:  # the same legend again: collapsed, its toggles still work
             lg = f'<details class="lgx"><summary>{E(self.t["legend"])}</summary>{lg}</details>'
         else:
             self.legends_seen.add(lg)
-        return (f'<figure class="fg" id="{E(self.danchor(gid))}"><figcaption>{"".join(cap)}</figcaption><div class="dw">{svg}</div>'
-                f'<div class="fgb"><span class="dwh" hidden>{E(self.t["scroll"])}</span>{zb}</div>{lg}{after}</figure>')
+        return (f'<r-diagram><figure class="fg" id="{E(self.danchor(gid))}"><figcaption>{"".join(cap)}</figcaption><div class="dw">{svg}</div>'
+                f'<div class="fgb"><span class="dwh" hidden>{E(self.t["scroll"])}</span>{zb}</div>{lg}{after}</figure></r-diagram>')
 
     def check_evidence(self, b, what, items):
         """`at` on some but not all edges means unproven edges slipped in."""
@@ -1988,7 +1989,7 @@ class Report:
             body = head + body
             if cols:  # every row has every cell, so the columns line up with the header at every depth
                 body += '<span class="tcv">' + "".join(cells) + "</span>"
-            s = (f'<li class="{" ".join(cls)}"{lc}{attrs} x-show="v[{E(json.dumps(str(e["id"])))}] !== false">'
+            s = (f'<li class="{" ".join(cls)}"{lc}{attrs}>'
                  f'<div class="row{rcls}" id="{E(self.anchor(e["id"]))}">{body}</div>')
             if kids:
                 s += "<ul>" + self.inside(k, lambda: "".join(li(c, depth + 1) for c in kids)) + "</ul>"
@@ -2026,13 +2027,13 @@ class Report:
         if lead and kbc:
             style.append(f"--kbn:{kbn};--kbc:{kbc}")
         style = f' style="{";".join(style)}"' if style else ""
-        return (f'<div x-data="treeFilter({E(json.dumps(cats))},{E(json.dumps(label))},{E(json.dumps(drives))})">'
+        return (f'<r-tree data-cats="{E(json.dumps(cats))}" data-label="{E(label)}" data-drives="{E(json.dumps(drives))}">'
                 f'<details class="flt" open><summary>{E(self.t["filters"])}</summary>'
                 f'<dl class="legend">{"".join(legend)}</dl>'
-                f'<div class="ctl"><span>{E(hint)}</span><span class="cnt" x-text="count"></span>'
-                f'<button type="button" @click="reset()" :disabled="!Object.values(off).some(Boolean)">{E(reset)}</button></div></details>'
+                f'<div class="ctl"><span>{E(hint)}</span><span class="cnt"></span>'
+                f'<button type="button" data-reset disabled>{E(reset)}</button></div></details>'
                 + f'<div class="tree{" tcs" if cols else ""}"{style}>{self.tree_head(cols)}'
-                + f'<ul class="tr">{items}</ul></div></div>')
+                + f'<ul class="tr">{items}</ul></div></r-tree>')
 
     @staticmethod
     def tree_head(cols):
@@ -2103,8 +2104,8 @@ class Report:
                 + "".join(f'<span class="grp">{g}</span>' for g in self.groups(e, kind_cat, ())) + "</span></div>")
 
     def b_tabs(self, b):
-        """Sibling items of one kind side by side: a scrollable tab bar, one panel each.
-        A panel opens itself when a link targets anything inside it."""
+        """Sibling items of one kind side by side: a scrollable tab bar, one panel each, in an <r-tabs> whose script
+        switches panels; a panel opens itself when a link targets anything inside it. Without JS every panel shows."""
         self.ntabs += 1
         tid = f't-{b.get("id", self.ntabs)}'
         kind_cat = b.get("kind", next(iter(self.cats), None))
@@ -2140,8 +2141,8 @@ class Report:
                 return head + body
             panels.append(f'<div class="tp{" on" if on else ""}{cls}" role="tabpanel" id="{pid}" aria-labelledby="{pid}-b">'
                           f'{mk}{self.inside(k, panel)}</div>')
-        return (f'<div class="tabs" id="{E(tid)}"><div class="tl" role="tablist" aria-label="{E(b.get("label", ""))}">'
-                f'{"".join(bar)}</div>{"".join(panels)}</div>')
+        return (f'<r-tabs id="{E(tid)}"><div class="tl" role="tablist" aria-label="{E(b.get("label", ""))}">'
+                f'{"".join(bar)}</div>{"".join(panels)}</r-tabs>')
 
     def b_html(self, b):
         return b["html"]
@@ -2965,11 +2966,11 @@ class Report:
                    f'<ol>{"".join(items)}</ol></details></nav>')
         find = ""
         if used & FIND_TYPES or wr or nav:  # one box searches the whole page; trees and data tables filter their rows with it
-            find = (f'<div class="find"><input id="find" type="search" placeholder="{E(t["find"])}" aria-label="{E(t["find_label"])}" '
-                    f'aria-controls="main" data-hit="{E(t["find_hit"])}" data-hits="{E(t["find_hits"])}" data-hidden="{E(t["find_hidden"])}" '
+            find = (f'<r-find data-hit="{E(t["find_hit"])}" data-hits="{E(t["find_hits"])}" data-hidden="{E(t["find_hidden"])}" '
                     f'data-row="{E(t["find_row"])}" data-rows="{E(t["find_rows"])}" data-pos="{E(t["find_pos"])}">'
-                    f'<button type="button" id="findx" class="fclr" hidden>{E(t["find_clear"])}</button>'  # shown while the box has text
-                    '<span id="findn" role="status" aria-live="polite"></span></div>')
+                    f'<input id="find" type="search" placeholder="{E(t["find"])}" aria-label="{E(t["find_label"])}" aria-controls="main">'
+                    f'<button type="button" class="fclr" hidden>{E(t["find_clear"])}</button>'  # shown while the box has text
+                    '<span class="fcnt" role="status" aria-live="polite"></span></r-find>')
         skip = f'<a class="skip" href="#main">{E(t["skip"])}</a>'
         if wr:
             top = f'{hdr}<h1>{E(d["title"])}</h1>{prov}{prov_print}<div class="wrtools">{reader}{find}</div>{nav}</header>'

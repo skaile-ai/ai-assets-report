@@ -1,0 +1,1211 @@
+{
+  "title": "Block catalog",
+  "lang": "en",
+  "profile": "explanation",
+  "meta": [
+    "Built from `catalog.json` beside `build.py`",
+    "One section per block renderer"
+  ],
+  "badges": {
+    "who": {
+      "label": "Done by",
+      "shape": "round",
+      "values": {
+        "member": {
+          "color": "blue"
+        },
+        "staff": {
+          "label": "library staff",
+          "color": "teal"
+        }
+      }
+    },
+    "state": {
+      "label": "Status",
+      "shape": "dashed",
+      "filter": "hide",
+      "values": {
+        "planned": {
+          "color": "yellow",
+          "desc": "not built yet"
+        }
+      }
+    }
+  },
+  "entities": [
+    {
+      "id": "lending",
+      "title": "Lending",
+      "meta": [
+        "Area"
+      ]
+    },
+    {
+      "id": "reserve",
+      "parent": "lending",
+      "order": 1,
+      "title": "Reserve a book",
+      "label": "Reserve",
+      "badges": {
+        "who": [
+          "member"
+        ]
+      }
+    },
+    {
+      "id": "checkout",
+      "parent": "lending",
+      "order": 2,
+      "title": "Check out at the loan desk",
+      "label": "Check out",
+      "badges": {
+        "who": [
+          "staff"
+        ]
+      }
+    },
+    {
+      "id": "remind",
+      "parent": "lending",
+      "order": 3,
+      "title": "Send a due-date reminder",
+      "label": "Remind",
+      "badges": {
+        "who": [
+          "staff"
+        ],
+        "state": [
+          "planned"
+        ]
+      }
+    },
+    {
+      "id": "return",
+      "parent": "lending",
+      "order": 4,
+      "title": "Return a book",
+      "label": "Return",
+      "badges": {
+        "who": [
+          "member"
+        ]
+      }
+    }
+  ],
+  "sections": [
+    {
+      "title": "Block catalog",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Every block type `build.py` renders appears below once, in a small library's lending process: what it is for, when to use it and when not, the block itself, and the JSON that drew it."
+        },
+        {
+          "type": "p",
+          "text": "No block needs a profile: all of them render under any profile, and the choice file's features decide which a report may use. Some have a usual home: `media` and `resources` belong to web-research, `gallery` to app-audit, and `argument`, `example` and `compare` to explanation. This page uses explanation."
+        }
+      ]
+    },
+    {
+      "title": "p: a paragraph of prose",
+      "id": "b-p",
+      "sub": "Text",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for every claim and its reason, and as the lead sentence before any list, table or figure. Avoid it for parallel items a reader scans or compares; those belong in a list or a table."
+        },
+        {
+          "type": "p",
+          "text": "A member can borrow a book for three weeks, because the loan rules give every title the same period unless it is on reserve."
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"p\",\n  \"text\": \"A member can borrow a book for three weeks, because the loan rules give every title the same period unless it is on reserve.\"\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "bullets: an unordered list",
+      "id": "b-bullets",
+      "sub": "Text",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for a few parallel points whose order does not matter. Avoid it for a sequence (take `steps`) or for items that carry several fields (take a `table`)."
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "A member card",
+            "The books on the counter",
+            "No overdue fines above the limit"
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"bullets\",\n  \"items\": [\n    \"A member card\",\n    \"The books on the counter\",\n    \"No overdue fines above the limit\"\n  ]\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "steps: a numbered sequence",
+      "id": "b-steps",
+      "sub": "Text",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for actions a person does in a fixed order. Avoid it for a process with branches or several actors; draw a `flow` instead."
+        },
+        {
+          "type": "steps",
+          "items": [
+            "Scan the member card.",
+            "Scan each book.",
+            "Hand over the receipt with the due dates."
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"steps\",\n  \"items\": [\n    \"Scan the member card.\",\n    \"Scan each book.\",\n    \"Hand over the receipt with the due dates.\"\n  ]\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "callout: a framed answer, warning, action or note",
+      "id": "b-callout",
+      "sub": "Text",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it to lift out the one answer, safety warning or next action a reader must not miss. Avoid it for ordinary emphasis; more than one or two callouts per page and none stands out."
+        },
+        {
+          "type": "callout",
+          "tone": "action",
+          "title": "Renew before the due date",
+          "text": "A loan renews online only while nobody has reserved the book."
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"callout\",\n  \"tone\": \"action\",\n  \"title\": \"Renew before the due date\",\n  \"text\": \"A loan renews online only while nobody has reserved the book.\"\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "html: raw HTML as an escape hatch",
+      "id": "b-html",
+      "sub": "Text",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for small markup no other block offers, such as the JSON listings on this page. Avoid it for anything a block can express, because raw HTML skips the build's checks, links and print rules."
+        },
+        {
+          "type": "html",
+          "html": "<p>At the self-service kiosk, <kbd>Esc</kbd> cancels a loan before the receipt prints.</p>"
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"html\",\n  \"html\": \"&lt;p&gt;At the self-service kiosk, &lt;kbd&gt;Esc&lt;/kbd&gt; cancels a loan before the receipt prints.&lt;/p&gt;\"\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "argument: a claim with its reasons and conclusion",
+      "id": "b-argument",
+      "sub": "Explanation",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for a verdict the reader should be able to check reason by reason. Avoid it for a plain fact with one obvious reason; a sentence in a `p` says that faster."
+        },
+        {
+          "type": "argument",
+          "claim": "Reminders should go out three days before the due date.",
+          "reasons": [
+            "Most late returns come back within a week of the due date.",
+            "A reminder on the due date itself leaves no time to renew."
+          ],
+          "conclusion": "So an earlier reminder turns late returns into renewals."
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"argument\",\n  \"claim\": \"Reminders should go out three days before the due date.\",\n  \"reasons\": [\n    \"Most late returns come back within a week of the due date.\",\n    \"A reminder on the due date itself leaves no time to renew.\"\n  ],\n  \"conclusion\": \"So an earlier reminder turns late returns into renewals.\"\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "example: one case walked through the process",
+      "id": "b-example",
+      "sub": "Explanation",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it to follow one concrete item through a process after the general description. Avoid it as the only explanation; without the general rule a reader cannot tell what is typical."
+        },
+        {
+          "type": "example",
+          "title": "Ana borrows The Hobbit",
+          "setup": "Ana brings The Hobbit and her member card to the loan desk.",
+          "steps": [
+            "The librarian scans her card and the book.",
+            "The system checks that nobody has reserved it.",
+            "It records the loan with a due date three weeks out."
+          ],
+          "result": "Ana leaves with the book and a receipt, and the loan shows in her account."
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"example\",\n  \"title\": \"Ana borrows The Hobbit\",\n  \"setup\": \"Ana brings The Hobbit and her member card to the loan desk.\",\n  \"steps\": [\n    \"The librarian scans her card and the book.\",\n    \"The system checks that nobody has reserved it.\",\n    \"It records the loan with a due date three weeks out.\"\n  ],\n  \"result\": \"Ana leaves with the book and a receipt, and the loan shows in her account.\"\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "compare: two options side by side",
+      "id": "b-compare",
+      "sub": "Explanation",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it to contrast exactly two options, such as today and a proposal, with a verdict. Avoid it for three or more options or numeric criteria; a `table` compares those."
+        },
+        {
+          "type": "compare",
+          "title": "Paper slips and email reminders",
+          "columns": [
+            {
+              "label": "Paper slip",
+              "items": [
+                "Printed at checkout",
+                "Easy to lose"
+              ]
+            },
+            {
+              "label": "Email reminder",
+              "items": [
+                "Sent before the due date",
+                "Links straight to renewal"
+              ]
+            }
+          ],
+          "verdict": "Email reminders win, because they arrive when the member can still act."
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"compare\",\n  \"title\": \"Paper slips and email reminders\",\n  \"columns\": [\n    {\"label\": \"Paper slip\", \"items\": [\"Printed at checkout\", \"Easy to lose\"]},\n    {\n      \"label\": \"Email reminder\",\n      \"items\": [\"Sent before the due date\", \"Links straight to renewal\"]\n    }\n  ],\n  \"verdict\": \"Email reminders win, because they arrive when the member can still act.\"\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "table: a static table",
+      "id": "b-table",
+      "sub": "Tables and trees",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for a few rows that share columns, such as rules or a scorecard. Avoid it for more than about thirty rows; take `data`, which sorts, searches and pages."
+        },
+        {
+          "type": "table",
+          "columns": [
+            "Item",
+            "Loan period",
+            "Renewals"
+          ],
+          "numeric": [
+            2
+          ],
+          "rows": [
+            [
+              "Book",
+              "three weeks",
+              2
+            ],
+            [
+              "DVD",
+              "one week",
+              1
+            ],
+            [
+              "Magazine",
+              "one week",
+              0
+            ]
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"table\",\n  \"columns\": [\"Item\", \"Loan period\", \"Renewals\"],\n  \"numeric\": [2],\n  \"rows\": [\n    [\"Book\", \"three weeks\", 2],\n    [\"DVD\", \"one week\", 1],\n    [\"Magazine\", \"one week\", 0]\n  ]\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "data: a sortable, searchable table",
+      "id": "b-data",
+      "sub": "Tables and trees",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for a long collection a reader filters, sorts or downloads as CSV. Avoid it for a handful of rows that a static `table` shows at a glance."
+        },
+        {
+          "type": "data",
+          "id": "loans",
+          "label": "Open loans",
+          "columns": [
+            {
+              "label": "Book",
+              "key": "book"
+            },
+            {
+              "label": "Member",
+              "key": "member"
+            },
+            {
+              "label": "Due",
+              "key": "due"
+            }
+          ],
+          "rows": [
+            {
+              "book": "The Hobbit",
+              "member": "M-20417",
+              "due": "2026-12-01"
+            },
+            {
+              "book": "Atlas of Rivers",
+              "member": "M-20417",
+              "due": "2026-12-01"
+            },
+            {
+              "book": "Cooking for One",
+              "member": "M-11873",
+              "due": "2026-11-24"
+            }
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"data\",\n  \"id\": \"loans\",\n  \"label\": \"Open loans\",\n  \"columns\": [\n    {\"label\": \"Book\", \"key\": \"book\"},\n    {\"label\": \"Member\", \"key\": \"member\"},\n    {\"label\": \"Due\", \"key\": \"due\"}\n  ],\n  \"rows\": [\n    {\"book\": \"The Hobbit\", \"member\": \"M-20417\", \"due\": \"2026-12-01\"},\n    {\"book\": \"Atlas of Rivers\", \"member\": \"M-20417\", \"due\": \"2026-12-01\"},\n    {\"book\": \"Cooking for One\", \"member\": \"M-11873\", \"due\": \"2026-11-24\"}\n  ]\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "tree: the entity tree with badge filters",
+      "id": "b-tree",
+      "sub": "Tables and trees",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for things that nest, such as steps under an area, when badge filters help a reader narrow them down. Avoid it for a flat list without hierarchy or badges; a `table` is plainer. The tree draws the top-level `entities` and `badges`, so the block itself holds only the filter."
+        },
+        {
+          "type": "tree",
+          "filter": [
+            "who",
+            "state"
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\"type\": \"tree\", \"filter\": [\"who\", \"state\"]}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "tabs: sibling items side by side",
+      "id": "b-tabs",
+      "sub": "Tables and trees",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for three or more parallel items of one kind that each need their own blocks. Avoid it for content every reader needs at once, because a closed tab hides it."
+        },
+        {
+          "type": "tabs",
+          "id": "roles",
+          "label": "Roles",
+          "tabs": [
+            {
+              "label": "Member",
+              "summary": "Borrows, renews and returns books.",
+              "blocks": [
+                {
+                  "type": "p",
+                  "text": "A member renews online and returns books at any branch."
+                }
+              ]
+            },
+            {
+              "label": "Librarian",
+              "summary": "Runs the loan desk.",
+              "blocks": [
+                {
+                  "type": "p",
+                  "text": "A librarian checks books out and clears returns at the desk."
+                }
+              ]
+            },
+            {
+              "label": "Courier",
+              "summary": "Moves returned books between branches.",
+              "blocks": [
+                {
+                  "type": "p",
+                  "text": "The courier brings each returned book back to its home branch twice a week."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"tabs\",\n  \"id\": \"roles\",\n  \"label\": \"Roles\",\n  \"tabs\": [\n    {\n      \"label\": \"Member\",\n      \"summary\": \"Borrows, renews and returns books.\",\n      \"blocks\": [\n        {\"type\": \"p\", \"text\": \"A member renews online and returns books at any branch.\"}\n      ]\n    },\n    {\n      \"label\": \"Librarian\",\n      \"summary\": \"Runs the loan desk.\",\n      \"blocks\": [\n        {\n          \"type\": \"p\",\n          \"text\": \"A librarian checks books out and clears returns at the desk.\"\n        }\n      ]\n    },\n    {\n      \"label\": \"Courier\",\n      \"summary\": \"Moves returned books between branches.\",\n      \"blocks\": [\n        {\n          \"type\": \"p\",\n          \"text\": \"The courier brings each returned book back to its home branch twice a week.\"\n        }\n      ]\n    }\n  ]\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "bars: simple horizontal bars",
+      "id": "b-bars",
+      "sub": "Charts",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for a few counts that need no axis, scripts or CDN. Avoid it for time series or several measures at once; take `vega`."
+        },
+        {
+          "type": "bars",
+          "items": [
+            [
+              "Books",
+              412
+            ],
+            [
+              "DVDs",
+              96
+            ],
+            [
+              "Magazines",
+              38
+            ]
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\"type\": \"bars\", \"items\": [[\"Books\", 412], [\"DVDs\", 96], [\"Magazines\", 38]]}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "vega: a Vega-Lite chart",
+      "id": "b-vega",
+      "sub": "Charts",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for a distribution, a time series or a chart a reader clicks to filter a table. Avoid it when three plain bars say the same; it loads from a CDN and needs JavaScript."
+        },
+        {
+          "type": "vega",
+          "id": "loans-month",
+          "label": "Loans per month",
+          "spec": {
+            "height": 160,
+            "data": {
+              "values": [
+                {
+                  "month": "Aug",
+                  "loans": 380
+                },
+                {
+                  "month": "Sep",
+                  "loans": 455
+                },
+                {
+                  "month": "Oct",
+                  "loans": 512
+                }
+              ]
+            },
+            "mark": {
+              "type": "bar",
+              "tooltip": true
+            },
+            "encoding": {
+              "x": {
+                "field": "month",
+                "type": "ordinal",
+                "sort": null,
+                "title": "Month",
+                "axis": {
+                  "labelAngle": 0
+                }
+              },
+              "y": {
+                "field": "loans",
+                "type": "quantitative",
+                "title": "Loans"
+              }
+            }
+          }
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"vega\",\n  \"id\": \"loans-month\",\n  \"label\": \"Loans per month\",\n  \"spec\": {\n    \"height\": 160,\n    \"data\": {\n      \"values\": [\n        {\"month\": \"Aug\", \"loans\": 380},\n        {\"month\": \"Sep\", \"loans\": 455},\n        {\"month\": \"Oct\", \"loans\": 512}\n      ]\n    },\n    \"mark\": {\"type\": \"bar\", \"tooltip\": true},\n    \"encoding\": {\n      \"x\": {\n        \"field\": \"month\",\n        \"type\": \"ordinal\",\n        \"sort\": null,\n        \"title\": \"Month\",\n        \"axis\": {\"labelAngle\": 0}\n      },\n      \"y\": {\"field\": \"loans\", \"type\": \"quantitative\", \"title\": \"Loans\"}\n    }\n  }\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "flow: a process or data flow",
+      "id": "b-flow",
+      "sub": "Diagrams",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for how work or data moves between steps, stores and outside actors. Avoid it for a list of steps with no branches or stores; `steps` reads faster."
+        },
+        {
+          "type": "flow",
+          "id": "lending",
+          "label": "From shelf to loan",
+          "nodes": [
+            {
+              "id": "member",
+              "label": "Member",
+              "shape": "external"
+            },
+            {
+              "id": "reserve",
+              "label": "Reserve",
+              "sub": "online",
+              "ref": "reserve"
+            },
+            {
+              "id": "catalogue",
+              "label": "Catalogue",
+              "shape": "store"
+            },
+            {
+              "id": "checkout",
+              "label": "Check out",
+              "sub": "loan desk",
+              "ref": "checkout"
+            },
+            {
+              "id": "loans",
+              "label": "Loans",
+              "shape": "store"
+            }
+          ],
+          "edges": [
+            [
+              "member",
+              "reserve",
+              "request"
+            ],
+            [
+              "reserve",
+              "catalogue",
+              "hold"
+            ],
+            [
+              "catalogue",
+              "checkout",
+              "book"
+            ],
+            [
+              "checkout",
+              "loans",
+              "loan"
+            ]
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"flow\",\n  \"id\": \"lending\",\n  \"label\": \"From shelf to loan\",\n  \"nodes\": [\n    {\"id\": \"member\", \"label\": \"Member\", \"shape\": \"external\"},\n    {\"id\": \"reserve\", \"label\": \"Reserve\", \"sub\": \"online\", \"ref\": \"reserve\"},\n    {\"id\": \"catalogue\", \"label\": \"Catalogue\", \"shape\": \"store\"},\n    {\"id\": \"checkout\", \"label\": \"Check out\", \"sub\": \"loan desk\", \"ref\": \"checkout\"},\n    {\"id\": \"loans\", \"label\": \"Loans\", \"shape\": \"store\"}\n  ],\n  \"edges\": [\n    [\"member\", \"reserve\", \"request\"],\n    [\"reserve\", \"catalogue\", \"hold\"],\n    [\"catalogue\", \"checkout\", \"book\"],\n    [\"checkout\", \"loans\", \"loan\"]\n  ]\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "lineage: how data changes type step by step",
+      "id": "b-lineage",
+      "sub": "Diagrams",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it to show which function turns one data type into the next. Avoid it for who does what; that is a `flow`."
+        },
+        {
+          "type": "lineage",
+          "id": "loan-types",
+          "label": "Scan to loan record",
+          "types": [
+            {
+              "id": "scan",
+              "label": "Barcode",
+              "sub": "string"
+            },
+            {
+              "id": "copy",
+              "label": "Copy",
+              "sub": "catalogue row",
+              "shape": "store"
+            },
+            {
+              "id": "loan",
+              "label": "Loan",
+              "sub": "loans row",
+              "shape": "store"
+            }
+          ],
+          "steps": [
+            {
+              "from": "scan",
+              "to": "copy",
+              "fn": "findCopy()",
+              "note": "looks the barcode up."
+            },
+            {
+              "from": "copy",
+              "to": "loan",
+              "fn": "createLoan()",
+              "note": "adds member and due date."
+            }
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"lineage\",\n  \"id\": \"loan-types\",\n  \"label\": \"Scan to loan record\",\n  \"types\": [\n    {\"id\": \"scan\", \"label\": \"Barcode\", \"sub\": \"string\"},\n    {\"id\": \"copy\", \"label\": \"Copy\", \"sub\": \"catalogue row\", \"shape\": \"store\"},\n    {\"id\": \"loan\", \"label\": \"Loan\", \"sub\": \"loans row\", \"shape\": \"store\"}\n  ],\n  \"steps\": [\n    {\"from\": \"scan\", \"to\": \"copy\", \"fn\": \"findCopy()\", \"note\": \"looks the barcode up.\"},\n    {\n      \"from\": \"copy\",\n      \"to\": \"loan\",\n      \"fn\": \"createLoan()\",\n      \"note\": \"adds member and due date.\"\n    }\n  ]\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "states: the states of one field",
+      "id": "b-states",
+      "sub": "Diagrams",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for a status field and the events that move it from state to state. Avoid it for a process across several things; a `flow` shows that."
+        },
+        {
+          "type": "states",
+          "id": "loan-states",
+          "label": "Loan status",
+          "field": "loans.status",
+          "states": [
+            {
+              "id": "open"
+            },
+            {
+              "id": "overdue",
+              "color": "red"
+            },
+            {
+              "id": "closed",
+              "color": "green"
+            }
+          ],
+          "transitions": [
+            {
+              "from": "[*]",
+              "to": "open",
+              "trigger": "check out"
+            },
+            {
+              "from": "open",
+              "to": "overdue",
+              "trigger": "due date passes"
+            },
+            {
+              "from": "open",
+              "to": "closed",
+              "trigger": "return"
+            },
+            {
+              "from": "overdue",
+              "to": "closed",
+              "trigger": "return"
+            }
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"states\",\n  \"id\": \"loan-states\",\n  \"label\": \"Loan status\",\n  \"field\": \"loans.status\",\n  \"states\": [\n    {\"id\": \"open\"},\n    {\"id\": \"overdue\", \"color\": \"red\"},\n    {\"id\": \"closed\", \"color\": \"green\"}\n  ],\n  \"transitions\": [\n    {\"from\": \"[*]\", \"to\": \"open\", \"trigger\": \"check out\"},\n    {\"from\": \"open\", \"to\": \"overdue\", \"trigger\": \"due date passes\"},\n    {\"from\": \"open\", \"to\": \"closed\", \"trigger\": \"return\"},\n    {\"from\": \"overdue\", \"to\": \"closed\", \"trigger\": \"return\"}\n  ]\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "map: a dependency map",
+      "id": "b-map",
+      "sub": "Diagrams",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for which systems, services or packages depend on which. Avoid it for an order of steps; a map has no direction of time."
+        },
+        {
+          "type": "map",
+          "id": "systems",
+          "label": "Library systems",
+          "nodes": [
+            {
+              "id": "desk",
+              "label": "Loan desk app"
+            },
+            {
+              "id": "web",
+              "label": "Member portal"
+            },
+            {
+              "id": "ils",
+              "label": "Library system",
+              "sub": "catalogue and loans"
+            },
+            {
+              "id": "mail",
+              "label": "Mail service",
+              "shape": "external"
+            }
+          ],
+          "edges": [
+            {
+              "from": "desk",
+              "to": "ils",
+              "label": "loans API"
+            },
+            {
+              "from": "web",
+              "to": "ils",
+              "label": "loans API"
+            },
+            {
+              "from": "ils",
+              "to": "mail",
+              "label": "reminders"
+            }
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"map\",\n  \"id\": \"systems\",\n  \"label\": \"Library systems\",\n  \"nodes\": [\n    {\"id\": \"desk\", \"label\": \"Loan desk app\"},\n    {\"id\": \"web\", \"label\": \"Member portal\"},\n    {\"id\": \"ils\", \"label\": \"Library system\", \"sub\": \"catalogue and loans\"},\n    {\"id\": \"mail\", \"label\": \"Mail service\", \"shape\": \"external\"}\n  ],\n  \"edges\": [\n    {\"from\": \"desk\", \"to\": \"ils\", \"label\": \"loans API\"},\n    {\"from\": \"web\", \"to\": \"ils\", \"label\": \"loans API\"},\n    {\"from\": \"ils\", \"to\": \"mail\", \"label\": \"reminders\"}\n  ]\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "mermaid: sequence, class, ER and other notations",
+      "id": "b-mermaid",
+      "sub": "Diagrams",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for a notation the native diagrams lack, such as a sequence of messages or an ER schema. Avoid it for flows and maps, which the native blocks draw without a CDN and with entity links."
+        },
+        {
+          "type": "mermaid",
+          "id": "reminder",
+          "label": "Due-date reminder",
+          "code": "sequenceDiagram\n  participant S as Library system\n  participant M as Mail service\n  participant R as Member\n  S->>M: reminder for loans due in three days\n  M->>R: email with renew link\n  R->>S: renew"
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"mermaid\",\n  \"id\": \"reminder\",\n  \"label\": \"Due-date reminder\",\n  \"code\": \"sequenceDiagram\\n  participant S as Library system\\n  participant M as Mail service\\n  participant R as Member\\n  S-&gt;&gt;M: reminder for loans due in three days\\n  M-&gt;&gt;R: email with renew link\\n  R-&gt;&gt;S: renew\"\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "board: a moodboard of screens today and proposed",
+      "id": "b-board",
+      "sub": "Diagrams",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it to set today's screens beside a proposal, with marks for what moves, merges or is new. Avoid it for a single screen without a change; a `gallery` shows that."
+        },
+        {
+          "type": "board",
+          "id": "desk-board",
+          "label": "Loan desk today and proposed",
+          "canvases": [
+            {
+              "id": "desk",
+              "label": "Loan desk",
+              "title": "Loan desk today and proposed",
+              "lanes": [
+                {
+                  "tone": "today",
+                  "cards": [
+                    {
+                      "id": "slip",
+                      "title": "Paper slip",
+                      "marks": [
+                        "remove"
+                      ],
+                      "text": "Printed at checkout."
+                    }
+                  ],
+                  "changes": [
+                    {
+                      "mark": "new",
+                      "text": "An email replaces the slip.",
+                      "from": "slip",
+                      "to": "email"
+                    }
+                  ]
+                },
+                {
+                  "tone": "proposed",
+                  "cards": [
+                    {
+                      "id": "email",
+                      "title": "Email receipt",
+                      "marks": [
+                        "new"
+                      ],
+                      "text": "Sent with the due dates."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"board\",\n  \"id\": \"desk-board\",\n  \"label\": \"Loan desk today and proposed\",\n  \"canvases\": [\n    {\n      \"id\": \"desk\",\n      \"label\": \"Loan desk\",\n      \"title\": \"Loan desk today and proposed\",\n      \"lanes\": [\n        {\n          \"tone\": \"today\",\n          \"cards\": [\n            {\n              \"id\": \"slip\",\n              \"title\": \"Paper slip\",\n              \"marks\": [\"remove\"],\n              \"text\": \"Printed at checkout.\"\n            }\n          ],\n          \"changes\": [\n            {\n              \"mark\": \"new\",\n              \"text\": \"An email replaces the slip.\",\n              \"from\": \"slip\",\n              \"to\": \"email\"\n            }\n          ]\n        },\n        {\n          \"tone\": \"proposed\",\n          \"cards\": [\n            {\n              \"id\": \"email\",\n              \"title\": \"Email receipt\",\n              \"marks\": [\"new\"],\n              \"text\": \"Sent with the due dates.\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "concepts: terms and the interface variants that use them",
+      "id": "b-concepts",
+      "sub": "Diagrams",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it to settle what a term means and where each variant of a screen shows it, for instance before a rename. Avoid it for data structures; a `lineage` or a `mermaid` ER diagram fits those."
+        },
+        {
+          "type": "concepts",
+          "id": "terms",
+          "label": "Holds in the member menu",
+          "presets": [
+            {
+              "id": "today",
+              "label": "Today",
+              "set": {
+                "holds": false
+              }
+            },
+            {
+              "id": "proposed",
+              "label": "Proposed",
+              "set": {
+                "holds": true
+              }
+            }
+          ],
+          "baseline": "today",
+          "start": "proposed",
+          "kinds": {
+            "thing": {
+              "label": "Thing",
+              "color": "blue"
+            },
+            "event": {
+              "label": "Event",
+              "color": "purple"
+            }
+          },
+          "terms": [
+            {
+              "id": "loan",
+              "label": "Loan",
+              "kind": "thing",
+              "def": "A copy a member has borrowed, with a due date."
+            },
+            {
+              "id": "hold",
+              "label": "Hold",
+              "kind": "event",
+              "def": "A member's claim on the next free copy.",
+              "aka": [
+                "reservation"
+              ],
+              "where": [
+                {
+                  "when": {
+                    "holds": true
+                  },
+                  "text": "Member menu: own entry under My account"
+                }
+              ]
+            }
+          ],
+          "views": [
+            {
+              "label": "Member menu",
+              "layout": "tree",
+              "items": [
+                {
+                  "id": "account",
+                  "label": "My account",
+                  "icon": "folder",
+                  "depth": 0
+                },
+                {
+                  "id": "loans",
+                  "label": "Loans",
+                  "icon": "file-text",
+                  "depth": 1,
+                  "term": "loan"
+                },
+                {
+                  "id": "holds",
+                  "label": "Holds",
+                  "icon": "file-text",
+                  "depth": 1,
+                  "term": "hold",
+                  "when": {
+                    "holds": true
+                  }
+                }
+              ]
+            }
+          ],
+          "relations": [
+            {
+              "from": "hold",
+              "to": "loan",
+              "rel": "uses",
+              "label": "becomes"
+            }
+          ],
+          "graph": {
+            "width": 600,
+            "height": 160,
+            "pos": {
+              "hold": [
+                140,
+                80
+              ],
+              "loan": [
+                440,
+                80
+              ]
+            }
+          }
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"concepts\",\n  \"id\": \"terms\",\n  \"label\": \"Holds in the member menu\",\n  \"presets\": [\n    {\"id\": \"today\", \"label\": \"Today\", \"set\": {\"holds\": false}},\n    {\"id\": \"proposed\", \"label\": \"Proposed\", \"set\": {\"holds\": true}}\n  ],\n  \"baseline\": \"today\",\n  \"start\": \"proposed\",\n  \"kinds\": {\n    \"thing\": {\"label\": \"Thing\", \"color\": \"blue\"},\n    \"event\": {\"label\": \"Event\", \"color\": \"purple\"}\n  },\n  \"terms\": [\n    {\n      \"id\": \"loan\",\n      \"label\": \"Loan\",\n      \"kind\": \"thing\",\n      \"def\": \"A copy a member has borrowed, with a due date.\"\n    },\n    {\n      \"id\": \"hold\",\n      \"label\": \"Hold\",\n      \"kind\": \"event\",\n      \"def\": \"A member's claim on the next free copy.\",\n      \"aka\": [\"reservation\"],\n      \"where\": [\n        {\"when\": {\"holds\": true}, \"text\": \"Member menu: own entry under My account\"}\n      ]\n    }\n  ],\n  \"views\": [\n    {\n      \"label\": \"Member menu\",\n      \"layout\": \"tree\",\n      \"items\": [\n        {\"id\": \"account\", \"label\": \"My account\", \"icon\": \"folder\", \"depth\": 0},\n        {\n          \"id\": \"loans\",\n          \"label\": \"Loans\",\n          \"icon\": \"file-text\",\n          \"depth\": 1,\n          \"term\": \"loan\"\n        },\n        {\n          \"id\": \"holds\",\n          \"label\": \"Holds\",\n          \"icon\": \"file-text\",\n          \"depth\": 1,\n          \"term\": \"hold\",\n          \"when\": {\"holds\": true}\n        }\n      ]\n    }\n  ],\n  \"relations\": [{\"from\": \"hold\", \"to\": \"loan\", \"rel\": \"uses\", \"label\": \"becomes\"}],\n  \"graph\": {\"width\": 600, \"height\": 160, \"pos\": {\"hold\": [140, 80], \"loan\": [440, 80]}}\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "mock: dialog sketches compared",
+      "id": "b-mock",
+      "sub": "Diagrams",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it to compare two versions of one dialog or form field by field. Avoid it for a whole screen; a screenshot in a `gallery` is more honest."
+        },
+        {
+          "type": "mock",
+          "id": "renew-dialog",
+          "label": "Renew dialog",
+          "notes": [
+            "Shows the new due date before the member confirms."
+          ],
+          "panes": [
+            {
+              "label": "Today",
+              "title": "Renew loan",
+              "body": [
+                {
+                  "label": "Book",
+                  "value": "The Hobbit"
+                }
+              ],
+              "buttons": [
+                {
+                  "label": "Cancel"
+                },
+                {
+                  "label": "Renew",
+                  "primary": true
+                }
+              ]
+            },
+            {
+              "label": "Proposed",
+              "title": "Renew loan",
+              "body": [
+                {
+                  "label": "Book",
+                  "value": "The Hobbit"
+                },
+                {
+                  "label": "New due date",
+                  "value": "in three weeks",
+                  "n": 1
+                }
+              ],
+              "buttons": [
+                {
+                  "label": "Cancel"
+                },
+                {
+                  "label": "Renew",
+                  "primary": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"mock\",\n  \"id\": \"renew-dialog\",\n  \"label\": \"Renew dialog\",\n  \"notes\": [\"Shows the new due date before the member confirms.\"],\n  \"panes\": [\n    {\n      \"label\": \"Today\",\n      \"title\": \"Renew loan\",\n      \"body\": [{\"label\": \"Book\", \"value\": \"The Hobbit\"}],\n      \"buttons\": [{\"label\": \"Cancel\"}, {\"label\": \"Renew\", \"primary\": true}]\n    },\n    {\n      \"label\": \"Proposed\",\n      \"title\": \"Renew loan\",\n      \"body\": [\n        {\"label\": \"Book\", \"value\": \"The Hobbit\"},\n        {\"label\": \"New due date\", \"value\": \"in three weeks\", \"n\": 1}\n      ],\n      \"buttons\": [{\"label\": \"Cancel\"}, {\"label\": \"Renew\", \"primary\": true}]\n    }\n  ]\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "media: licensed images with credits",
+      "id": "b-media",
+      "sub": "Media and web research",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for a photo or drawing whose credit and licence the reader must see, as web-research does. Avoid it for screenshots of the product you review; a `gallery` pins notes to them."
+        },
+        {
+          "type": "media",
+          "items": [
+            {
+              "src": "catalog.data/reading-room.svg",
+              "alt": "Reading room with two shelves and a returns trolley",
+              "caption": "Returned books wait on the trolley until a librarian shelves them.",
+              "credit": "Drawing for this catalog",
+              "license": "CC0 1.0",
+              "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+            }
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"media\",\n  \"items\": [\n    {\n      \"src\": \"catalog.data/reading-room.svg\",\n      \"alt\": \"Reading room with two shelves and a returns trolley\",\n      \"caption\": \"Returned books wait on the trolley until a librarian shelves them.\",\n      \"credit\": \"Drawing for this catalog\",\n      \"license\": \"CC0 1.0\",\n      \"license_url\": \"https://creativecommons.org/publicdomain/zero/1.0/\"\n    }\n  ]\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "gallery: screenshots with numbered note pins",
+      "id": "b-gallery",
+      "sub": "Media and web research",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for screens a reader inspects, with notes pinned where each problem is, as app-audit does. Avoid it for decorative images; `media` carries those with their credits."
+        },
+        {
+          "type": "gallery",
+          "label": "Loan desk screens",
+          "items": [
+            {
+              "src": "catalog.data/desk-screen.svg",
+              "title": "Loan desk",
+              "caption": "The screen a librarian sees while checking books out.",
+              "notes": [
+                {
+                  "x": 22,
+                  "y": 84,
+                  "w": 18,
+                  "h": 9,
+                  "text": "Check out looks the same as Cancel, so the main action does not stand out.",
+                  "sev": 3
+                },
+                {
+                  "x": 50,
+                  "y": 66,
+                  "text": "The reserved book is only tinted; say in words why it cannot leave.",
+                  "sev": 2
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"gallery\",\n  \"label\": \"Loan desk screens\",\n  \"items\": [\n    {\n      \"src\": \"catalog.data/desk-screen.svg\",\n      \"title\": \"Loan desk\",\n      \"caption\": \"The screen a librarian sees while checking books out.\",\n      \"notes\": [\n        {\n          \"x\": 22,\n          \"y\": 84,\n          \"w\": 18,\n          \"h\": 9,\n          \"text\": \"Check out looks the same as Cancel, so the main action does not stand out.\",\n          \"sev\": 3\n        },\n        {\n          \"x\": 50,\n          \"y\": 66,\n          \"text\": \"The reserved book is only tinted; say in words why it cannot leave.\",\n          \"sev\": 2\n        }\n      ]\n    }\n  ]\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "resources: curated links for readers",
+      "id": "b-resources",
+      "sub": "Media and web research",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it for a short list of places a reader can go next, each with a sentence on why. Avoid it for the sources behind claims; cite those with top-level `sources` instead."
+        },
+        {
+          "type": "resources",
+          "label": "Further reading",
+          "items": [
+            {
+              "title": "IFLA",
+              "url": "https://www.ifla.org/",
+              "description": "The international federation of library associations and its guidelines.",
+              "kind": "organisation"
+            },
+            {
+              "title": "Library of Congress",
+              "url": "https://www.loc.gov/",
+              "description": "Catalogues, research guides and an ask-a-librarian service.",
+              "audience": "everyone"
+            }
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"resources\",\n  \"label\": \"Further reading\",\n  \"items\": [\n    {\n      \"title\": \"IFLA\",\n      \"url\": \"https://www.ifla.org/\",\n      \"description\": \"The international federation of library associations and its guidelines.\",\n      \"kind\": \"organisation\"\n    },\n    {\n      \"title\": \"Library of Congress\",\n      \"url\": \"https://www.loc.gov/\",\n      \"description\": \"Catalogues, research guides and an ask-a-librarian service.\",\n      \"audience\": \"everyone\"\n    }\n  ]\n}</code></pre>"
+        }
+      ]
+    },
+    {
+      "title": "video: a chaptered explainer video",
+      "id": "b-video",
+      "sub": "Media and web research",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it when the reader asked for a video or animation; `report-video` renders it from the report. Avoid it as the only carrier of an answer, because the page must read without it. The clip here is the bundled `report-video` demo, since a library video would only repeat the same player."
+        },
+        {
+          "type": "video",
+          "id": "demo",
+          "label": "Explainer video",
+          "src": "../report-video/example.media/demo.mp4",
+          "poster": "../report-video/example.media/demo.jpg",
+          "track": "../report-video/example.media/demo.vtt",
+          "chapters": [
+            {
+              "t": 0,
+              "label": "1. Answer"
+            },
+            {
+              "t": 15.6,
+              "label": "2. Process"
+            }
+          ]
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"video\",\n  \"id\": \"demo\",\n  \"label\": \"Explainer video\",\n  \"src\": \"../report-video/example.media/demo.mp4\",\n  \"poster\": \"../report-video/example.media/demo.jpg\",\n  \"track\": \"../report-video/example.media/demo.vtt\",\n  \"chapters\": [{\"t\": 0, \"label\": \"1. Answer\"}, {\"t\": 15.6, \"label\": \"2. Process\"}]\n}</code></pre>"
+        }
+      ]
+    }
+  ]
+}
