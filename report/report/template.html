@@ -11,7 +11,7 @@
 *{box-sizing:border-box}
 html{background:var(--paper);color:var(--ink);font:var(--fs-b)/1.65 var(--sans);-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
 ::selection{background:var(--acc);color:#fff}
-body{max-width:1180px;margin:0 auto;padding:56px 32px 96px}
+body{max-width:1360px;margin:0 auto;padding:56px 32px 96px}
 a{color:var(--acc);text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px}a:hover{text-decoration-color:currentColor}
 header{border-bottom:1px solid var(--ink);padding-bottom:20px;display:grid;grid-template-columns:1fr auto;gap:8px 32px;align-items:end}
 header .brand{display:block;grid-column:1/-1;height:28px;width:auto}
@@ -38,6 +38,9 @@ dl.stats dd{margin:auto 0 0;padding-top:2px;font-size:var(--fs-l);font-weight:50
 main>section{display:block;padding:44px 0 40px;scroll-margin-top:16px;border-bottom:1px solid var(--rule)}
 main>section.lede{padding-top:8px}
 section>h2{font-size:var(--fs-xl);font-weight:700;line-height:1.2;letter-spacing:-.01em;margin:0 0 18px;padding-top:12px;border-top:3px solid var(--ink)}
+/* wide screens: the heading sits in its own left column and stays in view while its section scrolls; the body
+   takes the rest, so trees, tables and diagrams get more room while prose keeps its measure */
+@media screen and (min-width:1100px){main>section:not(.lede){display:grid;grid-template-columns:minmax(0,14rem) minmax(0,1fr);column-gap:48px;align-items:start}main>section:not(.lede)>h2{position:sticky;top:16px;margin:0}main>section:not(.lede)>:not(h2){grid-column:2}}
 .sn{font:500 var(--fs-l)/1 var(--mono);color:var(--mute);margin-right:.5em}
 .ha{margin-left:.4em;color:var(--mute);text-decoration:none;opacity:0}h2:hover>.ha,.ha:focus-visible{opacity:1}
 @media(hover:none){.ha{opacity:1}}
@@ -222,6 +225,9 @@ ul.tr ul>li::before{content:"";position:absolute;left:-18px;top:15px;width:12px;
 ul.tr ul>li:last-child::after{content:"";position:absolute;left:-19px;top:16px;bottom:0;border-left:3px solid var(--paper)}
 .row{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:baseline;gap:10px;padding:5px 0;scroll-margin-top:80px}
 .bd{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}.kb{display:inline-flex;flex-wrap:wrap;gap:4px}
+/* leading cell (kind badges + change mark): one width per tree from build.py (--kbn label characters of the badge
+   font, --kbc badges, each with padding, border, margin and gap), so every title of a depth starts at the same x */
+@media(min-width:641px){.tree .kb{font:var(--fs-xs) var(--mono);flex-wrap:nowrap;min-width:calc(var(--kbn,0)*(1ch + .04em) + var(--kbc,0)*24px)}}
 .grp{white-space:nowrap;display:inline-flex;flex-wrap:wrap;row-gap:4px;align-items:baseline;max-width:100%}
 .grp+.grp{margin-left:4px}.grp:has(>.xr){flex-basis:100%}
 /* tree columns: meta keys shared by rows sit in fixed tracks at the right edge, which every depth shares, under one header */

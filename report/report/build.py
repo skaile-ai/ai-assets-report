@@ -1940,6 +1940,10 @@ class Report:
         scope = self.chg and not self.under and any(self.changed_ent(r) for r in roots)
         cols = self.meta_cols([e for e in self.d["entities"] if e.get("tree", True)])
         ckeys = {c[0] for c in cols}
+        # every row carries the leading cell (kind badges + change mark) when any row has one, so the page
+        # can give that cell one width per tree and every title starts at the same x
+        lead = bool(cols) or bool(self.chg) or any(e.get("badges", {}).get(kind_cat) for e in self.d["entities"] if e.get("tree", True))
+        widths = []  # (label chars, badge count) of each row's leading cell
 
         def li(e, depth):
             kids = self.kids.get(e["id"], [])
@@ -1947,7 +1951,6 @@ class Report:
             kind = (bvals.get(kind_cat) or [None])[0]
             title = str(e.get("title") or e["id"])
             kind_badge = "".join(self.badge(kind_cat, v, True, title) for v in bvals.get(kind_cat, []))
-            kind_badge = f'<span class="kb">{kind_badge}</span>' if kind_badge else ""  # one grid cell, however many values
             idg = [f'<span class="id">{E(str(e.get("label") or e["id"]))}</span>'] if self.size == "technical" else []
             groups = idg + self.groups(e, kind_cat, filt, skip=ckeys)
             metas = {}
@@ -1977,11 +1980,14 @@ class Report:
             if (kind == count_kind) if count_kind else not kids:
                 attrs += " data-count"
             k, rcls, mk = self.state(e, scope, self.changed_ent(e))
-            body = f'<span class="bd">{mk}<span class="tt">{E(e.get("title") or str(e["id"]))}</span>' + "".join(f'<span class="grp">{g}</span>' for g in groups) + "</span>"
+            # one grid cell for the kind badges and the change mark, however many values
+            head = f'<span class="kb">{kind_badge}{mk}</span>' if lead else ""
+            labels = [str(self.cats[kind_cat]["values"][v].get("label", v)) for v in bvals.get(kind_cat, [])] + ([self.t[k]] if mk else [])
+            widths.append((sum(len(x) for x in labels), len(labels)))
+            body = f'<span class="bd"><span class="tt">{E(e.get("title") or str(e["id"]))}</span>' + "".join(f'<span class="grp">{g}</span>' for g in groups) + "</span>"
+            body = head + body
             if cols:  # every row has every cell, so the columns line up with the header at every depth
-                body = (kind_badge or "<span></span>") + body + '<span class="tcv">' + "".join(cells) + "</span>"
-            else:
-                body = kind_badge + body
+                body += '<span class="tcv">' + "".join(cells) + "</span>"
             s = (f'<li class="{" ".join(cls)}"{lc}{attrs} x-show="v[{E(json.dumps(str(e["id"])))}] !== false">'
                  f'<div class="row{rcls}" id="{E(self.anchor(e["id"]))}">{body}</div>')
             if kids:
@@ -2011,13 +2017,22 @@ class Report:
             elif not any(str(n.get("ref")) in tree_ids for n in g.get("nodes") or g.get("types") or g.get("states") or []):
                 fail(f"tree: drives {gid}: no node of it has a `ref` to an entity of this tree")
         drives = [self.danchor(g) for g in b.get("drives", [])]
+        items = "".join(li(r, 0) for r in roots)
+        # the widest leading cell, in characters of the badge font plus padding per badge (template `.kb`)
+        kbn, kbc = max(widths, key=lambda w: w[0] * 8 + w[1] * 24, default=(0, 0))
+        style = []
+        if cols:
+            style.append(f'--tcw:{" ".join(f"{c[4]}ch" for c in cols)}')
+        if lead and kbc:
+            style.append(f"--kbn:{kbn};--kbc:{kbc}")
+        style = f' style="{";".join(style)}"' if style else ""
         return (f'<div x-data="treeFilter({E(json.dumps(cats))},{E(json.dumps(label))},{E(json.dumps(drives))})">'
                 f'<details class="flt" open><summary>{E(self.t["filters"])}</summary>'
                 f'<dl class="legend">{"".join(legend)}</dl>'
                 f'<div class="ctl"><span>{E(hint)}</span><span class="cnt" x-text="count"></span>'
                 f'<button type="button" @click="reset()" :disabled="!Object.values(off).some(Boolean)">{E(reset)}</button></div></details>'
-                + (f'<div class="tree tcs" style="--tcw:{" ".join(f"{c[4]}ch" for c in cols)}">{self.tree_head(cols)}' if cols else '<div class="tree">')
-                + f'<ul class="tr">{"".join(li(r, 0) for r in roots)}</ul></div></div>')
+                + f'<div class="tree{" tcs" if cols else ""}"{style}>{self.tree_head(cols)}'
+                + f'<ul class="tr">{items}</ul></div></div>')
 
     @staticmethod
     def tree_head(cols):

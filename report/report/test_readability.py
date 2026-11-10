@@ -1598,7 +1598,17 @@ class NarrowScreens(unittest.TestCase):
         tree = report(badges=cats, entities=ents).b_tree({"type": "tree"})
         self.assertIn('<details class="flt" open><summary>Filters</summary><dl class="legend">', tree)
         self.assertLess(tree.index('<div class="ctl">'), tree.index("</details>"))
-        self.assertLess(tree.index("</details>"), tree.index('<div class="tree">'))
+        self.assertLess(tree.index("</details>"), tree.index('<div class="tree"'))
+
+    def test_titles_share_one_leading_cell_width(self):
+        cats = {"sev": {"values": {"hi": {"label": "S3-4"}, "lo": {"label": "S1 cosmetic"}}}}
+        ents = [{"id": "a", "title": "A", "badges": {"sev": ["hi"]}}, {"id": "b", "title": "B", "badges": {"sev": ["lo"]}},
+                {"id": "c", "title": "C"}]
+        tree = report(badges=cats, entities=ents).b_tree({"type": "tree"})
+        # the widest row sets the width; a row without a badge still keeps the (empty) cell, so its title lines up
+        self.assertIn('<div class="tree" style="--kbn:11;--kbc:1">', tree)
+        self.assertEqual(tree.count('<span class="kb">'), 3)
+        self.assertIn('<span class="kb"></span><span class="bd"><span class="tt">C</span>', tree)
 
 
 class EdgeLabels(unittest.TestCase):
