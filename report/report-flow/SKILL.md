@@ -3,7 +3,7 @@ name: report-flow
 description: "Capture how code or a pipeline works from the source (trigger, steps, stores, error paths, file:line evidence) and draw levelled DFD `flow`, `lineage` and `states` diagrams. Use for 'how does X work', 'what becomes what', 'which states'."
 license: MIT
 metadata:
-  version: 0.3.0
+  version: 0.3.1
   publisher: skaile-ai
 ---
 
@@ -82,7 +82,7 @@ Shared contract: `skill://report`, Under orchestration. Delta:
 
 Base checks (1280/390 px, console) are in `skill://report`. Delta:
 
-- A wide or vertical diagram keeps at least 75 % scale and scrolls inside its frame, with a scroll shadow at the cut edge; the page keeps `scrollWidth == 390` at 390 px.
+- A wide or vertical diagram keeps at least 75 % scale and scrolls inside its frame, with a scroll shadow at the cut edge and the hint `Scroll sideways →` under it until the reader reaches the right end (no hint when it fits); the zoom button sits under the frame and is labelled `Enlarge` on touch screens; the legend explains the level chip (`L0 overview`, `L1 detail of a ⊞ box`) and ⊞; the page keeps `scrollWidth == 390` at 390 px.
 - Click ⊞ on a parent node: the page jumps to its detail diagram. The child's "↑ Part of" link jumps back.
 - Hover a node: everything but its edges and neighbours fades. A legend edge kind hides its edges. ⤢ opens the zoom view.
 - A link into a closed tab opens that tab.

@@ -3,7 +3,7 @@ name: report-table
 description: "Dump collections, detect keys/relations/enums with detect.py, and render entities as badge-filtered trees and interactive sortable/searchable tables. Use for inventories, 'which X exist', 'how many', data sheets."
 license: MIT
 metadata:
-  version: 0.3.2
+  version: 0.3.3
   publisher: skaile-ai
 ---
 
@@ -58,7 +58,7 @@ Edit the draft until it answers the question. The core schema (`badges`, `entiti
 - `data`: sortable, searchable, paginated (10/25/50/100), a CSV button. Cells use the `table` cell forms. Put numbers as JSON numbers (`type: "number"` sorts numerically) and dates as ISO 8601 (`2026-10-13`: text order is date order). The build fails on a row key that is no column key, a `type` outside number/date/string, a `key` that is no column key, and on a `listen` target that is no `vega` block, or a `listen.field` that is no column key. Empty `rows` render one `—` row with a warning.
 - `key`: the column whose values are entity ids. Each value renders as a link to the entity and the row carries `data-e`. A value that is no entity id stays plain text.
 - `listen`: a point selection of a `vega` block (`skill://report-charts`) filters this table. `field` is the column that holds the selected values. The cell text of that column must equal the chart value (plain strings; a badge cell shows its label, not its value).
-- The header find box searches the whole page and filters every tree and every data table; its counter reads `<n> matches · <rows> rows` (tree and table rows added up).
+- The header find box searches the whole page and filters every tree and every data table; its counter reads `<n> matches · <rows> rows` (tree and table rows added up; a zero row count is left out), plus `+<n> in closed parts` for matches inside closed panels and `<i> of <n> matches` while Enter steps through them; the term itself is highlighted.
 
 **List and diagram of the same entities** (repos in a tree and in a dependency map, screens in a tree and in a flow): one section: a lead `p`, the tree, the diagram right after it. Set `drives: [<diagram id>]` on the tree and `ref` on every diagram node that is one of its entities, so the tree's badges filter both: a `map` hides the filtered boxes and their edges and refits; other diagrams fade them. Say in the tree's `hint` that the diagram follows. Badges that matter for the diagram (owner, role, a `hide` flag such as "stale") belong in the tree's `filter`.
 
@@ -81,7 +81,7 @@ Base checks (1280/390 px, console) are in `skill://report`. Delta:
 
 - One tree badge toggle changes the counter; the tree's reset restores it.
 - One link jumps to its entity and highlights it. A link into a closed tab opens that tab.
-- Data table: a header click sorts (a number column sorts numerically); typing in the table's search box cuts the rows and the info line; the page size and the pager change the visible rows; the CSV button downloads `<id>.csv`.
+- Data table: a header click sorts (a number column sorts numerically); typing in the table's search box (shown only when the page has no header find box) cuts the rows and the info line; the page size and the pager change the visible rows; the CSV button downloads `<id>.csv`. Under 640px each row is a card with its column labels.
 - Key column: its links jump to the entity row.
-- Find box: typing a term filters tree rows and data rows, and `#findn` shows `<n> matches · <rows> rows` (tree and table rows added up); clearing the box restores both.
+- Find box: typing a term filters tree rows and data rows, and `#findn` shows `<n> matches · <rows> rows` (tree and table rows added up; zero rows left out); Enter shows `1 of <n> matches`; the one `Clear search` button appears only while the box has text; clearing the box restores both.
 - Offline (CDN blocked): the plain table shows all rows and the page has no layout break.

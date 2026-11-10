@@ -3,7 +3,7 @@ name: report-charts
 description: "Quantities as `bars` or Vega-Lite `vega` charts with tooltips, selections and cross-filter. Use for 'how much', 'distribution', 'over time', 'compare counts'."
 license: MIT
 metadata:
-  version: 0.3.0
+  version: 0.3.1
   publisher: skaile-ai
 ---
 
@@ -54,7 +54,7 @@ Spec rules. The build fails on the first two:
 - `entity` (optional) names the row field that holds entity ids. Every row needs it: `vega <id>: entity <f> missing in row <n>`.
 - The build sets `$schema` (Vega-Lite v6), `width: "container"` and `data.name = "rows"` when missing. Give `height` (about 200-260). Do not set a fixed `width` (the chart must fit 390 px).
 - Add `mark.tooltip: true` (or an `encoding.tooltip`) so a hover shows the value.
-- Label axes with `title` in the language of the report. Leave colours and legend placement to the page: it applies the brand palette and puts legends below the plot.
+- Label axes with `title` in the language of the report. Leave colours and legend placement to the page: it applies a colour-blind-safe category palette (never the link colour; the first six stay distinct) and puts legends below the plot.
 - Do not put a `vega` block inside `tabs`: a hidden panel has no width when the chart renders.
 - One chart answers one question. Two series that share no scale are two charts.
 

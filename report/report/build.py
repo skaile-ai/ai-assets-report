@@ -245,7 +245,9 @@ TXT = {
            "note": "Änderung", "trigger": "Auslöser", "guard": "Bedingung", "up": "Teil von",
            "process": "Prozess", "store": "Datenspeicher", "external": "extern", "boundary": "Nachbar aus der Elternebene",
            "decision": "Entscheidung", "data": "Datentyp", "state": "Zustand", "pseudo": "Start · Ende",
-           "flow": "Fluss", "error": "Fehlerpfad", "opt": "optional", "drill": "Detaildiagramm",
+           "flow": "Fluss", "error": "Fehlerpfad", "opt": "optional", "drill": "öffnet ein Detaildiagramm",
+           "lvl0": "Übersicht", "lvl": "Detail eines ⊞-Kastens aus L{p}", "lvl_t": "Ebene {n}: Detail von {p}",
+           "scroll": "Seitwärts scrollen →", "zoom_s": "Vergrößern",
            "new": "NEU", "changed": "GEÄNDERT", "removed": "ENTFERNT", "since": "Änderungen seit", "nochg": "keine",
            "dimmed": "Unverändertes ist abgeblendet.", "full": "Alles voll zeigen",
            "zoom": "Vergrößern: zoomen und verschieben", "toggle": "Klicken: diese Kanten aus- oder einblenden",
@@ -260,8 +262,8 @@ TXT = {
            "t_reset": "Zurücksetzen", "t_count": "sichtbar", "sources": "Quellen und Laufdetails",
            "toc": "Inhalt", "skip": "Zum Inhalt springen", "bib": "Quellen", "depth": "Lesetiefe",
            "find_label": "Im Bericht suchen", "find_clear": "Suche zurücksetzen", "find_hit": "Treffer", "find_hits": "Treffer",
-           "find_row": "Zeile", "find_rows": "Zeilen",
-           "find_hidden": "+{n} ausgeblendet", "read": "gelesen", "for": "Für",
+           "find_row": "Zeile", "find_rows": "Zeilen", "find_pos": "{i} von {n}", "chip": "Filter: {v} ({ctx})",
+           "find_hidden": "+{n} in geschlossenen Teilen", "read": "gelesen", "for": "Für",
            "tone_answer": "Antwort", "tone_safety": "Sicherheit", "tone_action": "Was tun", "tone_note": "Hinweis",
            "bm_move": "VERSCHIEBEN", "bm_merge": "ZUSAMMENFÜHREN", "bm_new": "NEU", "bm_reuse": "WIEDERVERWENDEN",
            "bm_keep": "BLEIBT", "bm_later": "SPÄTER", "bm_remove": "ENTFÄLLT", "bm_optional": "OPTIONAL",
@@ -281,7 +283,9 @@ TXT = {
            "note": "Change", "trigger": "Trigger", "guard": "Guard", "up": "Part of",
            "process": "process", "store": "data store", "external": "external", "boundary": "neighbour from parent level",
            "decision": "decision", "data": "data type", "state": "state", "pseudo": "start · end",
-           "flow": "flow", "error": "error path", "opt": "optional", "drill": "detail diagram",
+           "flow": "flow", "error": "error path", "opt": "optional", "drill": "opens a detailed diagram",
+           "lvl0": "overview", "lvl": "detail of a ⊞ box on L{p}", "lvl_t": "Level {n}: detail of {p}",
+           "scroll": "Scroll sideways →", "zoom_s": "Enlarge",
            "new": "NEW", "changed": "CHANGED", "removed": "REMOVED", "since": "Changes since", "nochg": "none",
            "dimmed": "Unchanged parts are dimmed.", "full": "Show all at full contrast",
            "zoom": "Enlarge: zoom and pan", "toggle": "Click: hide or show these edges",
@@ -296,8 +300,8 @@ TXT = {
            "t_reset": "Reset", "t_count": "visible", "sources": "Sources and run details",
            "toc": "Contents", "skip": "Skip to content", "bib": "Sources", "depth": "Reading depth",
            "find_label": "Search the report", "find_clear": "Clear search", "find_hit": "match", "find_hits": "matches",
-           "find_row": "row", "find_rows": "rows",
-           "find_hidden": "+{n} hidden", "read": "read", "for": "For",
+           "find_row": "row", "find_rows": "rows", "find_pos": "{i} of {n}", "chip": "filter: {v} ({ctx})",
+           "find_hidden": "+{n} in closed parts", "read": "read", "for": "For",
            "tone_answer": "Answer", "tone_safety": "Safety", "tone_action": "Action", "tone_note": "Note",
            "bm_move": "MOVE", "bm_merge": "MERGE", "bm_new": "NEW", "bm_reuse": "REUSE",
            "bm_keep": "KEEP", "bm_later": "LATER", "bm_remove": "REMOVE", "bm_optional": "OPTIONAL",
@@ -698,7 +702,9 @@ class Report:
         return f'<a href="#{E(self.anchor(eid))}" title="{E(e.get("title", eid))}">{E(shown)}</a>'
 
     # -- badges ----------------------------------------------------------
-    def badge(self, cat, val, toggle):
+    def badge(self, cat, val, toggle, ctx=""):
+        """A value chip; `toggle` makes it a filter button whose accessible name adds `ctx` (the row title, or the
+        category in the legend): a screen reader lists many chips with the same value and needs to tell them apart."""
         c = self.cats.get(cat)
         if not c or val not in c["values"]:
             fail(f"badge {cat}:{val} is not declared")
@@ -710,7 +716,8 @@ class Report:
         if not toggle:
             return f'<span class="bg s-{shape}" style="{style}">{label}</span>'
         k = f"{cat}:{val}"
-        return (f'<span class="bg s-{shape} tg" style="{style}" role="button" tabindex="0" '
+        name = self.t["chip"].format(v=v.get("label", val), ctx=ctx)
+        return (f'<span class="bg s-{shape} tg" style="{style}" role="button" tabindex="0" aria-label="{E(name)}" '
                 f':aria-pressed="!off[\'{k}\']" :class="off[\'{k}\'] &amp;&amp; \'off\'" '
                 f'@click="t(\'{k}\')" @keydown.enter.prevent="t(\'{k}\')" @keydown.space.prevent="t(\'{k}\')">{label}</span>')
 
@@ -831,6 +838,12 @@ class Report:
         num = set(b.get("numeric", []))
         head = "".join(f'<th role="columnheader" class="{"n" if i in num else ""}">{E(c)}</th>' for i, c in enumerate(cols))
         rows, scope = [], self.scope(b["rows"])
+        # a code column (every filled cell one `code` span) gets class cd: the CSS caps it at 40ch so a long unbroken pattern
+        # does not take the row's width from a prose column; it also drops the first column's nowrap, which would keep it unbroken
+        body = [r["cells"] if isinstance(r, dict) else r for r in b["rows"]]
+        code = {i for i in range(len(cols))
+                if (vals := [r[i] for r in body if i < len(r) and r[i] not in (None, "")])
+                and all(isinstance(v, str) and re.fullmatch(r"`[^`]+`", v.strip()) for v in vals)}
         for r in b["rows"]:
             cells, rid, rcls, mk = r, None, "", ""
             if isinstance(r, dict):
@@ -845,7 +858,9 @@ class Report:
                     cls.append("n")
                     if c == 0:
                         cls.append("zero")
-                if i == 0:
+                if i in code:
+                    cls.append("cd")
+                elif i == 0:
                     cls.append("nw")
                 label = E(str(cols[i])) if i < len(cols) else ""
                 tds.append(f'<td role="cell" class="{" ".join(cls)}" data-label="{label}">{mk if i == 0 else ""}{self.cell(c)}</td>')
@@ -1092,7 +1107,7 @@ class Report:
             GM, GC = b["gap"] if right else b["gap"][::-1]
         elif right:
             adj = [len(e["label"]) for e in edges if e["label"] and rank[e["to"]] == rank[e["from"]] + 1]
-            GM, GC = int(min(max(48, max(adj or [0]) * CH[11] + 28), 260)), 34
+            GM, GC = int(min(max(48, max(adj or [0]) * CH[12] + 28), 260)), 34  # edge labels render at --fs-xs (12px)
         else:
             GM, GC = (48 if any(e["label"] for e in edges) else 34), 56
         MB, CB = (W, H) if right else (H, W)
@@ -1238,22 +1253,28 @@ class Report:
 
         def label_at(pts, seg, where, text, kind, attrs):
             """Least-covered spot (nodes, lines, earlier labels) in preference order: the preferred side,
-            the other side, then every other segment of the same edge."""
-            w = len(text) * CH[11]
+            the other side, then every other segment of the same edge. Among equally covered spots the one
+            with most room to other edges' lines and earlier labels wins: a label 2 px under another
+            edge's line reads as if that line ran through it."""
+            w = len(text) * CH[12]  # .el renders at --fs-xs (12px)
             cands = spots(pts[seg], pts[seg + 1], where)
             for i in range(len(pts) - 1):
                 if i != seg:
                     cands += [c for wh in ("mid", "start", "end") for c in spots(pts[i], pts[i + 1], wh)]
+            own = {(min(p[0], q[0]) - 1, min(p[1], q[1]) - 1, max(p[0], q[0]) + 1, max(p[1], q[1]) + 1)
+                   for p, q in zip(pts, pts[1:])}
+            near = [o for o in lines if o not in own] + placed  # its own edge may run close; nodes are meant to
 
-            def box(c):
+            def box(c, pad=0):
                 x, y, anc = c
                 x0 = {"start": x, "end": x - w, "middle": x - w / 2}[anc]
-                return (x0, y - 10, x0 + w, y + 3)
+                return (x0 - pad, y - 10 - pad, x0 + w + pad, y + 3 + pad)
 
-            def overlap(bx):
+            def overlap(bx, others):
                 return sum(max(0, min(bx[2], o[2]) - max(bx[0], o[0])) * max(0, min(bx[3], o[3]) - max(bx[1], o[1]))
-                           for o in node_boxes + lines + placed)
-            x, y, anc = min(cands, key=lambda c: overlap(box(c)))  # first free spot; ties keep preference order
+                           for o in others)
+            # first free spot, then the clearer one; ties keep preference order
+            x, y, anc = min(cands, key=lambda c: (overlap(box(c), node_boxes + lines + placed), overlap(box(c, 6), near)))
             placed.append(box((x, y, anc)))
             boxes.append(placed[-1])
             return f'<text class="el {kind}"{attrs} x="{x:.1f}" y="{y:.1f}" text-anchor="{anc}">{E(text)}</text>'
@@ -1341,9 +1362,10 @@ class Report:
         return (f'<rect x="{x}" y="{y}" width="11" height="11" class="dz"/>'
                 f'<path d="M{x + 2.5} {y + 5.5} H{x + 8.5} M{x + 5.5} {y + 2.5} V{y + 8.5}" class="dzp"/>')
 
-    def legend(self, b, used):
+    def legend(self, b, used, lvl=None):
         """Swatches of the shapes and edge kinds in use; with two or more edge kinds each kind is a
-        button that hides or shows its edges (template: `kind toggles`)."""
+        button that hides or shows its edges (template: `kind toggles`). `lvl`: the drill-down level of
+        a diagram that has one; its chip leads the legend, so L0/L1 explain themselves."""
         sw = {
             "process": '<rect x="1" y="2" width="22" height="12" class="bx"/>',
             "state": '<rect x="1" y="2" width="22" height="12" rx="5" class="bx"/>',
@@ -1358,7 +1380,8 @@ class Report:
         kinds = self.kinds(b)
         ek = [k for k in [*sorted(EDGE_KINDS, key=["flow", "error", "opt"].index), *kinds] if k in used]
         icon = lambda s: f'<svg width="24" height="16" viewBox="0 0 24 16">{s}</svg>'
-        out = [f'<span>{icon(sw[k])}{E(self.t[k])}</span>' for k in sw if k in used]
+        out = [f'<span><span class="lvl">L{lvl}</span>{E(self.t["lvl"].format(p=lvl - 1) if lvl else self.t["lvl0"])}</span>'] if lvl is not None else []
+        out += [f'<span>{icon(sw[k])}{E(self.t[k])}</span>' for k in sw if k in used]
         for k in ek:
             kc, ks = self.kind_style(kinds, k)
             label = E(kinds[k].get("label", k) if k in kinds else self.t[k])
@@ -1388,17 +1411,22 @@ class Report:
         return "ck" + (f' {v["dash"]}' if v.get("dash") else ""), f' style="--k:var(--{v.get("color", "ink")})"'
 
     def figure(self, b, svg, used, caption_extra="", after="", tools=None):
-        """Caption, diagram, legend; `tools` replaces the ⤢ zoom button (a map has its own toolbar)."""
+        """Caption, diagram, legend. The ⤢ zoom button sits in a row under the frame, beside the sideways-scroll
+        hint the page script shows while the frame overflows; `tools` replaces the button with a caption
+        toolbar (a map has its own)."""
         gid = b["id"]
-        cap = []
+        cap, pn = [], None
         lvl = b.get("_level", 0)
-        if lvl or any(k[0] == gid for k in self.dkid):
-            cap.append(f'<span class="lvl">L{lvl}</span>')
-        if b.get("label") and b["label"] != self.ents.get(self.tab_entity, {}).get("title"):
-            cap.append(f'<b>{E(b["label"])}</b>')
         if b.get("parent"):
             pid, _, nid = b["parent"].partition(":")
             pn = next(n for n in self.dg[pid]["nodes"] if n["id"] == nid)
+        has_lvl = bool(lvl or any(k[0] == gid for k in self.dkid))
+        if has_lvl:
+            tip = self.t["lvl_t"].format(n=lvl, p=pn.get("label", nid)) if pn else self.t["lvl0"]
+            cap.append(f'<span class="lvl" title="{E(tip)}">L{lvl}</span>')
+        if b.get("label") and b["label"] != self.ents.get(self.tab_entity, {}).get("title"):
+            cap.append(f'<b>{E(b["label"])}</b>')
+        if pn:
             up = f'↑ {E(self.t["up"])} <a href="#{E(self.danchor(pid, nid))}">{E(pn.get("label", nid))}</a>'
             if pn.get("ref") and pn["ref"] != self.tab_entity:  # a tab's card already shows its entity
                 title = self.ents[pn["ref"]].get("title", "").replace("`", "")
@@ -1407,16 +1435,20 @@ class Report:
             cap.append(f"<span>{up}</span>")
         if caption_extra:
             cap.append(f"<span>{caption_extra}</span>")
-        cap.append(tools if tools is not None else
-                   f'<button type="button" class="zb" onclick="zoomFig(this)" title="{E(self.t["zoom"])}" '
-                   f'aria-label="{E(self.t["zoom"])}">{icon("maximize-2")}</button>')
-        lg = self.legend(b, used)
+        if tools:
+            cap.append(tools)
+        # under the frame: the scroll hint (shown by the page script only while the frame overflows) and the
+        # zoom button, so on a phone both sit right below the diagram instead of above its caption
+        zb = ("" if tools is not None else
+              f'<button type="button" class="zb" onclick="zoomFig(this)" title="{E(self.t["zoom"])}" '
+              f'aria-label="{E(self.t["zoom"])}">{icon("maximize-2")}<span class="zbt">{E(self.t["zoom_s"])}</span></button>')
+        lg = self.legend(b, used, lvl if has_lvl else None)
         if lg and lg in self.legends_seen:  # the same legend again: collapsed, its toggles still work
             lg = f'<details class="lgx"><summary>{E(self.t["legend"])}</summary>{lg}</details>'
         else:
             self.legends_seen.add(lg)
         return (f'<figure class="fg" id="{E(self.danchor(gid))}"><figcaption>{"".join(cap)}</figcaption><div class="dw">{svg}</div>'
-                f'{lg}{after}</figure>')
+                f'<div class="fgb"><span class="dwh" hidden>{E(self.t["scroll"])}</span>{zb}</div>{lg}{after}</figure>')
 
     def check_evidence(self, b, what, items):
         """`at` on some but not all edges means unproven edges slipped in."""
@@ -1913,7 +1945,8 @@ class Report:
             kids = self.kids.get(e["id"], [])
             bvals = e.get("badges", {})
             kind = (bvals.get(kind_cat) or [None])[0]
-            kind_badge = "".join(self.badge(kind_cat, v, True) for v in bvals.get(kind_cat, []))
+            title = str(e.get("title") or e["id"])
+            kind_badge = "".join(self.badge(kind_cat, v, True, title) for v in bvals.get(kind_cat, []))
             kind_badge = f'<span class="kb">{kind_badge}</span>' if kind_badge else ""  # one grid cell, however many values
             idg = [f'<span class="id">{E(str(e.get("label") or e["id"]))}</span>'] if self.size == "technical" else []
             groups = idg + self.groups(e, kind_cat, filt, skip=ckeys)
@@ -1958,7 +1991,7 @@ class Report:
         legend = []
         for c in filt:
             cat = self.cats[c]
-            vals = "".join(f'{self.badge(c, k, True)}<span class="lv">{E(v.get("desc", ""))}</span>' for k, v in cat["values"].items())
+            vals = "".join(f'{self.badge(c, k, True, cat.get("label", c))}<span class="lv">{E(v.get("desc", ""))}</span>' for k, v in cat["values"].items())
             legend.append(f'<dt>{E(cat.get("label", c))}</dt><dd>{vals}</dd>')
         hint = b.get("hint", self.t["t_hint"])
         reset = b.get("reset", self.t["t_reset"])
@@ -2031,7 +2064,7 @@ class Report:
         out = [f'<span class="mt">{self.inline(m)}</span>' for m in e.get("meta", []) if self.meta_key(m) not in skip]
         for c in self.cats:
             if c != kind_cat and c in bvals:
-                chips = "".join(self.badge(c, v, c in toggles) for v in dict.fromkeys(bvals[c]) if v != self.cats[c].get("default"))
+                chips = "".join(self.badge(c, v, c in toggles, str(e.get("title") or e["id"])) for v in dict.fromkeys(bvals[c]) if v != self.cats[c].get("default"))
                 if chips:  # every value the default: no empty group (it would draw a stray separator)
                     out.append(chips)
         for arrow, ids in (("→", e.get("refs", [])), ("←", self.back.get(e["id"], []))):
@@ -2873,8 +2906,10 @@ class Report:
             prev_sub = sub
             ccls = f' class="{cls.strip()}"' if cls else ""
             sn = f'<span class="sn">{n}</span>' if n else ""
-            parts.append(f'{chap}<section id="{E(secid)}"{ccls}{rd} aria-labelledby="{E(secid)}-h" data-src="sections/{i - 1}">'
-                         f'<h2 id="{E(secid)}-h">{sn}{mk}{E(sec["title"])}'
+            # the heading and its section are named by the title span alone: the permalink "#" (and the ✎ button the page
+            # script adds) stay out of the accessible name, the h2 keeps its #<id>-h anchor
+            parts.append(f'{chap}<section id="{E(secid)}"{ccls}{rd} aria-labelledby="{E(secid)}-t" data-src="sections/{i - 1}">'
+                         f'<h2 id="{E(secid)}-h" aria-labelledby="{E(secid)}-t">{sn}{mk}<span id="{E(secid)}-t">{E(sec["title"])}</span>'
                          f'<a class="ha" href="#{E(secid)}" aria-label="{E(t["permalink"])}">#</a></h2>{inner_html}</section>')
             toc.append((sub, f'<li{rd}><a href="#{E(secid)}">{n}{E(sec["title"])}</a></li>'))
         nsec = len(toc)
@@ -2917,8 +2952,8 @@ class Report:
         if used & FIND_TYPES or wr or nav:  # one box searches the whole page; trees and data tables filter their rows with it
             find = (f'<div class="find"><input id="find" type="search" placeholder="{E(t["find"])}" aria-label="{E(t["find_label"])}" '
                     f'aria-controls="main" data-hit="{E(t["find_hit"])}" data-hits="{E(t["find_hits"])}" data-hidden="{E(t["find_hidden"])}" '
-                    f'data-row="{E(t["find_row"])}" data-rows="{E(t["find_rows"])}">'
-                    f'<button type="button" id="findx" class="fclr">{E(t["find_clear"])}</button>'
+                    f'data-row="{E(t["find_row"])}" data-rows="{E(t["find_rows"])}" data-pos="{E(t["find_pos"])}">'
+                    f'<button type="button" id="findx" class="fclr" hidden>{E(t["find_clear"])}</button>'  # shown while the box has text
                     '<span id="findn" role="status" aria-live="polite"></span></div>')
         skip = f'<a class="skip" href="#main">{E(t["skip"])}</a>'
         if wr:

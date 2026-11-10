@@ -18,7 +18,8 @@ header .brand{display:block;grid-column:1/-1;height:28px;width:auto}
 h1,h2,h3{font-family:var(--head)}
 h1{font-size:var(--fs-xxl);line-height:1.2;font-weight:700;letter-spacing:-.02em;margin:0}
 svg.ic{width:1em;height:1em;flex:none;vertical-align:-.125em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-header .provenance{color:var(--mute);font-size:var(--fs-xs);text-align:right}
+/* sources and run details: the summary sits at the end of the title row; the open panel floats over the page below it, so opening it never moves the title */
+header .provenance{position:relative;justify-self:end;color:var(--mute);font-size:var(--fs-xs);text-align:right}
 header .provenance summary{display:inline-block;list-style:none;cursor:pointer;border-radius:3px}
 header .provenance summary::-webkit-details-marker{display:none}
 header .provenance summary::before{content:"";display:inline-block;width:1em;height:1em;margin-right:3px;vertical-align:-.15em;background:currentColor;-webkit-mask:var(--ic-chevron-right) center/contain no-repeat;mask:var(--ic-chevron-right) center/contain no-repeat}
@@ -26,20 +27,26 @@ header .provenance[open]>summary::before{-webkit-mask-image:var(--ic-chevron-dow
 header .provenance summary:hover{color:var(--ink)}
 header .provenance summary:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 header .provenance p,header .prov-print{margin:6px 0 0;overflow-wrap:anywhere}
-header .prov-print{display:none;color:var(--mute);font-size:var(--fs-xs);text-align:right}
+header .provenance>p{position:absolute;z-index:15;top:100%;right:0;width:max-content;max-width:min(520px,calc(100vw - 36px));padding:12px 14px;text-align:left;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;box-shadow:0 4px 16px rgb(0 0 0/.1)}
+@media(max-width:640px){header .provenance{justify-self:start}header .provenance>p{right:auto;left:0}}
+header .prov-print{display:none;color:var(--mute);font-size:var(--fs-xs);text-align:left}
 dl.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));margin:0;border-bottom:1px solid var(--rule)}
-dl.stats div{padding:14px 12px;border-right:1px solid var(--hair)}dl.stats div:last-child{border:0}
+/* values share the bottom of each cell: a label that wraps to two lines grows its cell, not the value's position */
+dl.stats div{display:flex;flex-direction:column;padding:14px 12px;border-right:1px solid var(--hair)}dl.stats div:last-child{border:0}
 dl.stats dt{font-size:var(--fs-xs);color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
-dl.stats dd{margin:2px 0 0;font-size:var(--fs-l);font-weight:500;font-variant-numeric:tabular-nums}
+dl.stats dd{margin:auto 0 0;padding-top:2px;font-size:var(--fs-l);font-weight:500;font-variant-numeric:tabular-nums}
 main>section{display:block;padding:44px 0 40px;scroll-margin-top:16px;border-bottom:1px solid var(--rule)}
 main>section.lede{padding-top:8px}
 section>h2{font-size:var(--fs-xl);font-weight:700;line-height:1.2;letter-spacing:-.01em;margin:0 0 18px;padding-top:12px;border-top:3px solid var(--ink)}
 .sn{font:500 var(--fs-l)/1 var(--mono);color:var(--mute);margin-right:.5em}
 .ha{margin-left:.4em;color:var(--mute);text-decoration:none;opacity:0}h2:hover>.ha,.ha:focus-visible{opacity:1}
 @media(hover:none){.ha{opacity:1}}
-.chap{font:600 var(--fs-xs)/1.4 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:48px 0 -24px}
+/* chapter label: a divider that opens a group of sections (label, then a rule running out to the right), clear of the h2 below; not a kicker on one heading */
+.chap{display:flex;align-items:center;gap:16px;font:600 var(--fs-m)/1.3 var(--sans);color:var(--ink);margin:0 0 -12px;padding:48px 0 0}
+.chap::after{content:"";flex:1;border-top:1px solid var(--rule)}
 .lede .body p{font-size:var(--fs-l);line-height:1.5}
-nav.toc .toc-g>span{display:block;font-weight:600;margin-top:8px}nav.toc .toc-g ol{columns:1}
+/* a group head carries its space as padding: a margin at the top of a column is dropped, which set the two column heads apart */
+nav.toc .toc-g{padding-top:8px}nav.toc .toc-g>span{display:block;font-weight:600}nav.toc .toc-g ol{columns:1}
 .body>*:first-child{margin-top:0}
 p,ul.ste li,ol.ste li{max-width:36em;overflow-wrap:anywhere}
 p,li,figcaption{text-wrap:pretty}h1,h2,h3{text-wrap:balance}
@@ -54,6 +61,9 @@ figcaption code,.lg code,details.notes code,.notes-1 code,.xr code,.src code{fon
 .fg>figcaption b{color:var(--ink);font-weight:600}
 .lvl{font-size:var(--fs-xs);font-weight:600;line-height:1.6;padding:0 5px;border:1px solid var(--ink);color:var(--ink)}
 .dw{overflow-x:auto;padding:2px 0}
+/* row under the frame: "scroll sideways" hint (dwCue shows it only while the frame overflows) and the ⤢ zoom button at the right */
+.fgb{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:4px 0 0}.fgb:not(:has(>:not([hidden]))),html:not(.js) .fgb{display:none}
+.dwh{font-size:var(--fs-xs);color:var(--mute)}@media print{.fgb{display:none}}
 .dg{display:block;max-width:none;color:var(--ink)}.dg text{font-variant-ligatures:none;font-feature-settings:"calt" 0,"liga" 0}
 pre.mermaid{font:var(--fs-xs) var(--mono);white-space:pre;overflow-x:auto;margin:0}pre.mermaid[data-processed] svg{max-width:100%;height:auto}
 .vg{width:100%;min-width:0}.vg .vega-embed{width:100%;display:flex}.vg .vega-embed>svg{max-width:100%}
@@ -79,9 +89,14 @@ details.ev{margin:6px 0 0;font-size:var(--fs-xs)}details.ev summary{cursor:point
 .kh,.mp .fh{display:none}.nd.iso{opacity:.3}
 /* filtered by a driving tree: faded, and out of the hover focus */
 .dg .fx,.dg.focus .fx.on{opacity:.12}
-.lg .lk{display:inline-flex;align-items:center;gap:5px;min-height:24px;font:inherit;color:inherit;background:none;border:1px solid transparent;border-radius:4px;padding:0 4px;margin:0 -4px;cursor:pointer}
-.lg .lk:hover{border-color:var(--rule)}.lg .lk[aria-pressed=false]{opacity:.4;text-decoration:line-through}.lg .lk:focus-visible{outline:2px solid var(--acc)}
-.zb{margin-left:auto;font:var(--fs-s)/1.4 var(--mono);padding:0 8px;border:1px solid var(--rule);background:var(--paper);border-radius:6px;cursor:pointer;color:var(--ink)}.zb:hover{background:var(--wash)}
+/* legend toggles: quiet outlined pills so they read as switches; off = dashed, faded and struck through */
+.lg:has(.lk){gap:6px 8px}
+.lg .lk{display:inline-flex;align-items:center;gap:5px;min-height:24px;font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:999px;padding:0 9px 0 7px;cursor:pointer}
+.lg .lk:hover{background:var(--wash);border-color:var(--mute)}.lg .lk:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.lg .lk[aria-pressed=false]{color:var(--mute);background:none;border-style:dashed;text-decoration:line-through}.lg .lk[aria-pressed=false] svg{opacity:.35}
+.zb{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font:var(--fs-s)/1.4 var(--mono);padding:0 8px;border:1px solid var(--rule);background:var(--paper);border-radius:6px;cursor:pointer;color:var(--ink)}.zb:hover{background:var(--wash)}
+/* the ⤢ glyph alone means little on a phone: touch screens get the word too */
+.zbt{display:none;font-family:var(--sans)}@media(pointer:coarse),(max-width:800px){.zbt{display:inline}}
 html:not(.js) .zb{display:none}
 .zv{width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:var(--paper);color:var(--ink);font:var(--fs-s)/1.5 var(--mono)}
 .zv[open]{display:grid;grid-template-rows:auto minmax(0,1fr) auto}.zv::backdrop{background:var(--paper)}
@@ -268,10 +283,15 @@ ul.ste li.chg,ol.ste li.chg,tr.chg>td,.row.chg{background:var(--cb)}tr.chg>td:fi
 .datatable-wrapper .datatable-container{overflow-x:auto}
 .datatable-wrapper .datatable-top,.datatable-wrapper .datatable-bottom{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 14px;padding:6px 0}
 .datatable-wrapper .datatable-top::after,.datatable-wrapper .datatable-bottom::after{display:none}
-.datatable-wrapper .datatable-input,.datatable-wrapper .datatable-selector{font:var(--fs-xs) var(--mono);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:3px 8px}
-.datatable-wrapper .datatable-input:focus{outline:2px solid var(--acc);outline-offset:-1px}
-.datatable-wrapper .datatable-info{margin:0;font-size:var(--fs-xs);color:var(--mute);font-variant-numeric:tabular-nums}
-.datatable-wrapper .datatable-pagination a,.datatable-wrapper .datatable-pagination button{font:var(--fs-xs) var(--mono);color:var(--mute);padding:2px 9px;border-radius:6px;background:none}
+/* the chrome (search, rows-per-page, info, pages) is page furniture: small muted sans, like #findn, not code */
+.datatable-wrapper .datatable-dropdown,.datatable-wrapper .datatable-dropdown label{font:var(--fs-xs)/1.4 var(--sans);color:var(--mute)}
+.datatable-wrapper .datatable-input,.datatable-wrapper .datatable-selector{font:var(--fs-xs)/1.4 var(--sans);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:3px 8px}
+.datatable-wrapper .datatable-selector{margin-right:4px}
+.datatable-wrapper .datatable-input:focus,.datatable-wrapper .datatable-selector:focus{outline:2px solid var(--acc);outline-offset:-1px}
+/* the header find box already filters every data table (multiSearch source 'find'): a second box per table would only compete with it */
+body:has(#find) .datatable-wrapper .datatable-search{display:none}
+.datatable-wrapper .datatable-info{margin:0;font:var(--fs-xs)/1.4 var(--sans);color:var(--mute);font-variant-numeric:tabular-nums}
+.datatable-wrapper .datatable-pagination a,.datatable-wrapper .datatable-pagination button{font:var(--fs-xs)/1.4 var(--sans);font-variant-numeric:tabular-nums;color:var(--mute);padding:2px 9px;border-radius:6px;background:none}
 .datatable-wrapper .datatable-pagination a,.datatable-wrapper .datatable-pagination button{min-width:24px;min-height:24px}
 .datatable-wrapper .datatable-pagination a:hover,.datatable-wrapper .datatable-pagination button:hover,
 .datatable-wrapper .datatable-pagination .datatable-active a,.datatable-wrapper .datatable-pagination .datatable-active button{background:var(--wash)!important;color:var(--ink)}
@@ -282,6 +302,20 @@ ul.ste li.chg,ol.ste li.chg,tr.chg>td,.row.chg{background:var(--cb)}tr.chg>td:fi
 .datatable-wrapper .datatable-table .n{text-align:right}
 .datatable-wrapper .datatable-sorter{padding-right:14px;color:inherit;text-decoration:none;font:inherit;text-transform:inherit;letter-spacing:inherit}
 @media print{.csv,.datatable-top,.datatable-pagination{display:none}}
+/* narrow screens: like table.rsp, every row a card and every cell its column label (data-label, set by dtInit's tableRender) above
+   the value, so no column is cut off; the header row stays as a wrapping bar of sort buttons */
+@media(max-width:640px){
+ .datatable-wrapper .datatable-container{overflow-x:visible;border-bottom:0}
+ .datatable-wrapper .datatable-table,.datatable-wrapper .datatable-table>thead,.datatable-wrapper .datatable-table>tbody,.datatable-wrapper .datatable-table>tbody>tr,.datatable-wrapper .datatable-table>tbody>tr>td{display:block;width:100%}
+ .datatable-wrapper .datatable-table>thead>tr{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0 0 10px}
+ .datatable-wrapper .datatable-table>thead>tr>th{width:auto!important;padding:0;border:0;text-align:left}
+ .datatable-wrapper .datatable-sorter{min-height:44px}
+ .datatable-wrapper .datatable-table>tbody>tr{margin:0 0 12px;padding:4px 14px;border:1px solid var(--rule);border-radius:6px;background:var(--paper)}
+ .datatable-wrapper .datatable-table>tbody>tr>td{padding:9px 0;border-bottom:1px solid var(--hair);text-align:left;white-space:normal;overflow-wrap:anywhere}
+ .datatable-wrapper .datatable-table>tbody>tr>td:last-child{border-bottom:0}
+ .datatable-wrapper .datatable-table>tbody>tr>td[data-label]::before{content:attr(data-label);display:block;margin-bottom:2px;font:500 var(--fs-xs)/1.4 var(--mono);color:var(--mute);text-transform:uppercase;letter-spacing:.05em}
+ .datatable-wrapper .datatable-table>tbody>tr>td:first-child{font-weight:600}
+}
 /* readability: proportional prose, mono only for code, badges, data and source markers */
 code,.bg,.src,.id,.lvl,.cnt,.tn,.n,dl.stats dd,.rc-h,.co-k,pre{font-family:var(--mono)}
 a.src{color:var(--acc);text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:2px}a.src:hover{text-decoration-color:currentColor}
@@ -290,7 +324,9 @@ a.src{color:var(--acc);text-decoration:underline;text-decoration-color:var(--rul
 .skip{position:absolute;left:-9999px;top:8px}.skip:focus{left:12px;z-index:20;padding:10px 16px;background:var(--ink);color:#fff;border-radius:6px;text-decoration:none}
 @media(pointer:coarse),(max-width:800px){
  .ctl button,.zb,.csv,.chgbar button,.mtb button,.zt button,.fclr,.seg button,summary,.datatable-wrapper .datatable-pagination a,.datatable-wrapper .datatable-pagination button,.lg .lk{min-height:44px;min-width:44px}
- .tl>[role=tab]{min-height:44px}.tg{position:relative}.tg::after{content:"";position:absolute;inset:-12px -2px}.vch button{min-height:44px;padding:0 4px}.bot select{min-height:44px}
+ .tl>[role=tab]{min-height:44px}.vch button{min-height:44px;padding:0 4px}.bot select{min-height:44px}
+ /* filter chips stay 21 px tall in the row; an invisible box at least 44 × 44 centred on each takes the tap */
+ .tg{position:relative}.tg::after{content:"";position:absolute;left:50%;top:50%;width:max(100% + 4px,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
  nav.toc a{padding:12px 0}
 }
 /* header tools (web-research): reader depth, find, contents */
@@ -302,8 +338,11 @@ a.src{color:var(--acc);text-decoration:underline;text-decoration-color:var(--rul
 .seg button[aria-pressed=true]{background:var(--ink);color:#fff}
 .rdd{flex:1 1 240px;font-size:var(--fs-s);color:var(--mute)}html:not(.js) .rdc{display:none}
 .fclr{min-height:44px;font:var(--fs-s) var(--sans);padding:8px 14px;border:1px solid var(--rule);background:var(--paper);border-radius:6px;cursor:pointer;color:var(--ink);white-space:nowrap}.fclr:hover{background:var(--wash)}
-html:not(.js) .fclr{display:none}#findn{font-size:var(--fs-s)}
-.fm{background:var(--hl);box-shadow:0 0 0 2px var(--hl);border-radius:2px}
+html:not(.js) .fclr{display:none}.fclr[hidden]{display:none}#findn{font-size:var(--fs-s)}
+#find::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;display:none}
+/* find: a faint tint on the matching block, the term itself in the highlight colour, the match stepped to in the accent */
+.fm{background:var(--wash);box-shadow:0 0 0 3px var(--wash);border-radius:2px}
+::highlight(find){background:var(--hl);color:inherit}::highlight(findc){background:var(--acc);color:#fff}
 nav.toc{grid-column:1/-1;font-size:var(--fs-m)}
 nav.toc summary{cursor:pointer;font-weight:600;min-height:44px;display:flex;align-items:center}
 nav.toc summary::after{content:"";width:7px;height:7px;margin-left:12px;border:solid currentColor;border-width:0 2px 2px 0;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
@@ -378,6 +417,9 @@ ol.bib{list-style:none;margin:0;padding:0}
 .bi-t{font-weight:600;font-size:var(--fs-m);overflow-wrap:anywhere}.bi-m,.bi-n{display:block;overflow-wrap:anywhere}.bi-n{margin-top:2px}
 /* static tables: under 640px every row is a card, every cell its header label above the value */
 table.rsp caption{caption-side:top;text-align:left;font-size:var(--fs-s);font-weight:600;color:var(--ink);padding:0 0 8px}
+/* a code column (td.cd, every cell one `code` span) is capped at 40ch and wraps anywhere: an auto-layout table sizes columns by their
+   longest line, so an unbroken pattern would otherwise take most of the row and squeeze the prose column next to it */
+table.rsp td.cd code{display:inline-block;max-width:40ch;overflow-wrap:anywhere;white-space:normal}
 @media(max-width:640px){
  .tw:has(>table.rsp){overflow-x:visible}
  table.rsp,table.rsp tbody,table.rsp tr,table.rsp td{display:block;width:100%}
@@ -391,7 +433,7 @@ table.rsp caption{caption-side:top;text-align:left;font-size:var(--fs-s);font-we
 /* vertical diagrams keep their clamp width (75 % of full at least) and scroll inside .dw; print fits every diagram to the page */
 .dgv{height:auto}@media print{.dg{max-width:100%;height:auto}}
 @media print{.rdc,.skip,nav.toc,.fclr,.ha{display:none}main>section>h2{border-top-width:2px}}
-/* reader notes (page script): select text and press Comment, or ✎ on a section title; the Notes panel copies them for the agent */
+/* reader notes (page script): select text and press Comment, or ✎ on a section title; the Comments panel copies them for the agent */
 ::highlight(an){background:var(--blue-bg);text-decoration:underline 2px var(--acc)}
 .an-flash{background:var(--hl);transition:background 1.5s}
 .an-add{position:absolute;z-index:25;white-space:nowrap;font:600 var(--fs-s)/1.4 var(--sans);padding:5px 12px;border:1px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--paper);cursor:pointer}
@@ -399,7 +441,7 @@ table.rsp caption{caption-side:top;text-align:left;font-size:var(--fs-s);font-we
 .an-sec::before{content:"";display:inline-block;width:.9em;height:.9em;vertical-align:-.1em;background:currentColor;-webkit-mask:var(--ic-pencil-line) center/contain no-repeat;mask:var(--ic-pencil-line) center/contain no-repeat}.an-sec:hover{color:var(--ink);border-color:var(--rule)}
 h2:hover>.an-sec,h2:focus-within>.an-sec{opacity:1}
 @media(hover:none){.an-sec{opacity:1}}
-/* location pill (bottom left, opposite the Notes button): the section in view; a click goes back to the contents */
+/* location pill (bottom left, opposite the Comments button): the section in view; a click goes back to the contents */
 .whr{position:fixed;left:16px;bottom:16px;z-index:25;display:inline-flex;align-items:center;gap:8px;min-height:44px;max-width:min(420px,calc(100vw - 96px));padding:8px 14px;border:1px solid var(--rule);border-radius:999px;background:var(--paper);color:var(--ink);font:var(--fs-s)/1.3 var(--sans);text-decoration:none;box-shadow:0 2px 8px rgb(0 0 0/.08)}
 .whr[hidden]{display:none}.whr:hover{background:var(--wash)}.whr>b{font:600 var(--fs-xs) var(--mono);color:var(--mute)}
 .whr>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
@@ -410,8 +452,10 @@ h2:hover>.an-sec,h2:focus-within>.an-sec{opacity:1}
 .an-fab:hover{background:var(--wash)}.an-open .an-fab{display:none}
 .an-fab{transition:transform .2s}.an-fab.an-hide:not(:focus-visible){transform:translateY(80px)}
 @media(prefers-reduced-motion:reduce){.an-fab{transition:none}}
-/* phones: a 44 px pencil circle with the count in its corner; the label stays for screen readers */
+/* phones: a 44 px pencil circle with the count in its corner; the label stays for screen readers. The page end and any
+   scrolled-to target keep clear of it and of the location pill (both 8 + 44 px from the bottom) */
 @media(max-width:800px){
+ body{padding-bottom:72px}html{scroll-padding-bottom:64px}
  .an-fab{right:8px;bottom:8px;width:44px;height:44px;padding:0;gap:0;justify-content:center}
  .an-fab::before{content:"";width:20px;height:20px;background:currentColor;-webkit-mask:var(--ic-pencil-line) center/contain no-repeat;mask:var(--ic-pencil-line) center/contain no-repeat}
  .an-fab>span:not(.an-n){position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -523,6 +567,14 @@ addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.lg .lk
  svg.querySelectorAll('path[data-f]').forEach(x=>{for(const s of x.classList.contains('kh')?[all]:[all,vis]){s.add(x.dataset.f);s.add(x.dataset.t)}});
  svg.querySelectorAll('[data-n]').forEach(x=>x.classList.toggle('iso',all.has(x.dataset.n)&&!vis.has(x.dataset.n)));
  svg._fk=null;dgFocus(svg)});
+/* sideways cue: a frame narrower than its diagram says so under it, until the reader has scrolled to its end once;
+   recomputed when the frame or its content changes size (window resize, a tab shown, a late render) */
+function dwCue(w){const h=w.parentNode.querySelector(':scope>.fgb>.dwh');if(!h)return;
+ const over=w.scrollWidth>w.clientWidth+1;if(over&&w.scrollLeft+w.clientWidth>=w.scrollWidth-2)w._end=true;
+ h.hidden=!over||!!w._end}
+addEventListener('DOMContentLoaded',()=>{const ro=new ResizeObserver(es=>es.forEach(e=>dwCue(e.target.closest('.dw'))));
+ document.querySelectorAll('.fg>.dw').forEach(w=>{ro.observe(w);if(w.firstElementChild)ro.observe(w.firstElementChild);
+  w.addEventListener('scroll',()=>dwCue(w),{passive:true});dwCue(w)})});
 const ZT={de:{hint:'Mausrad oder zwei Finger: zoomen · ziehen: verschieben · Esc: schließen',fit:'Einpassen',close:'Schließen',zin:'Vergrößern',zout:'Verkleinern'},
  en:{hint:'Wheel or two fingers: zoom · drag: pan · Esc: close',fit:'Fit',close:'Close',zin:'Zoom in',zout:'Zoom out'}};
 function zoomFig(btn){const fig=btn.closest('.fg'),t=ZT[document.documentElement.lang.slice(0,2)]||ZT.en;
@@ -813,7 +865,7 @@ const FIND={q:'',parts:{}};
 function findN(){const n=document.getElementById('findn');if(!n)return;const box=document.getElementById('find'),tf=[...(window.TF||[])];
  const{page,...rest}=FIND.parts,nums=Object.values(rest).filter(v=>typeof v==='number'),rows=tf.length||nums.length?
   [tf.reduce((s,t)=>s+t.shown,0)+nums.reduce((s,v)=>s+v,0)]:[];
- const out=[...(page!==undefined?[page]:[]),...rows.map(k=>k+' '+(k===1?box.dataset.row:box.dataset.rows)),...Object.values(rest).filter(v=>typeof v!=='number')];
+ const out=[...(page!==undefined?[page]:[]),...rows.filter(k=>k).map(k=>k+' '+(k===1?box.dataset.row:box.dataset.rows)),...Object.values(rest).filter(v=>typeof v!=='number')];
  n.textContent=FIND.q?out.join(' · '):''}
 addEventListener('DOMContentLoaded',()=>{const box=document.getElementById('find');if(!box)return;let timer;
  box.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>{FIND.q=box.value.trim().toLowerCase();
@@ -822,8 +874,10 @@ addEventListener('DOMContentLoaded',()=>{const box=document.getElementById('find
 /* Data tables (`data` block). window.DT comes from a module script in <head> (simple-datatables, only when the report has a `data`
    block) and fires `dt-ready`; without it the plain tables stay. Each table.dt gets `el._dt` (the DataTable) and
    `el._dtFilter(col, values|null, source='filter')`: keep only rows whose cell text in column `col` equals one of `values`
-   (exact match; null or [] removes that filter) — for a chart selection. Sources AND together; 'search' (the table's own box)
-   and 'find' (the header box) match by substring. Counts (`FIND.parts.dt`) follow every change. CSV exports every row.
+   (exact match; null or [] removes that filter) — for a chart selection. Sources AND together; 'search' (the table's own box,
+   hidden by CSS when the page has the header find) and 'find' (the header box) match by substring. Counts (`FIND.parts.dt`)
+   follow every change. CSV exports every row. tableRender gives every rendered body cell `data-label` (its column header) and the
+   table its ARIA roles, which the narrow-screen card layout needs (the library re-renders rows, so markup from build.py would not last).
    `dt-init` fires on document once all tables are upgraded (a chart that listens to a table waits for it). */
 const DTL={de:{placeholder:'Tabelle durchsuchen…',searchTitle:'In der Tabelle suchen',searchLabel:'Suchen',sortHint:'Zum Sortieren aktivieren',pageTitle:'Seite {page}',perPage:'Zeilen pro Seite',noRows:'Keine Zeilen',info:'Zeilen {start} bis {end} von {rows}',noResults:'Keine Zeile passt zur Suche'},
  en:{placeholder:'Search table…',searchTitle:'Search within table',searchLabel:'Search',sortHint:'Activate to sort',pageTitle:'Page {page}',perPage:'rows per page',noRows:'No rows',info:'Showing {start} to {end} of {rows} rows',noResults:'No row matches the search'}};
@@ -833,7 +887,15 @@ function dtCount(){const t=dtAll();if(!t.length)return;
 function dtInit(){if(!window.DT)return;const L=DTL[document.documentElement.lang.slice(0,2)]||DTL.en;
  const text=c=>(c.text??(typeof c.data==='string'?c.data:'')).trim();
  document.querySelectorAll('table.dt').forEach(el=>{if(el._dt)return;const c=JSON.parse(el.dataset.dt||'{}');
+  const heads=el.tHead?[...el.tHead.rows[0].cells].map(th=>th.textContent.trim()):[];
+  const at=n=>n.attributes=n.attributes||{};
   const dt=new DT.DataTable(el,{searchable:true,perPage:c.page||25,perPageSelect:[10,25,50,100],labels:L,
+   tableRender:(_,t,type)=>{at(t).role='table';
+    for(const g of t.childNodes||[]){if(g.nodeName!=='THEAD'&&g.nodeName!=='TBODY')continue;at(g).role='rowgroup';
+     for(const r of g.childNodes||[]){at(r).role='row';
+      (r.childNodes||[]).forEach((x,i)=>{if(x.nodeName==='TH')at(x).role='columnheader';
+       else if(x.nodeName==='TD'){at(x).role='cell';if(type!=='message'&&heads[i])at(x)['data-label']=heads[i]}})}}
+    return t},
    sensitivity:'variant',ignorePunctuation:false,
    searchMethod:(terms,cell,row,col,src)=>src==='search'||src==='find'?terms.some(t=>text(cell).toLowerCase().includes(t.toLowerCase())):terms.includes(text(cell)),
    columns:(c.num||[]).length?[{select:c.num,type:'number'}]:[]});
@@ -880,14 +942,21 @@ function vgClear(el,spec){const v=el._view,id=el.id.slice(3),pts=vgPoints(spec);
    if(l&&l.chart===id&&cl.includes(l.param))t._dtFilter(l.col,null,'chart')}})})}
 function vgFilter(fig,el){const v=el._view,ent=fig.dataset.e;if(!v||!ent||!fig._hide)return;const h=fig._hide;
  v.change('rows',(window.vega||vegaEmbed.vega).changeset().remove(()=>true).insert(el._rows.filter(r=>!h.has(String(r[ent]))).map(r=>({...r})))).run()}
-/* Vega config from the page tokens: brand palette for categories, muted axes, legend below the plot in as many columns
+/* Chart categories: a fixed colour-blind-safe set (Okabe-Ito and Paul Tol's muted hues), not the brand tokens. The brand hues are
+   too close for this job (teal #146a70 and green #0f7b4f merge, under deuteranopia so do orange/yellow/red and teal/pink), and the
+   page already gives them meaning: blue marks the tree's `figure` chip, purple or blue is the link colour (--acc). None of these
+   equals either brand's accent (vgConfig still drops a colour equal to --acc, for a future brand); the order keeps the first six ≥ ΔE 26 apart in
+   normal vision and under simulated deuteranopia (light sky, orange, dark green, wine, pink, olive), so a chart with ≤ 6 categories
+   never needs a second look; 7 and 8 (purple, rose) are still ≥ ΔE 20. */
+const VG_CAT=['#56b4e9','#e69f00','#117733','#882255','#cc79a7','#999933','#aa4499','#cc6677'];
+/* Vega config from the page tokens: VG_CAT for categories, muted axes, legend below the plot in as many columns
    as the chart's width holds (one per 160px), so it wraps on phones; a spec's own config still wins (Vega-Lite merges it over this) */
 function vgConfig(el){const cs=getComputedStyle(document.documentElement),v=n=>cs.getPropertyValue('--'+n).trim();
  const mute=v('mute'),rule=v('rule'),hair=v('hair'),cols=Math.max(1,Math.floor((el&&el.clientWidth||innerWidth)/160));
  return{font:'JetBrains Mono, monospace',
   axis:{labelColor:mute,titleColor:mute,domainColor:rule,gridColor:hair,labelFontSize:12,titleFontSize:12},
   legend:{orient:'bottom',direction:'horizontal',columns:cols,labelColor:mute,titleColor:mute,labelFontSize:12,titleFontSize:12,labelLimit:140},
-  range:{category:['blue','orange','teal','purple','green','pink','brown','navy','yellow','red'].map(v).filter(Boolean)},
+  range:{category:VG_CAT.filter(c=>c.toLowerCase()!==v('acc').toLowerCase())},
   mark:{color:v('blue')}}}
 function vgInit(){document.querySelectorAll('.vg').forEach(el=>{if(el._view||el._busy)return;el._busy=true;
   const fig=el.closest('.fg'),sc=el.parentNode.querySelector('script.vgs');
@@ -922,28 +991,47 @@ addEventListener('DOMContentLoaded',()=>{const c=document.querySelector('.rdc');
  rdSet(id,false);const el=location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)));if(el&&rdReveal(el))el.scrollIntoView()});
 addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.rdc button');if(b)rdSet(b.dataset.depth,true)});
 /* Report-wide find (<main data-find-scope>, every profile). Units are the outermost headings, paragraphs, list items, table
-   cells and captions; trees, data tables and diagrams keep their own find. A unit that matches (case and accents ignored) gets .fm.
-   The count (FIND.parts.page) covers visible units only; matches in hidden parts (reader depth, closed tab) are added as a hint.
-   Enter jumps to the next match, Shift+Enter to the previous one. */
-const RF_SEL='h2,h3,h4,p,li,td,th,figcaption,caption,dt,dd';let rfI=-1;
+   cells and captions; trees (and their filter legend), data tables and diagrams keep their own find, the contents list only
+   repeats the headings. A unit that matches (case and accents ignored) gets a faint .fm tint, and every occurrence of the term
+   in it is painted with the CSS Custom Highlight API (::highlight(find); the unit stepped to: ::highlight(findc)).
+   The count (FIND.parts.page) covers visible units only; matches in hidden parts (reader depth, closed tab or details) are
+   added as "+n in closed parts". Enter jumps to the next match, Shift+Enter to the previous one; the count then reads "2 of 13". */
+const RF_SEL='h2,h3,h4,p,li,td,th,figcaption,caption,dt,dd';let rfI=-1,rfVis=0,rfHid=0,rfR=new Map();
 const rfFold=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const rfSeen=el=>el.checkVisibility?el.checkVisibility():!!el.getClientRects().length;  // closed <details> content still has rects
+const rfHL=!!(window.Highlight&&CSS.highlights);
 function rfUnits(){const root=document.querySelector('[data-find-scope]');if(!root)return[];
- return[...root.querySelectorAll(RF_SEL)].filter(el=>!el.parentElement.closest(RF_SEL)&&!el.closest('ul.tr,.datatable-wrapper,table.dt,svg,.zv'))}
-function rfRun(){const q=FIND.q?rfFold(FIND.q):'';let vis=0,hid=0;rfI=-1;
- for(const el of rfUnits()){const m=!!q&&rfFold(el.textContent).includes(q);el.classList.toggle('fm',m);if(m){rfSeen(el)?vis++:hid++}}
- const box=document.getElementById('find');
- if(!q)delete FIND.parts.page;else FIND.parts.page=vis+' '+((vis===1?box.dataset.hit:box.dataset.hits)||'')+(hid?' '+(box.dataset.hidden||'+{n}').replace('{n}',hid):'');
- findN()}
+ return[...root.querySelectorAll(RF_SEL)].filter(el=>!el.parentElement.closest(RF_SEL)&&!el.closest('ul.tr,details.flt,nav.toc,.datatable-wrapper,table.dt,svg,.zv'))}
+/* the term's ranges in one unit: fold char by char and keep, per folded char, its text node and offset (folding changes lengths) */
+function rfRanges(el,q){const w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT),at=[],out=[];let s='',n;
+ while((n=w.nextNode())){const d=n.data;for(let i=0;i<d.length;i++){const f=rfFold(d[i]);s+=f;for(let k=0;k<f.length;k++)at.push([n,i])}}
+ for(let i=s.indexOf(q);i>=0;i=s.indexOf(q,i+q.length)){const a=at[i],b=at[i+q.length-1],r=document.createRange();r.setStart(a[0],a[1]);r.setEnd(b[0],b[1]+1);out.push(r)}
+ return out}
+function rfCount(){const box=document.getElementById('find'),D=box.dataset,word=k=>(k===1?D.hit:D.hits)||'';
+ if(!FIND.q){delete FIND.parts.page;findN();return}
+ const pos=rfI>=0?(D.pos||'{i}/{n}').replace('{i}',rfI+1).replace('{n}',rfVis)+' '+word(rfVis):rfVis+' '+word(rfVis);
+ FIND.parts.page=pos+(rfHid?' '+(D.hidden||'+{n}').replace('{n}',rfHid):'');findN()}
+function rfRun(){const q=FIND.q?rfFold(FIND.q):'';rfVis=0;rfHid=0;rfI=-1;rfR=new Map();
+ for(const el of rfUnits()){const m=!!q&&rfFold(el.textContent).includes(q);el.classList.toggle('fm',m);
+  if(m){rfSeen(el)?rfVis++:rfHid++;if(rfHL)rfR.set(el,rfRanges(el,q))}}
+ if(rfHL){CSS.highlights.delete('findc');if(q)CSS.highlights.set('find',new Highlight(...[...rfR.values()].flat()));else CSS.highlights.delete('find')}
+ rfCount()}
 document.addEventListener('find',()=>{if(document.querySelector('[data-find-scope]'))rfRun()});
 function rfNext(back){const m=[...document.querySelectorAll('.fm')].filter(rfSeen);if(!m.length)return;
- rfI=(rfI+(back?-1:1)+m.length)%m.length;m[rfI].scrollIntoView({block:'center',behavior:'smooth'})}
+ rfVis=m.length;rfI=(rfI+(back?-1:1)+m.length)%m.length;m[rfI].scrollIntoView({block:'center',behavior:'smooth'});
+ if(rfHL){const h=new Highlight(...(rfR.get(m[rfI])||[]));h.priority=1;CSS.highlights.set('findc',h)}rfCount()}
 addEventListener('keydown',e=>{if(e.target.id==='find'&&e.key==='Enter'&&document.querySelector('[data-find-scope]')){e.preventDefault();rfNext(e.shiftKey)}});
+/* one clear control: the native ✕ of type=search is hidden in CSS; "Clear search" shows only while the box has text */
+addEventListener('input',e=>{if(e.target.id==='find')document.getElementById('findx').hidden=!e.target.value});
+addEventListener('DOMContentLoaded',()=>{const b=document.getElementById('find'),x=document.getElementById('findx');if(b&&x)x.hidden=!b.value});
 addEventListener('click',e=>{if(!e.target.closest||!e.target.closest('#findx'))return;const b=document.getElementById('find');
- b.value='';b.dispatchEvent(new Event('input'));b.focus()});
+ b.value='';b.dispatchEvent(new Event('input',{bubbles:true}));b.focus()});
 /* contents and tree filters: open on a wide screen, closed on a phone (the markup is open, so it stays usable without JS) */
 addEventListener('DOMContentLoaded',()=>{if(!matchMedia('(max-width:800px)').matches)return;
  document.querySelectorAll('nav.toc details,details.flt').forEach(d=>{d.open=false})});
+/* sources and run details float over the page when open: Escape (focus back on the summary) or a click outside closes them */
+addEventListener('keydown',e=>{const p=e.key==='Escape'&&document.querySelector('header .provenance[open]');if(p){p.open=false;p.querySelector('summary').focus()}});
+addEventListener('click',e=>{const p=document.querySelector('header .provenance[open]');if(p&&!p.contains(e.target))p.open=false});
 /* where am I: once the contents scroll away, a pill bottom left names the section in view and leads back to the contents */
 addEventListener('DOMContentLoaded',()=>{const nav=document.querySelector('nav.toc');if(!nav||!('IntersectionObserver' in window))return;
  const secs=[...document.querySelectorAll('main>section[id]')].filter(s=>s.querySelector(':scope>h2'));if(!secs.length)return;
@@ -953,21 +1041,22 @@ addEventListener('DOMContentLoaded',()=>{const nav=document.querySelector('nav.t
   a.setAttribute('aria-label',nav.getAttribute('aria-label')+': '+(n?n.textContent.trim()+' ':'')+t)};
  let past=false,cur=null;
  new IntersectionObserver(([e])=>{past=!e.isIntersecting&&e.boundingClientRect.top<0;a.hidden=!past||!cur}).observe(nav);
- const io=new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting){cur=e.target;show(cur)}a.hidden=!past||!cur},{rootMargin:'0px 0px -75% 0px'});
+ const io=new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting){cur=e.target;show(cur)}a.hidden=!past||!cur},{rootMargin:'0px 0px -60% 0px'});
  secs.forEach(s=>io.observe(s));
  a.addEventListener('click',e=>{e.preventDefault();const d=nav.querySelector('details');if(d)d.open=true;nav.scrollIntoView({block:'start'});(nav.querySelector('summary,a')||nav).focus({preventScroll:true})})});
 /* Reader notes. Select words inside a section and press Comment, or ✎ on a section title, and write what should change.
    Every section and block carries data-src, its JSON pointer into the report source (header[data-report]); a note keeps that
-   pointer, the marked words and the sentences around them (taken at creation). The Notes panel lists the notes in page order,
+   pointer, the marked words and the sentences around them (taken at creation). The Comments panel lists the notes in page order,
    jumps to each, copies all of them as markdown for the agent (anMarkdown) and clears them. Notes live in localStorage per page
-   path (in memory only when storage throws); anPaint marks the words with the CSS Custom Highlight API. Nothing is uploaded. */
-const AT={en:{notes:'Notes',comment:'Comment',secNote:'Comment on this section',placeholder:'What should change?',save:'Save',cancel:'Cancel',
-  del:'Delete',edit:'Edit',copy:'Copy for agent',clear:'Clear',clearQ:'Delete all notes on this page?',copied:'Copied {n} notes',
-  copyFail:'Copy failed: select the text below and copy it',empty:'No notes yet. Select text and press Comment, or use ✎ next to a section title.',
+   path (in memory only when storage throws); anPaint marks the words with the CSS Custom Highlight API. Nothing is uploaded.
+   The UI says "Comments", not "Notes": "Notes" already names the citation list closing each section. */
+const AT={en:{notes:'Comments',comment:'Comment',secNote:'Comment on this section',placeholder:'What should change?',save:'Save',cancel:'Cancel',
+  del:'Delete',edit:'Edit',copy:'Copy for agent',clear:'Clear',clearQ:'Delete all comments on this page?',copied:'Copied {n} comments',
+  copyFail:'Copy failed: select the text below and copy it',empty:'No comments yet. Select text and press Comment, or use ✎ next to a section title.',
   lost:'text no longer found'},
- de:{notes:'Notizen',comment:'Kommentieren',secNote:'Abschnitt kommentieren',placeholder:'Was soll sich ändern?',save:'Speichern',cancel:'Abbrechen',
-  del:'Löschen',edit:'Bearbeiten',copy:'Für Agent kopieren',clear:'Leeren',clearQ:'Alle Notizen dieser Seite löschen?',copied:'{n} Notizen kopiert',
-  copyFail:'Kopieren fehlgeschlagen: Text unten markieren und kopieren',empty:'Noch keine Notizen. Text markieren und »Kommentieren« drücken, oder ✎ neben einem Abschnittstitel.',
+ de:{notes:'Kommentare',comment:'Kommentieren',secNote:'Abschnitt kommentieren',placeholder:'Was soll sich ändern?',save:'Speichern',cancel:'Abbrechen',
+  del:'Löschen',edit:'Bearbeiten',copy:'Für Agent kopieren',clear:'Leeren',clearQ:'Alle Kommentare dieser Seite löschen?',copied:'{n} Kommentare kopiert',
+  copyFail:'Kopieren fehlgeschlagen: Text unten markieren und kopieren',empty:'Noch keine Kommentare. Text markieren und »Kommentieren« drücken, oder ✎ neben einem Abschnittstitel.',
   lost:'Text nicht mehr gefunden'}};
 const AN_KEY='report:notes:'+location.pathname,AN_CTX='p,li,td,th,dd,dt,figcaption,caption,blockquote,h2,h3,h4,summary';
 /* anRanges: note id -> Range of its marked words; anLost: ids whose words or target are gone; anPend: the selection under Comment */
@@ -981,7 +1070,7 @@ function anStore(){try{if(anNotes.length)localStorage.setItem(AN_KEY,JSON.string
 function anTarget(n){return document.querySelector(`[data-src="${CSS.escape(n.src)}"]`)}
 /* the section title as the h2 shows it (number and title), without a change mark, the permalink or the ✎ button; the lede has no h2: the page title stands in */
 function anSecTitle(s){const h=s&&s.querySelector(':scope>h2');if(!h){const t=document.querySelector('h1');return t?t.textContent.trim():''}
- return[...h.childNodes].filter(x=>x.nodeType===3||(x.classList&&x.classList.contains('sn'))).map(x=>x.textContent).join('').trim()}
+ return[...h.childNodes].filter(x=>x.nodeType===3||(x.matches&&x.matches('.sn,span[id$="-t"]'))).map(x=>x.textContent).join('').trim()}
 /* the selection a note can take: non-empty, at most 1000 characters, both ends in one section with a source pointer */
 function anSel(){const s=getSelection();if(!s||!s.rangeCount||s.isCollapsed)return null;const r=s.getRangeAt(0),t=r.toString();
  if(!t.trim()||t.length>1000)return null;const a=anElOf(r.startContainer),b=anElOf(r.endContainer),sec=a&&a.closest('section[data-src]');
@@ -1086,7 +1175,7 @@ function anInit(){const secs=document.querySelectorAll('section[data-src]');if(!
  d.querySelector('textarea').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();anSave()}});
  d.addEventListener('close',()=>{anCur=null;anSelShow()});
  document.body.append(anAdd,fab,P,d);
- /* the Notes button slides away while the reader scrolls down and returns on any scroll up */
+ /* the Comments button slides away while the reader scrolls down and returns on any scroll up */
  let ly=scrollY;addEventListener('scroll',()=>{const y=scrollY;if(y>ly+8){fab.classList.add('an-hide');ly=y}else if(y<ly){fab.classList.remove('an-hide');ly=y}},{passive:true});
  let tm=0;document.addEventListener('selectionchange',()=>{clearTimeout(tm);tm=setTimeout(anSelShow,150)});
  addEventListener('resize',()=>{anAdd.hidden=true});

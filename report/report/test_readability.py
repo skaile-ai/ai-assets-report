@@ -343,7 +343,7 @@ class PageOrder(unittest.TestCase):
     def test_numbering_and_anchors_survive_reordering(self):
         page = report(stats=self.STATS, sections=[dict(section("Answer"), id="ans"), dict(section("Detail"), id="det")]).render()
         self.assertIn('<section id="ans" class="lede" data-src="sections/0">', page)
-        self.assertIn('<section id="det" aria-labelledby="det-h" data-src="sections/1"><h2 id="det-h"><span class="sn">1 </span>Detail', page)
+        self.assertIn('<section id="det" aria-labelledby="det-t" data-src="sections/1"><h2 id="det-h" aria-labelledby="det-t"><span class="sn">1 </span><span id="det-t">Detail', page)
 
 
 class Provenance(unittest.TestCase):
@@ -615,7 +615,7 @@ class SourceLinks(unittest.TestCase):
 
     def test_bibliography_follows_the_sections_and_links_out(self):
         page = wr().render()
-        self.assertTrue(page.index("1 </span>Details") < page.index('<section id="sources"'))
+        self.assertTrue(page.index('<span id="s-1-t">Details</span>') < page.index('<section id="sources"'))
         self.assertIn('<li id="src-S1" class="bi">', page)
         self.assertIn('<a class="bi-t" href="https://example.org/a" rel="noopener noreferrer">Leitlinie Knick-Senkfuß</a>', page)
         self.assertIn("AWMF · 2023", page)
@@ -830,7 +830,7 @@ class ReaderDepth(unittest.TestCase):
 
     def test_section_and_contents_entry_carry_the_depth(self):
         page = wr(self.sections({"type": "p", "text": "x"}, reader="professional")).render()
-        self.assertIn('<section id="s-1" data-reader="professional" aria-labelledby="s-1-h" data-src="sections/1">', page)
+        self.assertIn('<section id="s-1" data-reader="professional" aria-labelledby="s-1-t" data-src="sections/1">', page)
         self.assertIn('<li data-reader="professional"><a href="#s-1">1 Mehr</a></li>', page)
 
     def test_control_is_three_toggle_buttons_with_json_labels(self):
@@ -900,7 +900,7 @@ class WebResearchPage(unittest.TestCase):
         self.assertEqual(re.findall(r'<a href="#([^"]+)">', nav), ["s-1", "sources"])
         for target in ("s-1", "sources"):
             self.assertIn(f'id="{target}"', page)
-        self.assertIn('<section id="s-1" aria-labelledby="s-1-h" data-src="sections/1"><h2 id="s-1-h"><span class="sn">1 </span>Details', page)
+        self.assertIn('<section id="s-1" aria-labelledby="s-1-t" data-src="sections/1"><h2 id="s-1-h" aria-labelledby="s-1-t"><span class="sn">1 </span><span id="s-1-t">Details', page)
 
     def test_contents_uses_author_section_ids(self):
         secs = [dict(section("Answer"), id="ans"), dict(section("Rest"), id="rest")]
@@ -909,8 +909,9 @@ class WebResearchPage(unittest.TestCase):
     def test_find_box_has_live_count_clear_and_scope(self):
         page = body(wr().render())
         self.assertRegex(page, r'<input id="find" type="search" placeholder="[^"]+" aria-label="Im Bericht suchen" aria-controls="main" '
-                               r'data-hit="Treffer" data-hits="Treffer" data-hidden="\+\{n\} ausgeblendet" data-row="Zeile" data-rows="Zeilen">')
-        self.assertIn('<button type="button" id="findx" class="fclr">Suche zurücksetzen</button>', page)
+                               r'data-hit="Treffer" data-hits="Treffer" data-hidden="\+\{n\} in geschlossenen Teilen" data-row="Zeile" data-rows="Zeilen" '
+                               r'data-pos="\{i\} von \{n\}">')
+        self.assertIn('<button type="button" id="findx" class="fclr" hidden>Suche zurücksetzen</button>', page)
         self.assertIn('<span id="findn" role="status" aria-live="polite"></span>', page)
         self.assertTrue(page.index('id="find"') < page.index("<main"))
         # the sources are inside the searched region
@@ -927,7 +928,7 @@ class WebResearchPage(unittest.TestCase):
         r = report(badges={}, sections=[{"title": "S", "blocks": [{"type": "data", "id": "d", "columns": [{"key": "a"}], "rows": [{"a": "x"}]}]}])
         page = body(r.render())
         self.assertIn('<input id="find" type="search" placeholder="Find…" aria-label="Search the report" aria-controls="main" '
-                      'data-hit="match" data-hits="matches" data-hidden="+{n} hidden" data-row="row" data-rows="rows">', page)
+                      'data-hit="match" data-hits="matches" data-hidden="+{n} in closed parts" data-row="row" data-rows="rows" data-pos="{i} of {n}">', page)
         self.assertIn('<main id="main" tabindex="-1" data-find-scope>', page)
         self.assertIn('id="findx"', page)
         # a contents list alone (no tree, no table) brings the box too
@@ -1037,6 +1038,15 @@ class ResponsiveTable(unittest.TestCase):
         self.assertIn("table.rsp td::before{content:attr(data-label)", narrow)
         self.assertIn("table.rsp tr{", narrow)
 
+    def test_code_column_is_capped_not_nowrap(self):
+        out = report().b_table({"type": "table", "columns": ["Lint line", "Fix"],
+                                "rows": [["`stat {label}: literal, source {src}`", "prefer `count` so the build counts it"], ["`source {id}: never cited`", ""]]})
+        self.assertEqual(re.findall(r'<td role="cell" class="([^"]*)" data-label="Lint line">', out), ["cd", "cd"])
+        self.assertEqual(re.findall(r'<td role="cell" class="([^"]*)" data-label="Fix">', out), ["", ""])
+        self.assertEqual(re.findall(r'class="([^"]*)" data-label="Übung"', self.table()), ["nw", "nw"])
+        css = Path(build.__file__).with_name("template.html").read_text()
+        self.assertIn("table.rsp td.cd code{display:inline-block;max-width:40ch", css)
+
     def test_data_tables_stay_plain(self):
         data = {"type": "data", "id": "d", "columns": [{"key": "a"}], "rows": [{"a": "x"}]}
         self.assertNotIn("rsp", report().b_data(data))
@@ -1132,7 +1142,7 @@ class SourcePointers(unittest.TestCase):
     def test_sections_and_blocks_carry_their_pointer(self):
         secs = [section("Answer"), {"title": "Detail", "blocks": [{"type": "p", "text": "One."}, {"type": "p", "text": "Two."}]}]
         page = body(report(sections=secs).render())
-        self.assertIn('<section id="s-1" aria-labelledby="s-1-h" data-src="sections/1">', page)
+        self.assertIn('<section id="s-1" aria-labelledby="s-1-t" data-src="sections/1">', page)
         self.assertIn('<p data-src="sections/1/blocks/1">Two.</p>', page)
 
     def test_blocks_inside_tabs_extend_the_pointer(self):
@@ -1452,7 +1462,7 @@ class PageStructure(unittest.TestCase):
 
     def test_second_section_heading(self):
         page = self.five()
-        self.assertIn('<section id="s-1" aria-labelledby="s-1-h" data-src="sections/1"><h2 id="s-1-h"><span class="sn">1 </span>S2<a class="ha" href="#s-1"', page)
+        self.assertIn('<section id="s-1" aria-labelledby="s-1-t" data-src="sections/1"><h2 id="s-1-h" aria-labelledby="s-1-t"><span class="sn">1 </span><span id="s-1-t">S2</span><a class="ha" href="#s-1"', page)
 
     def test_chapter_label_shows_once_per_sub(self):
         page = self.five(sub="How it runs")
@@ -1539,6 +1549,12 @@ class RepeatedChrome(unittest.TestCase):
         self.assertEqual(tree.count(">Broken</span>"), 4)
         self.assertIn('data-b="{&quot;kind&quot;: [&quot;k&quot;], &quot;st&quot;: [&quot;ok&quot;]}"', tree)
 
+    def test_filter_chip_names_its_row_or_category(self):
+        tree = self.badged().b_tree({"type": "tree"})
+        self.assertIn('aria-label="filter: Broken (E8)"', tree)  # a row chip: value and row title
+        self.assertIn('aria-label="filter: Kindly (E0)"', tree)  # the kind chip too
+        self.assertIn('aria-label="filter: Fine (st)"', tree)  # the legend: value and category
+
     def test_unknown_default_fails(self):
         self.assertIn("badge st: default nope is not one of its values", fails(self.badged, default="nope"))
 
@@ -1558,6 +1574,24 @@ class NarrowScreens(unittest.TestCase):
             wd = int(re.search(r'width="(\d+)"', svg).group(1))
             self.assertIn(f"width:clamp({int(wd * .75)}px,100%,{wd}px)", svg)
 
+    def test_zoom_button_and_scroll_hint_sit_under_the_frame(self):
+        b = {"type": "flow", "id": "f", "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "edges": [{"from": "a", "to": "b"}]}
+        out = report().b_flow(b)
+        self.assertIn('</svg></div><div class="fgb"><span class="dwh" hidden>Scroll sideways →</span><button type="button" class="zb"', out)
+        self.assertIn('<span class="zbt">Enlarge</span></button>', out)  # a word beside ⤢ on touch screens
+        self.assertNotIn('class="zb"', out[:out.index("</figcaption>")])
+
+    def test_level_chips_and_drill_marker_are_explained_in_the_legend(self):
+        top = {"type": "flow", "id": "f", "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "edges": [{"from": "a", "to": "b"}]}
+        kid = {"type": "flow", "id": "g", "parent": "f:a", "nodes": [{"id": "x", "label": "X"}, {"id": "b", "label": "B"}],
+               "edges": [{"from": "x", "to": "b"}]}
+        page = body(report(sections=[{"title": "S", "blocks": [top, kid]}]).render())
+        self.assertIn('<span class="lvl" title="overview">L0</span>', page)
+        self.assertIn('<span class="lvl" title="Level 1: detail of A">L1</span>', page)
+        self.assertIn('<span><span class="lvl">L0</span>overview</span>', page)
+        self.assertIn('<span><span class="lvl">L1</span>detail of a ⊞ box on L0</span>', page)
+        self.assertIn("opens a detailed diagram</span>", page)
+
     def test_tree_filters_sit_in_an_open_details(self):
         cats = {"st": {"values": {"ok": {"label": "Fine"}}}}
         ents = [{"id": "e1", "title": "E1", "badges": {"st": ["ok"]}}]
@@ -1565,6 +1599,55 @@ class NarrowScreens(unittest.TestCase):
         self.assertIn('<details class="flt" open><summary>Filters</summary><dl class="legend">', tree)
         self.assertLess(tree.index('<div class="ctl">'), tree.index("</details>"))
         self.assertLess(tree.index("</details>"), tree.index('<div class="tree">'))
+
+
+class EdgeLabels(unittest.TestCase):
+    # the sample page's L0 pipeline: "dead link" (render → abort) turns right just above render → lint
+    NODES = [("json", 1, 0, "report.json", "", "store"), ("choice", 0, 0, "<stem>.choice.json", "", "store"),
+             ("check", 1, 1, "Choice check", "features, questions, size", "process"),
+             ("init", 1, 2, "Validate", "entities, badges, diagrams", "process"), ("tpl", 0, 1, "template.html", "", "store"),
+             ("dump", 0, 2, "<stem>.data/", "", "store"), ("render", 1, 3, "Render", "sections to HTML", "process"),
+             ("lint", 1, 4, "Lint", "prose, badges, stats", "process"), ("gate", 1, 5, "--strict with findings?", "", "decision"),
+             ("out", 1, 6, "<out>.html", "", "store"), ("abort", 2, 4, "Abort", "exit, no page", "process")]
+    EDGES = [("json", "check", "report data", "flow"), ("choice", "check", "features, questions", "opt"),
+             ("check", "init", "size", "flow"), ("init", "render", "validated report", "flow"),
+             ("tpl", "render", "page shell", "flow"), ("dump", "render", "rows for stats", "flow"),
+             ("render", "lint", "stat lint lines", "flow"), ("lint", "gate", "lint lines", "flow"),
+             ("render", "gate", "page HTML", "flow"), ("gate", "out", "no: page", "flow"), ("gate", "abort", "yes", "error"),
+             ("check", "abort", "unchosen feature", "error"), ("init", "abort", "unknown ref", "error"),
+             ("render", "abort", "dead link", "error")]
+
+    def svg(self):
+        b = {"type": "flow", "id": "p", "dir": "down",
+             "nodes": [{"id": i, "col": c, "row": r, "label": lab, "shape": s, **({"sub": sub} if sub else {})}
+                       for i, c, r, lab, sub, s in self.NODES],
+             "edges": [{"from": f, "to": t, "label": lab, "kind": k} for f, t, lab, k in self.EDGES]}
+        return report().b_flow(b)
+
+    @staticmethod
+    def boxes(svg):
+        out = {}
+        for x, y, anc, text in re.findall(r'<text class="el[^"]*"[^>]* x="([\d.-]+)" y="([\d.-]+)" text-anchor="(\w+)">([^<]+)</text>', svg):
+            x, y, w = float(x), float(y), len(text) * build.CH[12]
+            x0 = {"start": x, "end": x - w, "middle": x - w / 2}[anc]
+            out[text] = (x0, y - 10, x0 + w, y + 3)
+        return out
+
+    def test_labels_never_overlap(self):
+        bx = list(self.boxes(self.svg()).items())
+        self.assertEqual(len(bx), len(self.EDGES))
+        for i, (a, p) in enumerate(bx):
+            for b, q in bx[i + 1:]:
+                self.assertFalse(p[0] < q[2] and q[0] < p[2] and p[1] < q[3] and q[1] < p[3], f"{a} overlaps {b}")
+
+    def test_label_keeps_clear_of_another_edges_line(self):
+        svg = self.svg()
+        lab = self.boxes(svg)["stat lint lines"]
+        d = re.search(r'<path class="ln error"[^>]*data-f="render" data-t="abort"[^>]* d="([^"]+)"', svg).group(1)
+        pts = [tuple(map(float, p.split())) for p in d[1:].split(" L")]
+        for (x1, y1), (x2, y2) in zip(pts, pts[1:]):  # no segment of the dead-link edge within 4 px of the label
+            seg = (min(x1, x2) - 4, min(y1, y2) - 4, max(x1, x2) + 4, max(y1, y2) + 4)
+            self.assertFalse(lab[0] < seg[2] and seg[0] < lab[2] and lab[1] < seg[3] and seg[1] < lab[3])
 
 
 class InlinePolish(unittest.TestCase):
