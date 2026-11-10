@@ -2918,15 +2918,15 @@ class Report:
         if bib:
             toc.append(("", f'<li><a href="#sources">{E(t["bib"])}</a></li>'))
         summary = ""
-        if self.chg:
+        if self.chg or d.get("since"):  # a re-run with nothing changed still says so
             since = f' {E(str(d["since"]))}' if d.get("since") else ""
-            counts = " ".join(f'{self.mark(k)}<span class="cn">{self.nchg[k]}</span>' for k in CHANGE if self.nchg[k])
-            summary = (f'<div class="chgbar"><span>{E(self.t["since"])}{since}:</span>{counts}'
-                       f'<span class="mt">{E(self.t["dimmed"])}</span>'
-                       f'<button type="button" aria-pressed="false" onclick="nodim(this)">{E(self.t["full"])}</button></div>')
-        elif d.get("since"):  # a re-run with nothing changed still says so
-            summary = (f'<div class="chgbar"><span>{E(self.t["since"])} {E(str(d["since"]))}:</span>'
-                       f'<span class="cn">{E(self.t["nochg"])}</span></div>')
+            head = f'<div class="chgbar"><span>{E(self.t["since"])}{since}:</span>'
+            if self.chg:
+                counts = " ".join(f'{self.mark(k)}<span class="cn">{self.nchg[k]}</span>' for k in CHANGE if self.nchg[k])
+                summary = (f'{head}{counts}<span class="mt">{E(self.t["dimmed"])}</span>'
+                           f'<button type="button" aria-pressed="false" onclick="nodim(this)">{E(self.t["full"])}</button></div>')
+            else:
+                summary = f'{head}<span class="cn">{E(self.t["nochg"])}</span></div>'
         # reading order: title and tools, the first section (the answer), statistics and change summary, the rest, the bibliography
         content = parts[:1] + [x for x in (stats, summary) if x] + parts[1:] + ([bib] if bib else [])
         brand = load_brand(d.get("brand"), self.src.parent if self.src else Path.cwd())
