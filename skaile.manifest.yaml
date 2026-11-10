@@ -4,7 +4,7 @@ assets:
   - kind: skill
     name: report
     root: report/report
-    version: 0.6.3
+    version: 0.7.0
     dependencies:
       - "@skaile-ai/report-prose"
       - "@skaile-ai/report-table"
@@ -19,7 +19,7 @@ assets:
   - kind: skill
     name: report-table
     root: report/report-table
-    version: 0.3.1
+    version: 0.3.2
   - kind: skill
     name: report-flow
     root: report/report-flow

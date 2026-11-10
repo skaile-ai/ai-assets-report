@@ -1586,5 +1586,33 @@ class InlinePolish(unittest.TestCase):
         self.assertIn('<p class="cmp-h">Abort (<code>fail</code>)</p>', out)
 
 
+class TreeColumns(unittest.TestCase):
+    @staticmethod
+    def tree(metas):
+        ents = [{"id": f"e{i}", "title": f"E{i}", "meta": m} for i, m in enumerate(metas)]
+        return report(entities=ents).b_tree({"type": "tree"})
+
+    def test_shared_meta_keys_become_aligned_columns_under_one_header(self):
+        out = self.tree([["40 lines of code", "abort checks: 1", "only here"], ["7 lines of code", "abort checks: 12"]])
+        self.assertIn('<span class="tc n">Lines of code</span><span class="tc n">Abort checks</span>', out)
+        self.assertIn('<span class="tc n"><span class="tcl">Abort checks: </span>12</span>', out)
+        self.assertIn('<span class="mt">only here</span>', out)  # a key one row has stays inline
+        self.assertNotIn('<span class="mt">40 lines of code</span>', out)
+
+    def test_row_without_a_column_value_keeps_its_cell(self):
+        out = self.tree([["2 lines of code"], ["3 lines of code"], []])
+        e2 = out[out.index('id="e-e2"'):]
+        self.assertIn('<span class="tcv"><span class="tc"></span></span>', e2[:e2.index("</li>")])
+
+    def test_shared_key_without_common_words_gets_no_header(self):
+        out = self.tree([["3 files, 2 dirs"], ["5 files, 1 dirs"]])
+        self.assertIn('class="tree tcs"', out)
+        self.assertNotIn('class="row th"', out)
+
+    def test_no_shared_meta_keeps_the_plain_tree(self):
+        out = self.tree([["a: 1"], ["b: 2"]])
+        self.assertIn('<div class="tree"><ul', out)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -124,7 +124,7 @@ FONT_STACK = re.compile(r"^[A-Za-z0-9 ,.'\"-]+$")  # family names, quotes and co
 FONT_LOAD = re.compile(r"^[A-Za-z0-9 ]+(:[A-Za-z0-9@;,.]+)?$")  # a Google Fonts `family=` value, spaces allowed
 LOGO_TYPES = {".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
 UI_ICONS = ("x", "minus", "plus")  # icons the template's scripts draw (zoom view, notes panel)
-MASK_ICONS = ("chevron-right", "chevron-down", "pencil-line")  # icons drawn by CSS (`::before`), as `--ic-<name>` masks
+MASK_ICONS = ("chevron-right", "chevron-down", "chevron-up", "pencil-line")  # icons drawn by CSS (`::before`), as `--ic-<name>` masks
 
 
 def icon(name, cls="ic"):
@@ -1906,6 +1906,8 @@ class Report:
         roots.sort(key=lambda e: e.get("order", 0))
         count_kind = b.get("count")
         scope = self.chg and not self.under and any(self.changed_ent(r) for r in roots)
+        cols = self.meta_cols([e for e in self.d["entities"] if e.get("tree", True)])
+        ckeys = {c[0] for c in cols}
 
         def li(e, depth):
             kids = self.kids.get(e["id"], [])
@@ -1914,7 +1916,19 @@ class Report:
             kind_badge = "".join(self.badge(kind_cat, v, True) for v in bvals.get(kind_cat, []))
             kind_badge = f'<span class="kb">{kind_badge}</span>' if kind_badge else ""  # one grid cell, however many values
             idg = [f'<span class="id">{E(str(e.get("label") or e["id"]))}</span>'] if self.size == "technical" else []
-            groups = idg + self.groups(e, kind_cat, filt)
+            groups = idg + self.groups(e, kind_cat, filt, skip=ckeys)
+            metas = {}
+            for m in e.get("meta", []):
+                metas.setdefault(self.meta_key(m), m)
+            cells = []
+            for key, head, split, num, _w in cols:
+                m = metas.get(key)
+                if m is None:
+                    cells.append('<span class="tc"></span>')
+                elif split:  # the header names the words once; the cell keeps them for a phone and a screen reader
+                    cells.append(f'<span class="tc{" n" if num else ""}"><span class="tcl">{E(head)}: </span>{self.inline(self.meta_split(m)[1])}</span>')
+                else:
+                    cells.append(f'<span class="tc">{self.inline(m)}</span>')
             lc = ""
             if depth == 0 and kind is not None:
                 lc = f' style="--lc:var(--{self.cats[kind_cat]["values"][kind].get("color", "ink")})"'
@@ -1930,10 +1944,13 @@ class Report:
             if (kind == count_kind) if count_kind else not kids:
                 attrs += " data-count"
             k, rcls, mk = self.state(e, scope, self.changed_ent(e))
+            body = f'<span class="bd">{mk}<span class="tt">{E(e.get("title") or str(e["id"]))}</span>' + "".join(f'<span class="grp">{g}</span>' for g in groups) + "</span>"
+            if cols:  # every row has every cell, so the columns line up with the header at every depth
+                body = (kind_badge or "<span></span>") + body + '<span class="tcv">' + "".join(cells) + "</span>"
+            else:
+                body = kind_badge + body
             s = (f'<li class="{" ".join(cls)}"{lc}{attrs} x-show="v[{E(json.dumps(str(e["id"])))}] !== false">'
-                 f'<div class="row{rcls}" id="{E(self.anchor(e["id"]))}">{kind_badge}<span class="bd">{mk}'
-                 f'<span class="tt">{E(e.get("title") or str(e["id"]))}</span>'
-                 + "".join(f'<span class="grp">{g}</span>' for g in groups) + "</span></div>")
+                 f'<div class="row{rcls}" id="{E(self.anchor(e["id"]))}">{body}</div>')
             if kids:
                 s += "<ul>" + self.inside(k, lambda: "".join(li(c, depth + 1) for c in kids)) + "</ul>"
             return s + "</li>"
@@ -1966,12 +1983,52 @@ class Report:
                 f'<dl class="legend">{"".join(legend)}</dl>'
                 f'<div class="ctl"><span>{E(hint)}</span><span class="cnt" x-text="count"></span>'
                 f'<button type="button" @click="reset()" :disabled="!Object.values(off).some(Boolean)">{E(reset)}</button></div></details>'
-                f'<div class="tree"><ul class="tr">{"".join(li(r, 0) for r in roots)}</ul></div></div>')
+                + (f'<div class="tree tcs" style="--tcw:{" ".join(f"{c[4]}ch" for c in cols)}">{self.tree_head(cols)}' if cols else '<div class="tree">')
+                + f'<ul class="tr">{"".join(li(r, 0) for r in roots)}</ul></div></div>')
 
-    def groups(self, e, kind_cat, toggles):
-        """Meta, badges other than the kind, refs and back-links of one entity, one group each."""
+    @staticmethod
+    def tree_head(cols):
+        """Column header of a tree on the rows' own grid; the columns sit at the right edge, which every depth shares."""
+        heads = "".join(f'<span class="tc{" n" if c[3] else ""}">{E(c[1])}</span>' for c in cols)
+        return f'<div class="row th" aria-hidden="true"><span></span><span></span>{heads}</div>' if any(c[1] for c in cols) else ""
+
+    @staticmethod
+    def meta_split(m):
+        """(words, value) of a meta line `<words>: <value>` or `<number> <words>`; None for any other line."""
+        s = str(m)
+        head, colon, val = s.partition(":")
+        if colon and "`" not in head and len(head.split()) <= 3 and val.strip():
+            return head.strip(), val.strip()
+        n = re.fullmatch(r"\s*(\d[\d.,]*)\s+([^`\d:]+?)\s*", s)
+        return (n.group(2), n.group(1)) if n else None
+
+    def meta_cols(self, ents):
+        """Meta keys that two or more tree rows share become columns: (key, header, split, numeric, width in ch). With
+        `split`, every line of the key reads `<words>: <value>` or `<number> <words>` with the same words, so the header
+        names them once and the cell holds the value."""
+        seen = {}
+        for e in ents:
+            for m in e.get("meta", []):
+                seen.setdefault(self.meta_key(m), []).append(str(m))
+        cols = []
+        for key, lines in seen.items():
+            if len(lines) < 2:
+                continue
+            parts = [self.meta_split(m) for m in lines]
+            if all(parts) and len({p[0].lower() for p in parts}) == 1:
+                head = parts[0][0][:1].upper() + parts[0][0][1:]
+                num = all(re.fullmatch(r"[\d.,]+", p[1]) for p in parts)
+                w = max([len(head)] + [len(p[1].replace("`", "")) for p in parts])
+                cols.append((key, head, True, num, min(w, 18) + 1))
+            else:
+                cols.append((key, "", False, False, min(max(len(m.replace("`", "")) for m in lines), 24) + 1))
+        return cols
+
+    def groups(self, e, kind_cat, toggles, skip=()):
+        """Meta (except the keys in `skip`, shown as tree columns), badges other than the kind, refs and back-links of one
+        entity, one group each."""
         bvals = e.get("badges", {})
-        out = [f'<span class="mt">{self.inline(m)}</span>' for m in e.get("meta", [])]
+        out = [f'<span class="mt">{self.inline(m)}</span>' for m in e.get("meta", []) if self.meta_key(m) not in skip]
         for c in self.cats:
             if c != kind_cat and c in bvals:
                 chips = "".join(self.badge(c, v, c in toggles) for v in dict.fromkeys(bvals[c]) if v != self.cats[c].get("default"))

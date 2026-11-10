@@ -18,6 +18,7 @@ readers?: { default?: "informed", label?, levels: [{ id: general|informed|profes
 
 - Reading order: header (logo, title, collapsed "Sources and run details" from top-level `meta`, German "Quellen und Laufdetails", open in print; find box over the whole page, with a clear button and a labelled count, whenever there is a table of contents, a `tree` or a `data` block; table of contents), the first section, `stats` and the change summary, the other sections, the bibliography.
 - The first section is the **lede**: it renders under the title with no heading and no number (`<section class="lede">`), in a larger size. It holds prose only: no figure, table or video. Its `title` is not shown, so the lede text does not restate the page title. It has no section pencil for reader notes; text-selection comments still work.
+- With a table of contents, a pill in the bottom-left corner names the section in view once the contents scroll away; a click returns to the contents.
 - The other sections are numbered from 1 (`numbered: false` drops the numbers). Each gets the id `id` or `s-<n>`, an `h2` with id `<id>-h` and a `#` permalink.
 - `sub` names the section's chapter. A chapter label renders once, before the first section of a run of sections with the same `sub`; a missing `sub` renders none.
 - With 4 or more numbered sections (web-research: always), the header gets a table of contents grouped by `sub`, and the page a skip link to `<main id="main">`. The lede is not listed; the bibliography is.

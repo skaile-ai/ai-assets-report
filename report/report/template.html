@@ -191,8 +191,8 @@ table.bars .b span{display:block;height:8px;background:var(--bar,var(--ink))}
 .s-text{border-color:transparent;background:none;font-weight:600;padding:0 2px}
 .tg{cursor:pointer;user-select:none;transition:opacity .15s,filter .15s}.tg:hover{filter:brightness(.92)}
 .tg.off{opacity:.35;text-decoration:line-through;filter:grayscale(1)}.tg:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
-dl.legend{display:grid;grid-template-columns:170px 1fr;gap:8px 12px;margin:0 0 12px;padding:12px 14px;background:var(--wash);border-radius:6px;font-size:var(--fs-xs)}
-dl.legend dt{color:var(--mute)}dl.legend dd{margin:0}dl.legend .lv{margin-right:12px}
+dl.legend{display:grid;grid-template-columns:170px max-content minmax(0,1fr);gap:8px 12px;margin:0 0 12px;padding:12px 14px;background:var(--wash);border-radius:6px;font-size:var(--fs-xs)}
+dl.legend dt{color:var(--mute)}dl.legend dd{margin:0;grid-column:2/-1;display:grid;grid-template-columns:subgrid;row-gap:4px;align-items:baseline}dl.legend dd>.bg{justify-self:start}
 .ctl{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:var(--fs-xs);color:var(--mute);margin:0 0 14px}
 details.flt{margin:0}details.flt>summary{font-size:var(--fs-s);color:var(--mute);cursor:pointer;margin:0 0 8px}
 @media not all and (max-width:800px){details.flt[open]>summary{display:none}}
@@ -208,7 +208,12 @@ ul.tr ul>li:last-child::after{content:"";position:absolute;left:-19px;top:16px;b
 .row{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:baseline;gap:10px;padding:5px 0;scroll-margin-top:80px}
 .bd{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}.kb{display:inline-flex;flex-wrap:wrap;gap:4px}
 .grp{white-space:nowrap;display:inline-flex;flex-wrap:wrap;row-gap:4px;align-items:baseline;max-width:100%}
-.grp+.grp::before{content:"|";color:var(--rule);margin-right:8px}
+.grp+.grp{margin-left:4px}.grp:has(>.xr){flex-basis:100%}
+/* tree columns: meta keys shared by rows sit in fixed tracks at the right edge, which every depth shares, under one header */
+.tcs .row{grid-template-columns:auto minmax(0,1fr) var(--tcw)}
+.tc{font-size:var(--fs-s);color:var(--mute);overflow-wrap:anywhere;min-width:0}.tc.n{text-align:right}.tcv{display:contents}
+.tcl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;font-family:var(--sans)}
+.row.th{padding:0 0 4px;border-bottom:1px solid var(--rule)}.row.th>.tc{font:600 var(--fs-xs) var(--sans)}
 .tt{font-weight:500}.mt{font-size:var(--fs-s);color:var(--mute);white-space:normal;overflow-wrap:anywhere;min-width:0}
 .id{font-size:var(--fs-xs);color:var(--mute);background:var(--wash);padding:0 5px;border-radius:3px;white-space:normal;overflow-wrap:anywhere}
 li.d0{margin-top:16px}li.d0>.row{border-bottom:2px solid var(--lc,var(--ink));padding-bottom:6px}li.d0>.row .tt{font-size:var(--fs-m);font-weight:700;color:var(--lc,var(--ink))}
@@ -233,8 +238,10 @@ tr{scroll-margin-top:80px}
 @media(max-width:800px){
  body{padding:32px 18px}
  header{grid-template-columns:1fr}header .provenance,header .prov-print{text-align:left}
- dl.legend{grid-template-columns:1fr}table.bars th{width:96px}
+ dl.legend{grid-template-columns:max-content minmax(0,1fr)}dl.legend dt{grid-column:1/-1}dl.legend dd{grid-column:1/-1}table.bars th{width:96px}
  ul.tr ul{margin-left:4px;padding-left:12px}ul.tr ul>li::before{left:-12px;width:8px}ul.tr ul>li:last-child::after{left:-13px}
+ .tcs .row{grid-template-columns:auto minmax(0,1fr);row-gap:2px}.tcv{grid-column:2;display:flex;flex-wrap:wrap;gap:0 14px}.tc:empty,.row.th{display:none}
+ .tc .tcl{position:static;width:auto;height:auto;clip:auto}
 }
 /* change document: changed parts carry a mark in colour, unchanged parts are dimmed; html.nodim shows all at full contrast */
 .c-new{--c:var(--green);--cb:var(--green-bg)}.c-changed{--c:var(--orange);--cb:var(--orange-bg)}.c-removed{--c:var(--red);--cb:var(--red-bg)}
@@ -392,6 +399,13 @@ table.rsp caption{caption-side:top;text-align:left;font-size:var(--fs-s);font-we
 .an-sec::before{content:"";display:inline-block;width:.9em;height:.9em;vertical-align:-.1em;background:currentColor;-webkit-mask:var(--ic-pencil-line) center/contain no-repeat;mask:var(--ic-pencil-line) center/contain no-repeat}.an-sec:hover{color:var(--ink);border-color:var(--rule)}
 h2:hover>.an-sec,h2:focus-within>.an-sec{opacity:1}
 @media(hover:none){.an-sec{opacity:1}}
+/* location pill (bottom left, opposite the Notes button): the section in view; a click goes back to the contents */
+.whr{position:fixed;left:16px;bottom:16px;z-index:25;display:inline-flex;align-items:center;gap:8px;min-height:44px;max-width:min(420px,calc(100vw - 96px));padding:8px 14px;border:1px solid var(--rule);border-radius:999px;background:var(--paper);color:var(--ink);font:var(--fs-s)/1.3 var(--sans);text-decoration:none;box-shadow:0 2px 8px rgb(0 0 0/.08)}
+.whr[hidden]{display:none}.whr:hover{background:var(--wash)}.whr>b{font:600 var(--fs-xs) var(--mono);color:var(--mute)}
+.whr>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.whr::before{content:"";flex:none;width:14px;height:14px;background:currentColor;-webkit-mask:var(--ic-chevron-up) center/contain no-repeat;mask:var(--ic-chevron-up) center/contain no-repeat}
+@media(max-width:800px){.whr{left:8px;bottom:8px}}
+@media print{.whr{display:none}}
 .an-fab{position:fixed;right:16px;bottom:16px;z-index:25;display:inline-flex;align-items:center;gap:8px;min-height:44px;font:600 var(--fs-s) var(--sans);padding:8px 14px;border:1px solid var(--ink);border-radius:999px;background:var(--paper);color:var(--ink);cursor:pointer}
 .an-fab:hover{background:var(--wash)}.an-open .an-fab{display:none}
 .an-fab{transition:transform .2s}.an-fab.an-hide:not(:focus-visible){transform:translateY(80px)}
@@ -930,6 +944,18 @@ addEventListener('click',e=>{if(!e.target.closest||!e.target.closest('#findx'))r
 /* contents and tree filters: open on a wide screen, closed on a phone (the markup is open, so it stays usable without JS) */
 addEventListener('DOMContentLoaded',()=>{if(!matchMedia('(max-width:800px)').matches)return;
  document.querySelectorAll('nav.toc details,details.flt').forEach(d=>{d.open=false})});
+/* where am I: once the contents scroll away, a pill bottom left names the section in view and leads back to the contents */
+addEventListener('DOMContentLoaded',()=>{const nav=document.querySelector('nav.toc');if(!nav||!('IntersectionObserver' in window))return;
+ const secs=[...document.querySelectorAll('main>section[id]')].filter(s=>s.querySelector(':scope>h2'));if(!secs.length)return;
+ const a=document.createElement('a');a.className='whr';a.href='#toc';a.hidden=true;nav.id=nav.id||'toc';document.body.append(a);
+ const show=s=>{const h=s.querySelector(':scope>h2'),n=h.querySelector('.sn'),t=[...h.childNodes].filter(x=>!(x.classList&&x.classList.contains('ha'))&&x!==n).map(x=>x.textContent).join('').trim();
+  a.innerHTML='';if(n)a.append(Object.assign(document.createElement('b'),{textContent:n.textContent.trim()}));a.append(Object.assign(document.createElement('span'),{textContent:t}));
+  a.setAttribute('aria-label',nav.getAttribute('aria-label')+': '+(n?n.textContent.trim()+' ':'')+t)};
+ let past=false,cur=null;
+ new IntersectionObserver(([e])=>{past=!e.isIntersecting&&e.boundingClientRect.top<0;a.hidden=!past||!cur}).observe(nav);
+ const io=new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting){cur=e.target;show(cur)}a.hidden=!past||!cur},{rootMargin:'0px 0px -75% 0px'});
+ secs.forEach(s=>io.observe(s));
+ a.addEventListener('click',e=>{e.preventDefault();const d=nav.querySelector('details');if(d)d.open=true;nav.scrollIntoView({block:'start'});(nav.querySelector('summary,a')||nav).focus({preventScroll:true})})});
 /* Reader notes. Select words inside a section and press Comment, or ✎ on a section title, and write what should change.
    Every section and block carries data-src, its JSON pointer into the report source (header[data-report]); a note keeps that
    pointer, the marked words and the sentences around them (taken at creation). The Notes panel lists the notes in page order,

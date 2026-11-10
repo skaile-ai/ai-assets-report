@@ -3,7 +3,7 @@ name: report-table
 description: "Dump collections, detect keys/relations/enums with detect.py, and render entities as badge-filtered trees and interactive sortable/searchable tables. Use for inventories, 'which X exist', 'how many', data sheets."
 license: MIT
 metadata:
-  version: 0.3.1
+  version: 0.3.2
   publisher: skaile-ai
 ---
 
@@ -40,6 +40,7 @@ Edit the draft until it answers the question. The core schema (`badges`, `entiti
 - One colour means one thing across all categories (lint).
 - A category whose values equal the tree level (for example `stage` on parents and `finding` on their children) is not a badge: the nesting already shows it, and toggling it hides whole subtrees. Use `kind`, a `meta` line or a column. The build prints `badge <cat>: mirrors tree level, not a filter`.
 - Every entity of one `kind` carries the same `meta` keys. The build prints `kind <val>: <id> lacks meta "<key>"` when at least 80 % of its siblings have the key. Fill the gap from the dump or drop the key from all.
+- A `meta` key two or more tree rows share becomes a column at the right edge of the tree, aligned at every depth. Write it as `<words>: <value>` or `<number> <words>` with the same words on every row (`lines of code: 40`, `40 lines of code`): the words become the column header and the cell holds only the value; numbers align right. A key only one row has stays inline after the title.
 - Every entity has one place on the page: a tree row, a table row `anchor`, or a tab `entity`. Prose links it only per `skill://report-prose` rule 6.
 - Drop badges that only decorate. A title is the reader's word for the thing. Put the code name in one `meta` line when the reader needs it to find the thing. Meta lines naming code (function names, line ranges) belong to size `technical`.
 - Titles and `meta` values are short human labels: a few words, no ids, no paths outside size technical. Put a source in a grey `[@path:line]` token in a `meta` value or a table cell, never in a title.
