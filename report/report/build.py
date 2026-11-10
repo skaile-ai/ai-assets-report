@@ -2764,7 +2764,7 @@ class Report:
         for sec in secs:
             for b in walk(sec.get("blocks", [])):
                 if b.get("type") in PROSE_TYPES:
-                    blocks_text.append(" ".join(re.sub(r"`[^`]*`", "", CITE.sub("", str(x))) for x in prose_text(b)))
+                    blocks_text.append(" ".join(re.sub(r"\[\[[^\]|]*\|?([^\]]*)\]\]", r"\1", re.sub(r"`[^`]*`", "", CITE.sub("", str(x)))) for x in prose_text(b)))  # a link keeps its label, never its id
         seen = defaultdict(int)
         for txt in blocks_text:
             for n in {x.replace(",", "") for x in NUMBER.findall(txt)}:

@@ -1436,6 +1436,8 @@ class RedundancyLints(unittest.TestCase):
         three = [{"type": "p", "text": f"Block {w} has 199 files."} for w in "abc"]
         self.assertEqual(self.has(self.lints(*three), "numbers:"), ['numbers: "199" appears in 3 prose blocks (state it once, then refer to it)'])
         self.assertEqual(self.has(self.lints(*three[:2]), "numbers:"), [])
+        links = [{"type": "p", "text": f"Block {w} links [[f-c-9-951f6ee9]] and [[f-c-9-951f6ee9|the toast]]."} for w in "abc"]
+        self.assertEqual(self.has(self.lints(*links), "numbers:"), [])
 
     def test_orphan_stat(self):
         stats = [["Files", {"value": 42, "source": "x.txt"}]]
