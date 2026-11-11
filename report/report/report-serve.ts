@@ -18,6 +18,7 @@
  *
  * `-i` lets Bun fetch the pinned inbox package when no node_modules provides it.
  */
+import { existsSync } from 'node:fs'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { appendFile, chmod, mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve, sep } from 'node:path'
@@ -117,10 +118,40 @@ function stablePort(key: string): number {
   return 47000 + (h % 1000)
 }
 
+type Env = 'local' | 'platform' | 'container'
+
+/**
+ * Where this process runs; `--env` or REPORT_SERVE_ENV override it. `platform`: a skaile platform session container
+ * (SKAILE_SESSION_ID plus a container marker, the workspaces runner's own test) or a sibling preview container
+ * (SKAILE_PREVIEW_BASE). `container`: any other container. See .scratch/research/report-serve-workspaces.md.
+ */
+function detectEnv(): Env {
+  const forced = arg('--env') ?? process.env.REPORT_SERVE_ENV
+  if (forced === 'local' || forced === 'platform' || forced === 'container') return forced
+  if (forced) die(`--env must be local, platform or container, not ${forced}`)
+  const e = process.env
+  const boxed = existsSync('/.dockerenv') || existsSync('/run/.containerenv') || Boolean(e.KUBERNETES_SERVICE_HOST)
+  if (e.SKAILE_PREVIEW_BASE || (e.SKAILE_SESSION_ID && boxed)) return 'platform'
+  return boxed || e.REMOTE_CONTAINERS || e.CODESPACES ? 'container' : 'local'
+}
+
 async function serve(file: string): Promise<void> {
+  const env = detectEnv()
+  if (env === 'platform') {
+    // The platform's Preview proxy rewrites Host and Origin, strips Authorization and the URL fragment, and cannot reach
+    // 127.0.0.1 here: a page served this way would never see the channel. Say so instead of printing a dead URL.
+    console.error('report-serve: env platform (skaile workspace container): the reader\'s browser cannot reach this server, so the report has no agent channel here.\n'
+      + '  Show the report as a static preview (platform.list_previews / skaile.preview.json); comments and decision forms stay disabled on it.\n'
+      + '  Ask each decision with platform.request_decision instead; its outcome arrives as a new turn. Override with --env local if you know better.')
+    process.exit(2)
+  }
   const page = resolve(file)
   if (!(await Bun.file(page).exists())) die(`no such file ${page}`)
   const dir = await realpath(dirname(page))
+  if (env === 'container') {
+    console.error('report-serve: env container: 127.0.0.1 here is reachable from the host browser only through a forward of the same port to localhost '
+      + '(VS Code / devcontainer port forwarding). A forward to another host or port (Codespaces, docker -p) fails the Host check and the page stays disabled.')
+  }
   const rel = page.slice(dir.length + 1).split(sep).map(encodeURIComponent).join('/')
   const state = await readState()
   const prev = state[dir]
@@ -190,10 +221,11 @@ async function serve(file: string): Promise<void> {
   }
   await writeState({ ...(await readState()), [dir]: { port: server.port, token, pid: process.pid } })
   console.log(`report: http://127.0.0.1:${server.port}/${rel}#k=${token}`)
+  console.log(`env: ${env}`)
   console.log(`inbox: ${join(root, '.data', 'annotations')}`)
 }
 
 const [cmd] = process.argv.slice(2).filter((a, i, all) => !a.startsWith('--') && !all[i - 1]?.startsWith('--'))
-if (!cmd) die('usage: report-serve.ts <report.html> [--root <project>] [--port <n>] | report-serve.ts wait [--root <project>]')
+if (!cmd) die('usage: report-serve.ts <report.html> [--root <project>] [--port <n>] [--env local|platform|container] | report-serve.ts wait [--root <project>]')
 if (cmd === 'wait') await wait()
 else await serve(cmd)

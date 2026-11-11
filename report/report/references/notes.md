@@ -19,6 +19,16 @@ bun -i <skill-dir>/report-serve.ts wait [--root <project>]                      
 - **Decisions.** Pick an option, optionally write a comment, press **Send answer**. A changed answer says "Changed: send again". The agent's resolution shows under the form.
 - Every send publishes the whole page session: all comments and every sent decision. An edited comment or a changed answer becomes a new inbox item; one the reader deletes leaves the inbox while still open. Comments and answers stay in the browser per file (`localStorage`). Every section and block carries `data-src`, its JSON pointer into `report.json`, so each item names the node to edit.
 
+## Environments
+
+`report-serve.ts` detects where it runs and prints `env:` on start; `--env local|platform|container` (or `REPORT_SERVE_ENV`) overrides it.
+
+| env | detected by | what happens |
+|---|---|---|
+| `local` | none of the below | as described above |
+| `platform` (skaile workspace session or preview container) | `SKAILE_PREVIEW_BASE`, or `SKAILE_SESSION_ID` together with `/.dockerenv`, `/run/.containerenv` or `KUBERNETES_SERVICE_HOST` | exits with code 2 and no URL: the Preview proxy cannot reach `127.0.0.1`, drops the `#k=` fragment and the `Authorization` header and rewrites `Host`/`Origin`, so the page would never see the channel. Show the report as a static preview; it keeps comments and decision forms disabled. Ask each decision with `platform.request_decision` (its outcome arrives as a new turn); comments go through chat |
+| `container` (other Docker, devcontainer, Codespaces) | a container marker, `REMOTE_CONTAINERS` or `CODESPACES` | serves, with a warning: it works only when the editor forwards the same port to `localhost` on the host (VS Code devcontainers); any other forward fails the Host check and the page stays disabled |
+
 ## Agent side
 
 After building (workflow step 10):
