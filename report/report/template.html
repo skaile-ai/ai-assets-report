@@ -47,7 +47,7 @@ main>section{display:block;padding:44px 0 40px;scroll-margin-top:16px;border-bot
 main>section.lede{padding-top:8px}
 section>h2{font-size:var(--fs-xl);font-weight:700;line-height:1.2;letter-spacing:-.01em;margin:0 0 18px;padding-top:12px;border-top:3px solid var(--ink)}
 /* wide screens: the heading sits in its own left column and stays in view while its section scrolls; the body
-   takes the rest, so trees, tables and diagrams get more room while prose keeps its measure */
+   takes the rest, so prose, trees, tables and diagrams all get the full body column */
 @media screen and (min-width:1100px){main>section:not(.lede){display:grid;grid-template-columns:minmax(0,14rem) minmax(0,1fr);column-gap:48px;align-items:start}main>section:not(.lede)>h2{position:sticky;top:16px;margin:0}main>section:not(.lede)>:not(h2){grid-column:2}}
 .sn{font:500 var(--fs-l)/1 var(--mono);color:var(--mute);margin-right:.5em}
 .ha{margin-left:.4em;color:var(--mute);text-decoration:none;opacity:0}h2:hover>.ha,.ha:focus-visible{opacity:1}
@@ -59,7 +59,9 @@ section>h2{font-size:var(--fs-xl);font-weight:700;line-height:1.2;letter-spacing
 /* a group head carries its space as padding: a margin at the top of a column is dropped, which set the two column heads apart */
 nav.toc .toc-g{padding-top:8px}nav.toc .toc-g>span{display:block;font-weight:600}nav.toc .toc-g ol{columns:1}
 .body>*:first-child{margin-top:0}
-p,ul.ste li,ol.ste li{max-width:36em;overflow-wrap:anywhere}
+p,ul.ste li,ol.ste li{overflow-wrap:anywhere}
+/* text blocks take the full body column like tables and keep a little more air above and below than the browser's 1em */
+.body>p,.body>ul.ste,.body>ol.ste{margin:1.4em 0}
 p,li,figcaption{text-wrap:pretty}h1,h2,h3{text-wrap:balance}
 ul.ste,ol.ste{padding-left:1.2em;margin:0 0 16px}ul.ste li,ol.ste li{margin:.35em 0}ol.ste li::marker{font-size:var(--fs-xs);color:var(--mute)}
 code{font-size:var(--fs-m);background:var(--wash);padding:0 4px;border-radius:3px}
@@ -131,7 +133,7 @@ html:not(.js) .zb{display:none}
 .mtb{margin-left:auto;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}.mc{color:var(--mute);font-size:var(--fs-xs)}
 .mtb button{font:var(--fs-xs) var(--mono);padding:1px 8px;border:1px solid var(--rule);background:var(--paper);border-radius:6px;cursor:pointer;color:var(--ink)}
 .mtb button:hover{background:var(--wash)}.mtb button:disabled{opacity:.4;cursor:default}html:not(.js) .mtb{display:none}
-.mh{font-size:var(--fs-xs);color:var(--mute);margin:4px 0 0;max-width:none}
+.mh{font-size:var(--fs-xs);color:var(--mute);margin:4px 0 0}
 .fg:fullscreen{background:var(--paper);padding:12px 16px;display:flex;flex-direction:column;overflow:auto}.fg:fullscreen>.dw{flex:1;min-height:0}
 .fg:fullscreen .mw{height:100%!important;max-height:none!important;aspect-ratio:auto!important}
 .vch{list-style:none;margin:.5rem 0 0;padding:0;display:flex;flex-wrap:wrap;gap:.25rem 1rem}.vch button{font:inherit;background:none;border:0;padding:0;color:var(--acc);cursor:pointer}.vch button:hover{text-decoration:underline}.vch .t{color:var(--mute);margin-right:.4em;font-variant-numeric:tabular-nums}
@@ -148,7 +150,7 @@ html:not(.js) .zb{display:none}
 .bol-proposed>.bol-l{color:var(--bo-new-ink)}
 .bog{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:14px}
 .bok{min-width:0;padding:12px 14px;border:1px solid var(--rule);border-radius:10px;background:var(--paper);scroll-margin-top:80px;overflow-wrap:anywhere;transition:background 1.5s}
-.bok>*{margin:0 0 8px}.bok>*:last-child{margin-bottom:0}.bok p,.bok li{max-width:none}.bok .fg{margin:0 0 8px}.bok table{font-size:var(--fs-s)}
+.bok>*{margin:0 0 8px}.bok>*:last-child{margin-bottom:0}.bok .fg{margin:0 0 8px}.bok table{font-size:var(--fs-s)}
 .bok-k{font:500 var(--fs-xs)/1.5 var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--mute)}
 .bok-t{font-size:var(--fs-b);line-height:1.3;margin:0 0 6px}.bok-e{font-size:var(--fs-s)}.bok-at{font-size:var(--fs-s)}
 .bok-m{display:flex;flex-wrap:wrap;gap:6px}
@@ -496,7 +498,7 @@ h2:hover>.an-sec,h2:focus-within>.an-sec{opacity:1}
 .an-panel button:not(.an-go):hover,.an-dlg button:hover{background:var(--wash)}.an-panel button:disabled{opacity:.4;cursor:default}
 .an-panel .an-pri,.an-dlg .an-pri,.an-panel .an-pri:hover,.an-dlg .an-pri:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .an-dlg{width:min(560px,calc(100vw - 32px));padding:18px;border:1px solid var(--ink);border-radius:8px;background:var(--paper);color:var(--ink);font:var(--fs-m)/1.5 var(--sans)}
-.an-tg{max-width:none;margin:0 0 10px;font-size:var(--fs-s);color:var(--mute);overflow-wrap:anywhere}
+.an-tg{margin:0 0 10px;font-size:var(--fs-s);color:var(--mute);overflow-wrap:anywhere}
 .an-dlg textarea{display:block;width:100%;min-height:7em;font:var(--fs-m)/1.5 var(--sans);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:8px 10px;resize:vertical}
 .an-db{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}.an-db .an-del{margin-right:auto}
 @media(pointer:coarse),(max-width:800px){.an-panel button:not(.an-go),.an-dlg button,.an-add{min-height:44px;min-width:44px}.an-sec{min-height:44px;min-width:44px;margin:-10px 0 -10px 4px}}
