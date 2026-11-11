@@ -7,6 +7,9 @@
  *     <project>/.data/annotations (the store `annotations_list` / `annotations_resolve` read). Prints the URL to open;
  *     its `#k=<token>` is the only key the inbox accepts. The page enables comments and decisions only after
  *     GET /__annotations/access answers {allowed:true} with that token.
+ *     One server per folder: every report in it (all versions) is served, and all share the inbox. When a server for the
+ *     folder already runs, the call prints the new report's URL on that server and exits. Port and token are kept in
+ *     .data/annotations/.report-serve.json, so a restarted server takes them up again and open tabs reconnect.
  *
  *   bun -i report-serve.ts wait [--root <project>]
  *     Blocks until the inbox holds an open item no watcher has dispatched yet, marks it seen in
@@ -16,13 +19,53 @@
  * `-i` lets Bun fetch the pinned inbox package when no node_modules provides it.
  */
 import { randomBytes, timingSafeEqual } from 'node:crypto'
-import { appendFile, mkdir, readFile, realpath } from 'node:fs/promises'
+import { appendFile, chmod, mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { openFileInbox, renderMarkdown } from '@skaile/forge-annotation-inbox@2.2.0/inbox'
 import { handleInboxRequest } from '@skaile/forge-annotation-inbox@2.2.0/server'
 
 const BASE = '/__annotations'
 const SEEN = join('.data', 'annotations', '.watch-seen')
+const STATE = join('.data', 'annotations', '.report-serve.json')
+
+/** Per served folder: its port, token and the pid of the server that last held it. */
+type Served = Record<string, { port: number, token: string, pid: number }>
+
+async function readState(): Promise<Served> {
+  let v: unknown
+  try {
+    v = JSON.parse(await readFile(join(root, STATE), 'utf8'))
+  }
+  catch {
+    return {}
+  }
+  const out: Served = {}
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out
+  for (const [dir, e] of Object.entries(v)) {
+    if (e && typeof e === 'object' && 'port' in e && 'token' in e && 'pid' in e
+      && typeof e.port === 'number' && typeof e.token === 'string' && typeof e.pid === 'number') {
+      out[dir] = { port: e.port, token: e.token, pid: e.pid }
+    }
+  }
+  return out
+}
+
+async function writeState(s: Served): Promise<void> {
+  await mkdir(dirname(join(root, STATE)), { recursive: true })
+  await writeFile(join(root, STATE), JSON.stringify(s, null, 2), { mode: 0o600 })
+  await chmod(join(root, STATE), 0o600)
+}
+
+/** Does a live report-serve answer on `port` with `token`? */
+async function alive(port: number, token: string): Promise<boolean> {
+  try {
+    const r = await fetch(`http://127.0.0.1:${port}${BASE}/access`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(1500) })
+    return r.ok && (await r.json()).allowed === true
+  }
+  catch {
+    return false
+  }
+}
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(name)
@@ -78,7 +121,16 @@ async function serve(file: string): Promise<void> {
   const page = resolve(file)
   if (!(await Bun.file(page).exists())) die(`no such file ${page}`)
   const dir = await realpath(dirname(page))
-  const token = randomBytes(24).toString('base64url')
+  const rel = page.slice(dir.length + 1).split(sep).map(encodeURIComponent).join('/')
+  const state = await readState()
+  const prev = state[dir]
+  if (prev && !arg('--port') && await alive(prev.port, prev.token)) {
+    console.log(`report: http://127.0.0.1:${prev.port}/${rel}#k=${prev.token}`)
+    console.log(`inbox: ${join(root, '.data', 'annotations')}`)
+    console.log(`served by the running report-serve (pid ${prev.pid}) for ${dir}`)
+    return
+  }
+  const token = prev?.token ?? randomBytes(24).toString('base64url')
   const want = Buffer.from(token)
   const authorised = (h: string | null) => {
     const got = Buffer.from(/^Bearer\s+(.+)$/i.exec(h ?? '')?.[1]?.trim() ?? '')
@@ -130,13 +182,13 @@ async function serve(file: string): Promise<void> {
   }
   let server
   try {
-    server = start(fixed ? Number(fixed) : stablePort(root + '\0' + dir))
+    server = start(fixed ? Number(fixed) : prev?.port ?? stablePort(root + '\0' + dir))
   }
   catch (e) {
     if (fixed) die(`port ${fixed}: ${String(e)}`)
     server = start(0)
   }
-  const rel = page.slice(dir.length + 1).split(sep).map(encodeURIComponent).join('/')
+  await writeState({ ...(await readState()), [dir]: { port: server.port, token, pid: process.pid } })
   console.log(`report: http://127.0.0.1:${server.port}/${rel}#k=${token}`)
   console.log(`inbox: ${join(root, '.data', 'annotations')}`)
 }

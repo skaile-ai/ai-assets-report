@@ -23,7 +23,7 @@ bun -i <skill-dir>/report-serve.ts wait [--root <project>]                      
 
 After building (workflow step 10):
 
-1. Start the server as a named background service from the project root (omp: `bash` with `name: "report-<stem>"` and `ready.log: "inbox:"`; Claude Code: a background Bash). `open` the printed `report:` URL, not the file.
+1. Run `report-serve.ts <out>.html` from the project root. One server serves a whole folder: every report in it, all versions, one inbox. If a server for that folder already runs, the call prints the new report's URL on it (`served by the running report-serve (pid …)`) and exits. Otherwise it starts one; run it as a named background service (omp: `bash` with `name: "report-serve"` and `ready.log: "inbox:"`; Claude Code: a background Bash). `open` the printed `report:` URL, not the file. Port and token persist in `.data/annotations/.report-serve.json` (mode 600), so a restarted server keeps both and open tabs reconnect.
 2. Start `report-serve.ts wait` as a background job with no deadline (omp: `async: true`, `timeout: 0`; Claude Code: background Bash or the Monitor tool). Its exit wakes the session with the new items as Markdown. It records what it printed in `.data/annotations/.watch-seen`, shared with omp's `/annotations watch`, so no item arrives twice.
 3. Per item:
    - `Path` is `<report.json>#/<pointer>`: `/sections/<i>/blocks/<j>[/tabs/<k>/blocks/<m>]`; `/sections/<i>` means the whole section; a trailing `entity <id>` names the entity in top-level `entities`. `Context` holds the section, the marked words and the sentences around them.
@@ -31,7 +31,7 @@ After building (workflow step 10):
    - A decision (`Decision <id>: <label> [<option id>]`, with the reader's comment on the next line): act on the choice; `Context` lists the question and all options.
 4. Write the next version `<topic>-<date>-v<N+1>` (workflow step 10: earlier versions stay untouched). Its choice file copies the previous one, including its `mode`. Build with step 8, verify with step 9.
 5. Answer every item with `annotations_resolve` (`implemented`, or `rejected` with the reason), in the reader's language. The page shows the answer under the comment or decision within 10 s.
-6. Restart `wait` while the reader keeps working. A new version gets its own server (stop the old service first, or serve the folder and open the new file name). Stop the services when the user is done.
+6. Restart `wait` while the reader keeps working. A new version in the same folder needs no new server: run step 1 again for its file and open the URL it prints. Stop the service when the user is done.
 
 ## Verify
 
