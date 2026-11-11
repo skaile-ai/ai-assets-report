@@ -2940,14 +2940,15 @@ class Report:
             if self.chg:
                 counts = " ".join(f'{self.mark(k)}<span class="cn">{self.nchg[k]}</span>' for k in CHANGE if self.nchg[k])
                 summary = (f'{head}{counts}<span class="mt">{E(self.t["dimmed"])}</span>'
-                           f'<button type="button" aria-pressed="false" onclick="nodim(this)">{E(self.t["full"])}</button></div>')
+                           f'<button type="button" class="chg-full" aria-pressed="false">{E(self.t["full"])}</button></div>')
             else:
                 summary = f'{head}<span class="cn">{E(self.t["nochg"])}</span></div>'
         # reading order: title and tools, the first section (the answer), statistics and change summary, the rest, the bibliography
         content = parts[:1] + [x for x in (stats, summary) if x] + parts[1:] + ([bib] if bib else [])
         brand = load_brand(d.get("brand"), self.src.parent if self.src else Path.cwd())
         logo, favicon = brand_logo(brand)
-        hdr = (f'<header data-report="{E(self.src.name)}">' if self.src else "<header>") + logo
+        hdr = f'<header data-report="{E(self.src.name)}">' if self.src else "<header>"
+        title = f'<div class="ttl">{logo}<h1>{E(d["title"])}</h1></div>'  # the logo sits on the title's first line
         nav = ""
         if toc and (wr or nsec >= 4):  # web-research always had its contents; other profiles get one from 4 numbered sections
             items, g = [], 0
@@ -2973,10 +2974,10 @@ class Report:
                     '<span class="fcnt" role="status" aria-live="polite"></span></r-find>')
         skip = f'<a class="skip" href="#main">{E(t["skip"])}</a>'
         if wr:
-            top = f'{hdr}<h1>{E(d["title"])}</h1>{prov}{prov_print}<div class="wrtools">{reader}{find}</div>{nav}</header>'
+            top = f'{hdr}{title}{prov}{prov_print}<div class="wrtools">{reader}{find}</div>{nav}</header>'
             main = f'<main id="main" class="wr" tabindex="-1" data-find-scope>{chr(10).join(content)}</main>'
         else:
-            top = f'{hdr}<h1>{E(d["title"])}</h1>{prov}{prov_print}{reader}{find}{nav}</header>'
+            top = f'{hdr}{title}{prov}{prov_print}{reader}{find}{nav}</header>'
             main = f'<main id="main" tabindex="-1" data-find-scope>{chr(10).join(content)}</main>'
         body = "\n".join([skip, top, main])
         found = Counter(html.unescape(i) for i in re.findall(r'\sid="([^"]+)"', body))

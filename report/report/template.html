@@ -14,7 +14,9 @@ html{background:var(--paper);color:var(--ink);font:var(--fs-b)/1.65 var(--sans);
 body{max-width:1360px;margin:0 auto;padding:56px 32px 96px}
 a{color:var(--acc);text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px}a:hover{text-decoration-color:currentColor}
 header{border-bottom:1px solid var(--ink);padding-bottom:20px;display:grid;grid-template-columns:1fr auto;gap:8px 32px;align-items:end}
-header .brand{display:block;grid-column:1/-1;height:28px;width:auto}
+/* logo and title share one row: the logo is one title font-size tall and centred in the title's first 1.2 line box, so a wrapping title keeps it on the first line */
+header .ttl{display:flex;align-items:flex-start;gap:14px;min-width:0}
+header .brand{display:block;flex:none;height:var(--fs-xxl);width:auto;margin-top:calc(var(--fs-xxl) * .1)}
 h1,h2,h3{font-family:var(--head)}
 h1{font-size:var(--fs-xxl);line-height:1.2;font-weight:700;letter-spacing:-.02em;margin:0}
 svg.ic{width:1em;height:1em;flex:none;vertical-align:-.125em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -346,6 +348,7 @@ a.src{color:var(--acc);text-decoration:underline;text-decoration-color:var(--rul
 .rdd{flex:1 1 240px;font-size:var(--fs-s);color:var(--mute)}html:not(.js) .rdc{display:none}
 .fclr{min-height:44px;font:var(--fs-s) var(--sans);padding:8px 14px;border:1px solid var(--rule);background:var(--paper);border-radius:6px;cursor:pointer;color:var(--ink);white-space:nowrap}.fclr:hover{background:var(--wash)}
 html:not(.js) r-find{display:none}.fclr[hidden]{display:none}
+html:not(.js) .chg-full{display:none}
 #find::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;display:none}
 /* find: a faint tint on the matching block, the term itself in the highlight colour, the match stepped to in the accent */
 .fm{background:var(--wash);box-shadow:0 0 0 3px var(--wash);border-radius:2px}
@@ -564,7 +567,8 @@ customElements.define('r-tabs',class extends HTMLElement{
 addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.vch button');if(!b)return;const v=b.closest('figure').querySelector('video');v.currentTime=+b.dataset.t;v.play()});
 /* Cross-link highlight for every target, inside or outside a tree; a target in a closed tab opens it first. */
 addEventListener('hashchange',hit);addEventListener('DOMContentLoaded',hit);
-function nodim(b){b.setAttribute('aria-pressed',document.documentElement.classList.toggle('nodim'))}
+/* change summary: "Show all at full contrast" toggles html.nodim */
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button.chg-full');if(b)b.setAttribute('aria-pressed',document.documentElement.classList.toggle('nodim'))});
 /* open whatever hides el: a deeper reader level, a closed <details>, closed tabs; true when something opened */
 function reveal(el){let opened=rdReveal(el);
  const dn=el.closest('details');if(dn&&!dn.open){dn.open=true;opened=true}

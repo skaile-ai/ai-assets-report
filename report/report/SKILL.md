@@ -3,7 +3,7 @@ name: report
 description: "Build one static HTML report read front to back: argued answer first, tables, trees, diagrams and charts as support. Use for 'report', 'overview page', 'data sheet', 'how does X work as a page'. Autopilot by default; 'report interactive: <question>' asks first; a pasted '# Notes on report' block revises it."
 license: MIT
 metadata:
-  version: 0.10.1
+  version: 0.10.2
   publisher: skaile-ai
   requires: "report-prose, report-table, report-flow, report-diagram, report-charts, report-video"
 ---
