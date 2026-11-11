@@ -291,6 +291,8 @@ TXT = {
           "notes": "Belege", "note_n": "Beleg {n}", "legend": "Legende", "filters": "Filter",
            "arg_claim": "Kernaussage", "arg_why": "Gründe", "arg_so": "Folgerung", "ex": "Beispiel", "ex_result": "Ergebnis",
            "cmp": "Gegenüberstellung", "cmp_verdict": "Fazit",
+           "dc": "Entscheidung", "dc_rec": "empfohlen", "dc_other": "Anmerkung (optional)",
+           "dc_off": "Antworten geht nur, wenn der Agent den Bericht über report-serve geöffnet hat.",
            "g_open": "{t} öffnen", "g_notes": "{n} Hinweise", "g_note1": "1 Hinweis", "g_before": "Vorher", "g_now": "Jetzt"},
     "en": {"ev": "Evidence", "el": "Element", "at": "Evidence", "from": "From", "to": "To", "fn": "Function",
            "note": "Change", "trigger": "Trigger", "guard": "Guard", "up": "Part of",
@@ -329,6 +331,8 @@ TXT = {
           "notes": "Notes", "note_n": "Note {n}", "legend": "Legend", "filters": "Filters",
            "arg_claim": "Key point", "arg_why": "Because", "arg_so": "So", "ex": "Example", "ex_result": "Result",
            "cmp": "Comparison", "cmp_verdict": "Verdict",
+           "dc": "Decision", "dc_rec": "recommended", "dc_other": "Comment (optional)",
+           "dc_off": "Answering works only when the agent opened this report through report-serve.",
            "g_open": "Open {t}", "g_notes": "{n} notes", "g_note1": "1 note", "g_before": "Before", "g_now": "Now"},
 }
 
@@ -467,6 +471,7 @@ class Report:
                 fail(f"badge {c}: default {cat['default']} is not one of its values")
         self.t = TXT.get(str(data.get("lang", "de"))[:2], TXT["en"])
         self.nco = 0  # callout counter: unique ids for aria-labelledby
+        self.dcids = set()  # decision ids: the page keys answers and inbox items by them
         self.notes, self.nsec = None, 0  # section being rendered: footnote text -> shallowest reader rank citing it (None: inline brackets)
         self.rank = 0  # effective reader rank of the block being rendered (the deepest `reader` among it and its ancestors)
         self.load_sources()
@@ -2588,6 +2593,43 @@ class Report:
         return (f'<div class="cmp" role="group" aria-labelledby="{cid}"><p class="co-h">'
                 f'<strong id="{cid}">{E(b["title"])}</strong></p><div class="cmp-g">{cells}</div>'
                 f'<p class="cmp-v"><span class="blk-l">{E(t["cmp_verdict"])}</span> {self.inline(b["verdict"])}</p></div>')
+
+    def b_decision(self, b):
+        """A question the reader answers to the agent: `id`, `question` (text), `options` (2–6: `id`, `label`, `text?`),
+        `recommended?` (an option id), `other?` (free-text comment, default true). The form is disabled in the HTML;
+        the page script enables it only while report-serve's inbox accepts this page (see references/notes.md)."""
+        did, opts = b.get("id"), b.get("options")
+        if not isinstance(did, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,31}", did):
+            fail(f"decision: `id` is required: lowercase letters, digits and dashes, at most 32 ({did!r})")
+        if did in self.dcids:
+            fail(f"decision {did}: id is used twice")
+        self.dcids.add(did)
+        if not self.filled(b.get("question")):
+            fail(f"decision {did}: `question` is required and must not be empty")
+        if not isinstance(opts, list) or not 2 <= len(opts) <= 6:
+            fail(f"decision {did}: `options` needs 2 to 6 options")
+        oids = []
+        for n, o in enumerate(opts, 1):
+            if not isinstance(o, dict) or not self.filled(o.get("id")) or not self.filled(o.get("label")):
+                fail(f"decision {did}: option {n} needs `id` and `label`")
+            if o["id"] in oids:
+                fail(f"decision {did}: option id {o['id']} is used twice")
+            oids.append(o["id"])
+        rec = b.get("recommended")
+        if rec is not None and rec not in oids:
+            fail(f"decision {did}: `recommended` {rec!r} is not an option id ({', '.join(oids)})")
+        self.nco += 1
+        cid, t = f"dc-{self.nco}", self.t
+        rows = "".join(
+            f'<label class="dc-o"><input type="radio" name="dc-{E(did)}" value="{E(o["id"])}"> <span><b>{self.inline(o["label"])}</b>'
+            + (f' <span class="dc-r">{E(t["dc_rec"])}</span>' if o["id"] == rec else "")
+            + (f'<span class="dc-x">{self.inline(o["text"])}</span>' if o.get("text") else "") + "</span></label>"
+            for o in opts)
+        other = (f'<label class="dc-f"><span class="blk-l">{E(t["dc_other"])}</span><textarea rows="2"></textarea></label>'
+                 if b.get("other", True) else "")
+        return (f'<form class="dc" id="d-{E(did)}" data-decision="{E(did)}" aria-labelledby="{cid}"><fieldset disabled>'
+                f'<legend class="co-h"><span class="co-k">{E(t["dc"])}</span> <strong id="{cid}">{E(b["question"])}</strong></legend>'
+                f'{rows}{other}<div class="dc-ft"></div></fieldset><p class="dc-off">{E(t["dc_off"])}</p></form>')
 
     def vega_check(self, b):
         """Validate and normalise one `vega` block once (the spec stays inline, the dataset is named `rows` for the page script);

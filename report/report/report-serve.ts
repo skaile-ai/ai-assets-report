@@ -1,0 +1,147 @@
+#!/usr/bin/env bun
+/**
+ * The report's back-channel to the agent that built it.
+ *
+ *   bun -i report-serve.ts <report.html> [--root <project>] [--port <n>]
+ *     Serves the report's folder on 127.0.0.1 and mounts the annotation inbox on /__annotations, stored in
+ *     <project>/.data/annotations (the store `annotations_list` / `annotations_resolve` read). Prints the URL to open;
+ *     its `#k=<token>` is the only key the inbox accepts. The page enables comments and decisions only after
+ *     GET /__annotations/access answers {allowed:true} with that token.
+ *
+ *   bun -i report-serve.ts wait [--root <project>]
+ *     Blocks until the inbox holds an open item no watcher has dispatched yet, marks it seen in
+ *     .data/annotations/.watch-seen (shared with the omp extension's /annotations watch), prints the items as
+ *     markdown and exits. Run it as a background job: its exit wakes the agent.
+ *
+ * `-i` lets Bun fetch the pinned inbox package when no node_modules provides it.
+ */
+import { randomBytes, timingSafeEqual } from 'node:crypto'
+import { appendFile, mkdir, readFile, realpath } from 'node:fs/promises'
+import { basename, dirname, join, resolve, sep } from 'node:path'
+import { openFileInbox, renderMarkdown } from '@skaile/forge-annotation-inbox@2.2.0/inbox'
+import { handleInboxRequest } from '@skaile/forge-annotation-inbox@2.2.0/server'
+
+const BASE = '/__annotations'
+const SEEN = join('.data', 'annotations', '.watch-seen')
+
+function arg(name: string): string | undefined {
+  const i = process.argv.indexOf(name)
+  return i > 0 ? process.argv[i + 1] : undefined
+}
+
+function die(msg: string): never {
+  console.error(`report-serve: ${msg}`)
+  process.exit(1)
+}
+
+const root = resolve(arg('--root') ?? process.cwd())
+const inbox = openFileInbox(root)
+
+async function readSeen(): Promise<Set<string>> {
+  try {
+    return new Set((await readFile(join(root, SEEN), 'utf8')).split('\n').filter(Boolean))
+  }
+  catch (e) {
+    if (e instanceof Error && 'code' in e && e.code === 'ENOENT') return new Set()
+    throw e
+  }
+}
+
+async function wait(): Promise<void> {
+  for (;;) {
+    const seen = await readSeen()
+    let fresh = (await inbox.list({ status: 'open' })).filter(i => !seen.has(i.inboxId))
+    if (fresh.length) {
+      await Bun.sleep(500) // a publish writes item by item: let it finish
+      fresh = (await inbox.list({ status: 'open' })).filter(i => !seen.has(i.inboxId))
+      if (fresh.length) {
+        await mkdir(dirname(join(root, SEEN)), { recursive: true })
+        await appendFile(join(root, SEEN), fresh.map(i => i.inboxId).join('\n') + '\n')
+        console.log(`New answers from the report reader (${fresh.length}). Act on each, then call annotations_resolve `
+          + `with its inboxId (implemented, or rejected with a resolution); the page shows your resolution.\n`)
+        console.log(renderMarkdown(fresh, 'open', { resolveVia: 'tool' }))
+        return
+      }
+    }
+    await Bun.sleep(1000)
+  }
+}
+
+/** A port that stays the same for one project and report folder, so the page's origin (and its localStorage) survives restarts. */
+function stablePort(key: string): number {
+  let h = 0
+  for (const c of key) h = (h * 31 + c.charCodeAt(0)) >>> 0
+  return 47000 + (h % 1000)
+}
+
+async function serve(file: string): Promise<void> {
+  const page = resolve(file)
+  if (!(await Bun.file(page).exists())) die(`no such file ${page}`)
+  const dir = await realpath(dirname(page))
+  const token = randomBytes(24).toString('base64url')
+  const want = Buffer.from(token)
+  const authorised = (h: string | null) => {
+    const got = Buffer.from(/^Bearer\s+(.+)$/i.exec(h ?? '')?.[1]?.trim() ?? '')
+    return got.length === want.length && timingSafeEqual(got, want)
+  }
+
+  const handler = async (req: Request, port: number): Promise<Response> => {
+    const url = new URL(req.url)
+    // DNS rebinding: a foreign site resolving its name to 127.0.0.1 still sends its own Host
+    const host = req.headers.get('host')
+    if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) return new Response('bad host', { status: 421 })
+    if (url.pathname === BASE || url.pathname.startsWith(BASE + '/')) {
+      const origin = req.headers.get('origin')
+      if (origin && origin !== `http://${host}`) return new Response('bad origin', { status: 403 })
+      const res = await handleInboxRequest(inbox, {
+        method: req.method,
+        url: url.pathname + url.search,
+        body: () => req.text(),
+        principal: authorised(req.headers.get('authorization')) ? { kind: 'human', id: 'reader', roles: ['reviewer'] } : null,
+      })
+      if (req.method === 'POST' && res.status < 300) console.log(`${new Date().toISOString()} ${url.pathname} ${res.status}`)
+      return new Response(res.body || null, { status: res.status, headers: { ...res.headers, 'cache-control': 'no-store' } })
+    }
+    if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('read only', { status: 405 })
+    let rel: string
+    try {
+      rel = decodeURIComponent(url.pathname)
+    }
+    catch {
+      return new Response('bad path', { status: 400 })
+    }
+    let target = resolve(dir, '.' + (rel.endsWith('/') ? rel + basename(page) : rel))
+    try {
+      target = await realpath(target) // a symlink must not lead out of the folder either
+    }
+    catch {
+      return new Response('not found', { status: 404 })
+    }
+    if (!target.startsWith(dir + sep)) return new Response('not found', { status: 404 })
+    const f = Bun.file(target)
+    if (!(await f.exists())) return new Response('not found', { status: 404 })
+    return new Response(f, { headers: { 'cache-control': 'no-store' } })
+  }
+
+  const fixed = arg('--port')
+  const start = (port: number) => {
+    const s = Bun.serve({ hostname: '127.0.0.1', port, fetch: req => handler(req, s.port) })
+    return s
+  }
+  let server
+  try {
+    server = start(fixed ? Number(fixed) : stablePort(root + '\0' + dir))
+  }
+  catch (e) {
+    if (fixed) die(`port ${fixed}: ${String(e)}`)
+    server = start(0)
+  }
+  const rel = page.slice(dir.length + 1).split(sep).map(encodeURIComponent).join('/')
+  console.log(`report: http://127.0.0.1:${server.port}/${rel}#k=${token}`)
+  console.log(`inbox: ${join(root, '.data', 'annotations')}`)
+}
+
+const [cmd] = process.argv.slice(2).filter((a, i, all) => !a.startsWith('--') && !all[i - 1]?.startsWith('--'))
+if (!cmd) die('usage: report-serve.ts <report.html> [--root <project>] [--port <n>] | report-serve.ts wait [--root <project>]')
+if (cmd === 'wait') await wait()
+else await serve(cmd)

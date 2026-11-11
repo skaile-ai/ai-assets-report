@@ -298,6 +298,44 @@
       ]
     },
     {
+      "title": "decision: a question the reader answers to the agent",
+      "id": "b-decision",
+      "sub": "Explanation",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use it when the report ends in a choice only the reader can make and the agent waits for it: the reader picks an option, adds a comment and sends it to the agent's inbox. Avoid it for choices the data already decides, and for pages read without report-serve: there the form stays disabled."
+        },
+        {
+          "type": "decision",
+          "id": "reminders",
+          "question": "Which reminder should the library send first?",
+          "options": [
+            {
+              "id": "email",
+              "label": "Email reminder",
+              "text": "Two days before the due date"
+            },
+            {
+              "id": "sms",
+              "label": "Text message",
+              "text": "Costs 4 cents per message"
+            },
+            {
+              "id": "none",
+              "label": "No reminder",
+              "text": "Keep the paper slip only"
+            }
+          ],
+          "recommended": "email"
+        },
+        {
+          "type": "html",
+          "html": "<pre class=\"cat-json\" aria-label=\"JSON of this block\" style=\"margin:0;padding:.75em 1em;max-width:100%;overflow-x:auto;background:var(--wash);border:1px solid var(--rule);border-radius:6px;font-size:var(--fs-xs);line-height:1.45\"><code>{\n  \"type\": \"decision\",\n  \"id\": \"reminders\",\n  \"question\": \"Which reminder should the library send first?\",\n  \"options\": [\n    {\n      \"id\": \"email\",\n      \"label\": \"Email reminder\",\n      \"text\": \"Two days before the due date\"\n    },\n    {\n      \"id\": \"sms\",\n      \"label\": \"Text message\",\n      \"text\": \"Costs 4 cents per message\"\n    },\n    {\n      \"id\": \"none\",\n      \"label\": \"No reminder\",\n      \"text\": \"Keep the paper slip only\"\n    }\n  ],\n  \"recommended\": \"email\"\n}</code></pre>"
+        }
+      ]
+    },
+    {
       "title": "table: a static table",
       "id": "b-table",
       "sub": "Tables and trees",

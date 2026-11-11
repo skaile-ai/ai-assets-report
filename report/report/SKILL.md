@@ -1,9 +1,9 @@
 ---
 name: report
-description: "Build one static HTML report read front to back: argued answer first, tables, trees, diagrams and charts as support. Use for 'report', 'overview page', 'data sheet', 'how does X work as a page'. Autopilot by default; 'report interactive: <question>' asks first; a pasted '# Notes on report' block revises it."
+description: "Build one static HTML report read front to back: argued answer first, tables, trees, diagrams and charts as support. Use for 'report', 'overview page', 'data sheet', 'how does X work as a page'. Autopilot by default; 'report interactive: <question>' asks first; comments and decisions the reader sends from the served page revise it."
 license: MIT
 metadata:
-  version: 0.11.1
+  version: 0.12.0
   publisher: skaile-ai
   requires: "report-prose, report-table, report-flow, report-diagram, report-charts, report-video"
 ---
@@ -64,7 +64,7 @@ Under autopilot nothing asks and nothing waits. The steps compute the same lists
 7. **Shape `report.json`** (schema: `references/report-json.md`; prose: `skill://report-prose`). The first section answers `<question>` within the size's sentence budget. It renders as the lede under the title: no heading, so do not restate the title in it. Then one section per chosen question, chapters in order: `question: "<id>"`, `title` = the question in at most 8 words, `sub` = the chapter. Each opens with its claim and reason within the budget, then holds only the blocks its candidate named. Show `stats` only for numbers the prose names once. A section's last sentence does not recap its figure. Create an entity only for a thing with a place on the page (a tree row, a table row `anchor`, a tab `entity`) that the reader may open; without such places there are no entities and no links. Without `tree`, entities get `tree: false`. State each link once, in `parent` or `refs`; the build computes back-links. Every number comes from the dump or the code.
 8. **Build.** Run `python3 <skill-dir>/build.py report.json <out>.html --check-choice <stem>.choice.json --strict`; it aborts on unknown refs, badges and colours, on a failing `--check-choice` and on any `lint:` line: fix the data, not the check. Fix every `lint:` line; a lint you judge wrong you name and justify in the chat answer, and for that report build once without `--strict`. `python3 <skill-dir>/build.py --help` lists every check and its fix.
 9. **Verify in a browser** at 1280 px and 390 px: `scrollWidth` equals the viewport width at both; no console errors; one link jumps and highlights; a link into a closed tab opens it; a note number opens or shows the section's note and highlights it; when badges exist, one badge toggle changes the counter. With a `gallery`: a thumbnail click opens `#gl-dlg` with its pins and notes; ←/→ moves to the neighbouring item; the Before toggle swaps the image; Escape closes and focus returns to the thumbnail; at 390 px the gallery is one column. Add `references/web-research.md` (Verify) for that profile, `references/notes.md` (Verify) for reader notes, and the Verify list of every chosen extension.
-10. **Location and answer.** Write `<repo>/.scratch/reports/<topic>-<YYYY-MM-DD>[-vN].html` with its siblings; earlier versions stay untouched. `open <file>` and give the answer in chat, not only the file, plus the chat line from **Modes**.
+10. **Location and answer.** Write `<repo>/.scratch/reports/<topic>-<YYYY-MM-DD>[-vN].html` with its siblings; earlier versions stay untouched. Serve it with `report-serve.ts`, `open` the printed URL (not the file), and start `report-serve.ts wait` in the background so the reader's comments and decisions wake you (`references/notes.md`, Agent side). Give the answer in chat, not only the link, plus the chat line from **Modes**.
 
 ## Sizes
 
@@ -81,7 +81,7 @@ Tag each candidate with the cheapest ability that answers it: prose before a tab
 
 |Key|Blocks|Skill|Offer when (signal)|Needs|
 |---|---|---|---|---|
-|`none`|`p`, `argument`, `example`, `compare`, `callout`; `bullets`, `steps` after a lead `p`|core|always|—|
+|`none`|`p`, `argument`, `example`, `compare`, `callout`, `decision`; `bullets`, `steps` after a lead `p`|core|always; `decision` only when the report ends in a choice only the reader can make|—|
 |`tree`|`tree`, `table`, top-level `badges`|`report-table`|a dump with ≥ 1 collection (collection and row counts)|—|
 |`data`|`data` (sortable, searchable, paged, CSV)|`report-table`|a collection with > 30 rows (largest collection, its rows)|simple-datatables CDN|
 |`charts`|`bars`, `vega`|`report-charts`|an enum field with ≥ 3 values, a numeric or a date field (the field names)|vega CDN (`bars`: none)|
@@ -122,5 +122,5 @@ The shared contract for every extension's "Under report" branch:
 - `references/report-json.md`: schema, block specs, page order (lede, chapter labels, contents), citation syntax, choice file, change documents.
 - `catalog.json`: one section per block type, in a small library-lending domain: when to use it and when not, the live block, its JSON. Build it with `python3 build.py catalog.json catalog.html` to see every block; `test_readability.Catalog` fails when a `b_<type>` renderer has no section.
 - `references/brand.md`: brands, fonts, icons.
-- `references/notes.md`: reader notes, revising from a pasted `# Notes on report` block, its verify list.
+- `references/notes.md`: reader comments and `decision` answers, the agent channel (`report-serve.ts`), acting on and resolving what the reader sends, its verify list.
 - `references/web-research.md`: reader depth, sources, media, resources, its verify list.

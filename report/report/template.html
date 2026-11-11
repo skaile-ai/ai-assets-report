@@ -389,6 +389,23 @@ summary{min-height:24px}
 .arg p,.ex p,.cmp p{margin:6px 0}.arg>.co-h,.ex>.co-h,.cmp>.co-h{margin:0 0 8px}
 .cmp-g{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:10px 0}.cmp-c{padding:10px 12px;background:var(--wash);border-radius:6px}.cmp-h{margin:0 0 4px;font-weight:600}
 @media(max-width:640px){.cmp-g{grid-template-columns:1fr}}
+/* decision (b_decision): disabled until the agent channel answers (page script agTick sets html.ag-on and enables the fieldset) */
+.dc{margin:22px 0;padding:14px 18px;border:1px solid var(--rule);border-radius:6px}
+.dc fieldset{border:0;margin:0;padding:0;min-width:0}.dc legend{padding:0;margin:0 0 8px}
+.dc-o{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;margin:6px 0;border:1px solid var(--hair);border-radius:6px;cursor:pointer}
+.dc-o:has(:checked){border-color:var(--ink);background:var(--wash)}.dc-o input{margin:.35em 0 0;accent-color:var(--ink)}
+.dc-x{display:block;font-size:var(--fs-s);color:var(--mute)}
+.dc-r{font:600 var(--fs-xs)/1.4 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--acc);margin-left:6px}
+.dc-f{display:block;margin-top:10px}
+.dc-f textarea{display:block;width:100%;margin-top:4px;font:var(--fs-m)/1.5 var(--sans);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:6px 10px;resize:vertical}
+.dc fieldset:disabled .dc-o{cursor:default;opacity:.65}.dc fieldset:disabled textarea{opacity:.65}
+.dc-ft{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px}.dc-ft:empty{display:none}
+.dc-ft button{font:600 var(--fs-s) var(--sans);min-height:32px;padding:3px 12px;border:1px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--paper);cursor:pointer}
+.dc-ft button:disabled{opacity:.4;cursor:default}.dc-st{font-size:var(--fs-s);color:var(--mute)}
+.dc-a{flex-basis:100%;margin:0;padding:8px 10px;border-left:3px solid var(--acc);background:var(--wash);white-space:pre-wrap}
+.dc-off{margin:8px 0 0;font-size:var(--fs-s);color:var(--mute)}.ag-on .dc-off{display:none}
+@media(pointer:coarse),(max-width:800px){.dc-ft button{min-height:44px}}
+@media print{.dc-off,.dc-ft button{display:none}}
 /* media gallery: one column, two from 700px */
 .gal{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;margin:22px 0}
 @media(min-width:700px){.gal[data-n="2"]{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -493,7 +510,7 @@ h2:hover>.an-sec,h2:focus-within>.an-sec{opacity:1}
 .an-x{display:flex;gap:6px;margin-top:6px}.an-mt{padding:14px;font-size:var(--fs-s);color:var(--mute)}
 .an-ft{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--ink)}
 .an-st{flex-basis:100%;font-size:var(--fs-s);color:var(--mute)}.an-st:empty{display:none}
-.an-fb{width:100%;min-height:8em;font:var(--fs-xs)/1.5 var(--mono);color:var(--ink);background:var(--wash);border:1px solid var(--rule);border-radius:6px;padding:6px 8px;resize:vertical}
+.an-s{font-size:var(--fs-xs);color:var(--mute)}.an-r{margin-top:4px;padding:4px 8px;border-left:3px solid var(--acc);background:var(--wash);white-space:pre-wrap}
 .an-panel button:not(.an-go),.an-dlg button{font:var(--fs-s) var(--sans);min-height:32px;padding:3px 10px;border:1px solid var(--rule);background:var(--paper);border-radius:6px;cursor:pointer;color:var(--ink)}
 .an-panel button:not(.an-go):hover,.an-dlg button:hover{background:var(--wash)}.an-panel button:disabled{opacity:.4;cursor:default}
 .an-panel .an-pri,.an-dlg .an-pri,.an-panel .an-pri:hover,.an-dlg .an-pri:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
@@ -503,6 +520,8 @@ h2:hover>.an-sec,h2:focus-within>.an-sec{opacity:1}
 .an-db{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}.an-db .an-del{margin-right:auto}
 @media(pointer:coarse),(max-width:800px){.an-panel button:not(.an-go),.an-dlg button,.an-add{min-height:44px;min-width:44px}.an-sec{min-height:44px;min-width:44px;margin:-10px 0 -10px 4px}}
 @media print{.an-fab,.an-add,.an-sec,.an-panel{display:none}}
+/* no agent channel (file://, report-serve stopped, no token): no way to comment */
+html:not(.ag-on) :is(.an-fab,.an-add,.an-sec,.an-panel){display:none!important}
 </style>
 <script>
 /* <r-tree>: one filter per tree, light DOM over the markup build.py renders (legend chips .tg[data-k], .cnt, [data-reset], ul.tr).
@@ -1132,17 +1151,20 @@ addEventListener('DOMContentLoaded',()=>{const nav=document.querySelector('nav.t
 /* Reader notes. Select words inside a section and press Comment, or ✎ on a section title, and write what should change.
    Every section and block carries data-src, its JSON pointer into the report source (header[data-report]); a note keeps that
    pointer, the marked words and the sentences around them (taken at creation). The Comments panel lists the notes in page order,
-   jumps to each, copies all of them as markdown for the agent (anMarkdown) and clears them. Notes live in localStorage per page
-   path (in memory only when storage throws); anPaint marks the words with the CSS Custom Highlight API. Nothing is uploaded.
+   jumps to each and sends them, with the answered decisions, to the agent's inbox (agSend); the agent's resolution shows under
+   each note. Notes live in localStorage per page path (in memory only when storage throws); anPaint marks the words with the
+   CSS Custom Highlight API. All of it exists only while the agent channel answers (html.ag-on, see agTick).
    The UI says "Comments", not "Notes": "Notes" already names the citation list closing each section. */
 const AT={en:{notes:'Comments',comment:'Comment',secNote:'Comment on this section',placeholder:'What should change?',save:'Save',cancel:'Cancel',
-  del:'Delete',edit:'Edit',copy:'Copy for agent',clear:'Clear',clearQ:'Delete all comments on this page?',copied:'Copied {n} comments',
-  copyFail:'Copy failed: select the text below and copy it',empty:'No comments yet. Select text and press Comment, or use ✎ next to a section title.',
-  lost:'text no longer found'},
+  del:'Delete',edit:'Edit',send:'Send to agent',clear:'Clear',clearQ:'Delete all comments on this page?',sent:'Sent to the agent',
+  sendFail:'Sending failed: is report-serve still running?',empty:'No comments yet. Select text and press Comment, or use ✎ next to a section title.',
+  lost:'text no longer found',unsent:'not sent yet',open:'sent · waiting for the agent',done:'Agent:',no:'Agent declined:',
+  dcSend:'Send answer',dcSent:'Sent · waiting for the agent',dcChanged:'Changed: send again'},
  de:{notes:'Kommentare',comment:'Kommentieren',secNote:'Abschnitt kommentieren',placeholder:'Was soll sich ändern?',save:'Speichern',cancel:'Abbrechen',
-  del:'Löschen',edit:'Bearbeiten',copy:'Für Agent kopieren',clear:'Leeren',clearQ:'Alle Kommentare dieser Seite löschen?',copied:'{n} Kommentare kopiert',
-  copyFail:'Kopieren fehlgeschlagen: Text unten markieren und kopieren',empty:'Noch keine Kommentare. Text markieren und »Kommentieren« drücken, oder ✎ neben einem Abschnittstitel.',
-  lost:'Text nicht mehr gefunden'}};
+  del:'Löschen',edit:'Bearbeiten',send:'An Agent senden',clear:'Leeren',clearQ:'Alle Kommentare dieser Seite löschen?',sent:'An den Agent gesendet',
+  sendFail:'Senden fehlgeschlagen: läuft report-serve noch?',empty:'Noch keine Kommentare. Text markieren und »Kommentieren« drücken, oder ✎ neben einem Abschnittstitel.',
+  lost:'Text nicht mehr gefunden',unsent:'noch nicht gesendet',open:'gesendet · wartet auf den Agent',done:'Agent:',no:'Agent lehnt ab:',
+  dcSend:'Antwort senden',dcSent:'Gesendet · wartet auf den Agent',dcChanged:'Geändert: erneut senden'}};
 const AN_KEY='report:notes:'+location.pathname,AN_CTX='p,li,td,th,dd,dt,figcaption,caption,blockquote,h2,h3,h4,summary';
 /* anRanges: note id -> Range of its marked words; anLost: ids whose words or target are gone; anPend: the selection under Comment */
 let anNotes=[],anRanges=new Map(),anLost=new Set(),anPend=null,anCur=null,anT=AT.en,anDlg=null,anAdd=null,anPanelEl=null;
@@ -1189,7 +1211,7 @@ function anFind(n,root){const parts=[];let full='';
 function anPaint(){anRanges=new Map();anLost=new Set();
  for(const n of anNotes){const el=anTarget(n);if(!el){anLost.add(n.id);continue}if(!n.quote)continue;
   const sec=el.closest('section[data-src]'),r=anFind(n,el)||(sec&&sec!==el?anFind(n,sec):null);if(r)anRanges.set(n.id,r);else anLost.add(n.id)}
- if(window.Highlight&&CSS.highlights)CSS.highlights.set('an',new Highlight(...anRanges.values()))}
+ if(window.Highlight&&CSS.highlights){if(AG.on)CSS.highlights.set('an',new Highlight(...anRanges.values()));else CSS.highlights.delete('an')}}
 /* page order: by the marked words, a section note at the start of its section; lost notes last, ties by creation */
 function anOrder(){const k=new Map();
  for(const n of anNotes){if(anLost.has(n.id))continue;let r=anRanges.get(n.id);const el=!r&&anTarget(n);
@@ -1212,15 +1234,18 @@ function anEdit(n){anCur=n;anAdd.hidden=true;const ta=anDlg.querySelector('texta
 function anSave(){const ta=anDlg.querySelector('textarea'),c=ta.value.trim(),n=anCur;if(!c||!n){ta.focus();return}
  n.comment=c;if(!anNotes.includes(n)){n.at=new Date().toISOString();anNotes.push(n);getSelection().removeAllRanges()}
  anStore();anDlg.close();anRefresh()}
-function anDel(n){anNotes=anNotes.filter(x=>x!==n);anStore();anRefresh()}
+function anDel(n){anNotes=anNotes.filter(x=>x!==n);anStore();anRefresh();if(n.sent)agSend().catch(()=>{})}
 function anRefresh(){anPaint();anList()}
 function anList(){const P=anPanelEl;if(!P)return;const fn=document.querySelector('.an-fab .an-n');fn.textContent=anNotes.length;fn.hidden=!anNotes.length;
  const ol=P.querySelector('.an-ls'),ord=anOrder();ol.replaceChildren();
  for(const b of P.querySelectorAll('.an-ft button'))b.disabled=!ord.length;
+ const st=n=>{const it=n.sent&&AG.items.get(n.sent);if(n.sent!==agNid(n))return[anMk('span','an-s',anT.unsent)];
+  if(!it||it.status==='open')return[anMk('span','an-s',anT.open)];
+  return[anMk('span','an-r',(it.status==='rejected'?anT.no:anT.done)+' '+(it.resolution||'✓'))]};
  if(!ord.length){ol.append(anMk('li','an-mt',anT.empty));return}
  ord.forEach((n,i)=>{const li=anMk('li','an-it'),go=anMk('button','an-go'),x=anMk('div','an-x'),ed=anMk('button','',anT.edit),dl=anMk('button','',anT.del);
   go.append(anMk('span','an-t',`${i+1}. ${n.sec}`));if(n.quote)go.append(anMk('span','an-q',anCut(n.quote,120)));
-  go.append(anMk('span','an-c',n.comment));if(anLost.has(n.id))go.append(anMk('span','an-l',anT.lost));
+  go.append(anMk('span','an-c',n.comment));if(anLost.has(n.id))go.append(anMk('span','an-l',anT.lost));go.append(...st(n));
   go.addEventListener('click',()=>anJump(n));ed.addEventListener('click',()=>anEdit(n));dl.addEventListener('click',()=>anDel(n));
   x.append(ed,dl);li.append(go,x);ol.append(li)})}
 function anJump(n){const el=anTarget(n);if(!el)return;const r=anRanges.get(n.id),f=r&&anElOf(r.startContainer).closest(AN_CTX)||el;
@@ -1228,11 +1253,10 @@ function anJump(n){const el=anTarget(n);if(!el)return;const r=anRanges.get(n.id)
  f.scrollIntoView({block:'center'});f.classList.add('an-flash');setTimeout(()=>f.classList.remove('an-flash'),1800)}
 function anPanel(on){const P=anPanelEl,fab=document.querySelector('.an-fab');P.hidden=!on;document.documentElement.classList.toggle('an-open',on);
  fab.setAttribute('aria-expanded',on);if(on){anRefresh();P.querySelector('.an-cl').focus()}else fab.focus({preventScroll:true})}
-async function anCopy(){const st=anPanelEl.querySelector('.an-st'),fb=anPanelEl.querySelector('.an-fb'),md=anMarkdown();
- try{await navigator.clipboard.writeText(md);fb.hidden=true;st.textContent=anT.copied.replace('{n}',anNotes.length)}
- catch(_){fb.value=md;fb.hidden=false;fb.focus();fb.select();st.textContent=anT.copyFail}}
-function anClear(){if(!confirm(anT.clearQ))return;anNotes=[];try{localStorage.removeItem(AN_KEY)}catch(_){}
- anPanelEl.querySelector('.an-fb').hidden=true;anPanelEl.querySelector('.an-st').textContent='';anRefresh()}
+async function anSend(){const st=anPanelEl.querySelector('.an-st');
+ try{await agSend();st.textContent=anT.sent}catch(_){st.textContent=anT.sendFail}anList()}
+function anClear(){if(!confirm(anT.clearQ))return;const was=anNotes.some(n=>n.sent);anNotes=[];try{localStorage.removeItem(AN_KEY)}catch(_){}
+ anPanelEl.querySelector('.an-st').textContent='';anRefresh();if(was)agSend().catch(()=>{})}
 function anInit(){const secs=document.querySelectorAll('section[data-src]');if(!secs.length)return;
  anT=AT[document.documentElement.lang.slice(0,2)]||AT.en;const close=(ZT[document.documentElement.lang.slice(0,2)]||ZT.en).close;
  try{const s=JSON.parse(localStorage.getItem(AN_KEY)||'[]');if(Array.isArray(s))anNotes=s}catch(_){}
@@ -1247,10 +1271,10 @@ function anInit(){const secs=document.querySelectorAll('section[data-src]');if(!
  fab.append(anMk('span','',anT.notes),fabN);fab.addEventListener('click',()=>anPanel(anPanelEl.hidden));
  const P=anPanelEl=document.createElement('aside');P.id='an-panel';P.className='an-panel';P.hidden=true;P.setAttribute('aria-label',anT.notes);
  P.innerHTML=`<div class="an-ph"><b>${anT.notes}</b><button type="button" class="an-cl" aria-label="${close}">${IC.x}</button></div><ol class="an-ls"></ol>`+
-  `<div class="an-ft"><button type="button" class="an-pri" data-a="copy">${anT.copy}</button><button type="button" data-a="clear">${anT.clear}</button>`+
-  `<span class="an-st" role="status" aria-live="polite"></span><textarea class="an-fb" readonly hidden rows="8" aria-label="${anT.copy}"></textarea></div>`;
+  `<div class="an-ft"><button type="button" class="an-pri" data-a="send">${anT.send}</button><button type="button" data-a="clear">${anT.clear}</button>`+
+  `<span class="an-st" role="status" aria-live="polite"></span></div>`;
  P.querySelector('.an-cl').addEventListener('click',()=>anPanel(false));
- P.querySelector('.an-ft').addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b)({copy:anCopy,clear:anClear})[b.dataset.a]()});
+ P.querySelector('.an-ft').addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b)({send:anSend,clear:anClear})[b.dataset.a]()});
  const d=anDlg=document.createElement('dialog');d.className='an-dlg';d.setAttribute('aria-label',anT.comment);
  d.innerHTML=`<p class="an-tg"></p><textarea required rows="5" placeholder="${anT.placeholder}" aria-label="${anT.placeholder}"></textarea>`+
   `<div class="an-db"><button type="button" class="an-del">${anT.del}</button><button type="button" data-a="cancel">${anT.cancel}</button>`+
@@ -1269,6 +1293,69 @@ function anInit(){const secs=document.querySelectorAll('section[data-src]');if(!
  document.addEventListener('dt-init',anRefresh);addEventListener('load',anRefresh);
  anRefresh()}
 addEventListener('DOMContentLoaded',anInit);
+/* Agent channel. report-serve.ts serves this page on 127.0.0.1 and prints its URL with #k=<token>; the token moves to
+   sessionStorage and leaves the address bar. agTick asks GET /__annotations/access every 10 s: only {allowed:true} turns the
+   channel on (html.ag-on: comments appear, decision forms enable); file://, no token, a stopped server or a refusal turn it off.
+   agSend publishes the whole session (every comment, every sent decision) as one annotation-inbox payload; the agent's
+   annotations_resolve answer comes back through the session listing (AG.items, keyed by annotation id). An edited comment or
+   a changed answer gets a new annotation id (text hash), so the agent is woken for it again. */
+const AG={tok:'',sid:'',on:false,items:new Map()},AG_SKEY='report:session:'+location.pathname,DC_KEY='report:decisions:'+location.pathname;
+const agHash=s=>{let h=5381;for(const c of s)h=Math.imul(h,33)^c.codePointAt(0);return(h>>>0).toString(36)};
+const agNid=n=>n.id+'-'+agHash(n.comment);
+const agHdr=json=>Object.assign({Authorization:'Bearer '+AG.tok},json?{'content-type':'application/json'}:{});
+const agSrc=()=>{const h=document.querySelector('header[data-report]');return h?h.dataset.report:'report.json'};
+let dcState={};
+function dcStore(){try{localStorage.setItem(DC_KEY,JSON.stringify(dcState))}catch(_){}}
+const dcAid=(id,d)=>'d-'+id+'-'+agHash(d.opt+'\n'+d.text);
+function dcDraft(f){const o=f.querySelector('input:checked'),t=f.querySelector('textarea');return{opt:o?o.value:'',text:t?t.value.trim():''}}
+function agAnnots(){const src=agSrc(),url=location.href.split('#')[0],out=[];
+ for(const n of anNotes){const ctx=n.quote?` · Marked: "${anFlat(n.quote).trim()}" · Context: "${n.before||''}**${anFlat(n.quote).trim()}**${n.after||''}"`:'';
+  out.push({id:agNid(n),comment:n.comment,elementPath:`${src}#/${n.src}`+(n.anchor?` · ${n.anchor}`:''),url,timestamp:Date.parse(n.at)||Date.now(),
+   nearbyText:`Section: ${n.sec}${ctx}`})}
+ for(const f of document.querySelectorAll('form.dc')){const id=f.dataset.decision,d=dcState[id];if(!d||!d.sent)continue;
+  const lab=o=>{const i=f.querySelector(`input[value="${CSS.escape(o)}"]`);return i?anFlat(i.closest('label').querySelector('b').textContent).trim():o};
+  const opts=[...f.querySelectorAll('input[type=radio]')].map(i=>`${i.value} = ${lab(i.value)}`).join('; ');
+  out.push({id:dcAid(id,d),comment:`Decision ${id}: ${lab(d.opt)} [${d.opt}]`+(d.text?`\n${d.text}`:''),
+   elementPath:`${src}#/${f.dataset.src||''}`,url,timestamp:d.at||Date.now(),
+   nearbyText:`Question: ${anFlat(f.querySelector('legend strong').textContent).trim()} · Options: ${opts}`})}
+ return out}
+async function agSend(){const annotations=agAnnots();
+ const r=await fetch('/__annotations',{method:'POST',headers:agHdr(true),cache:'no-store',
+  body:JSON.stringify({sessionId:AG.sid,origin:location.origin,url:location.href.split('#')[0],annotations,markdown:anMarkdown()})});
+ if(!r.ok)throw new Error('inbox '+r.status);
+ for(const n of anNotes)n.sent=agNid(n);anStore();await agTick()}
+function dcRefresh(){for(const f of document.querySelectorAll('form.dc')){const ft=f.querySelector('.dc-ft');if(!AG.on){ft.replaceChildren();continue}
+ const id=f.dataset.decision,d=dcState[id],dr=dcDraft(f),it=d&&d.sent&&AG.items.get(dcAid(id,d));
+ let b=ft.querySelector('button');if(!b){b=anMk('button','',anT.dcSend);b.addEventListener('click',()=>dcSend(f));ft.replaceChildren(b)}
+ const changed=!d||!d.sent||d.opt!==dr.opt||d.text!==dr.text;b.disabled=!dr.opt||!changed;
+ for(const x of ft.querySelectorAll('.dc-st,.dc-a'))x.remove();
+ if(d&&d.sent&&changed)ft.append(anMk('span','dc-st',anT.dcChanged));
+ else if(it&&it.status!=='open')ft.append(anMk('p','dc-a',(it.status==='rejected'?anT.no:anT.done)+' '+(it.resolution||'✓')));
+ else if(d&&d.sent)ft.append(anMk('span','dc-st',anT.dcSent))}}
+async function dcSend(f){const id=f.dataset.decision,dr=dcDraft(f);if(!dr.opt)return;dcState[id]={...dr,sent:true,at:Date.now()};dcStore();
+ try{await agSend()}catch(_){const ft=f.querySelector('.dc-ft');ft.querySelector('.dc-st')?.remove();ft.append(anMk('span','dc-st',anT.sendFail))}}
+async function agTick(){let on=false;
+ if(AG.tok&&/^https?:$/.test(location.protocol))try{
+  const r=await fetch('/__annotations/access',{headers:agHdr(),cache:'no-store'});on=r.ok&&(await r.json()).allowed===true;
+  if(on){const l=await fetch('/__annotations?status=all&session='+AG.sid,{headers:agHdr(),cache:'no-store'});
+   if(l.ok)AG.items=new Map((await l.json()).items.map(i=>[i.id,i]))}}catch(_){on=false}
+ if(on!==AG.on){AG.on=on;document.documentElement.classList.toggle('ag-on',on);
+  for(const x of document.querySelectorAll('form.dc fieldset'))x.disabled=!on;
+  if(!on){if(anDlg&&anDlg.open)anDlg.close();if(anPanelEl&&!anPanelEl.hidden)anPanel(false)}}
+ if(anPanelEl)anRefresh();dcRefresh()}
+function agInit(){anT=AT[document.documentElement.lang.slice(0,2)]||AT.en;
+ const m=/(?:^#|&)k=([\w-]+)/.exec(location.hash);
+ if(m){AG.tok=m[1];try{sessionStorage.setItem('report:k',AG.tok)}catch(_){}
+  const rest=location.hash.replace(/(^#|&)k=[\w-]+/,'$1').replace(/^#&/,'#');history.replaceState(null,'',location.pathname+location.search+(rest==='#'?'':rest))}
+ else try{AG.tok=sessionStorage.getItem('report:k')||''}catch(_){}
+ try{AG.sid=localStorage.getItem(AG_SKEY)||''}catch(_){}
+ if(!/^[a-z0-9]{6,32}$/.test(AG.sid)){AG.sid=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>(b%36).toString(36)).join('');try{localStorage.setItem(AG_SKEY,AG.sid)}catch(_){}}
+ try{const s=JSON.parse(localStorage.getItem(DC_KEY)||'{}');if(s&&typeof s==='object')dcState=s}catch(_){}
+ for(const f of document.querySelectorAll('form.dc')){const d=dcState[f.dataset.decision];
+  if(d){const i=f.querySelector(`input[value="${CSS.escape(d.opt)}"]`);if(i)i.checked=true;const t=f.querySelector('textarea');if(t)t.value=d.text||''}
+  f.addEventListener('input',dcRefresh);f.addEventListener('submit',e=>e.preventDefault())}
+ agTick();setInterval(agTick,10000)}
+addEventListener('DOMContentLoaded',agInit);
 </script>
 {{HEAD}}
 </head>
