@@ -92,13 +92,21 @@ LINK_ID = re.compile(r"\[\[([^\]|]+)")  # [[id or [[id|label: the id of an inlin
 SRC_TAG = re.compile(r"\s*<([A-Za-z][\w-]*)")  # first root element of a block's HTML: its `data-src` pointer goes there
 LINT_KIND_MIN = 5  # entities of one kind needed before a missing meta key is reported
 HEAD = {}  # block type -> HTML for <head> (CDN tags); added once when a block of that type is in the report
-HEAD["mermaid"] = (
+HEAD["mermaid"] = (  # drawn in mermaid's dark theme while the page is dark; redrawn from the kept source when the reader switches
     '<script type="module">\n'
     'import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";\n'
-    'mermaid.initialize({startOnLoad: false, securityLevel: "strict", theme: "neutral", '
+    'const mmRun = async () => {\n'
+    ' const pres = [...document.querySelectorAll("pre.mermaid")];\n'
+    ' for (const p of pres) { if (p.dataset.code === undefined) p.dataset.code = p.textContent; '
+    'else { p.textContent = p.dataset.code; p.removeAttribute("data-processed"); } }\n'
+    ' mermaid.initialize({startOnLoad: false, securityLevel: "strict", '
+    'theme: document.documentElement.dataset.theme === "dark" ? "dark" : "neutral", '
     'fontFamily: "JetBrains Mono, monospace", suppressErrorRendering: true});\n'
-    'await mermaid.run({querySelector: "pre.mermaid", suppressErrors: true});\n'
-    'document.querySelectorAll("pre.mermaid svg").forEach(s => s.classList.add("dg"));\n'
+    ' await mermaid.run({nodes: pres, suppressErrors: true});\n'
+    ' document.querySelectorAll("pre.mermaid svg").forEach(s => s.classList.add("dg"));\n'
+    '};\n'
+    'await mmRun();\n'
+    'document.addEventListener("themechange", mmRun);\n'
     '</script>')
 HEAD["data"] = (
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simple-datatables@10/dist/style.css">\n'
@@ -141,7 +149,7 @@ def icon_mask(name):
 
 
 def load_brand(ref, base_dir):
-    """The brand a report is drawn with: `skaile.json`, with the chosen brand merged over it (`page`, `fonts` key by key).
+    """The brand a report is drawn with: `skaile.json`, with the chosen brand merged over it (`page`, `dark`, `fonts` key by key).
     Choice, first hit wins: report.json `brand` (a built-in name or a path relative to report.json) > `REPORT_BRAND`
     (a path) > `skaile`. The same file brands report-video (its `bg`, `fg`, `colors`, ... keys); each side ignores the other's keys."""
     def read(path, what):
@@ -172,19 +180,21 @@ def load_brand(ref, base_dir):
     if path is not None and path.resolve() != (BRANDS / f"{DEFAULT_BRAND}.json").resolve():
         over = read(path, what)
         for k, v in over.items():
-            if k in ("page", "fonts") and isinstance(v, dict):
+            if k in ("page", "dark", "fonts") and isinstance(v, dict):
                 brand[k] = {**brand.get(k, {}), **v}
             else:
                 brand[k] = v
         brand["_dir"] = path.parent
     what = what or "brand"
-    page, fonts = brand.get("page", {}), brand.get("fonts", {})
-    if set(page) != PAGE_TOKENS:
-        fail(f"{what}: `page` has unknown tokens {sorted(set(page) - PAGE_TOKENS)}" if set(page) - PAGE_TOKENS
-             else f"{what}: `page` misses tokens {sorted(PAGE_TOKENS - set(page))}")
-    for k, v in page.items():
-        if not isinstance(v, str) or not COLOR_VALUE.match(v.strip()):
-            fail(f"{what}: page.{k} must be a colour (#hex, rgb(), hsl()), not {v!r}")
+    fonts = brand.get("fonts", {})
+    for key in ("page", "dark"):  # `dark`: the same tokens for the dark theme the reader switches to
+        page = brand.get(key, {})
+        if set(page) != PAGE_TOKENS:
+            fail(f"{what}: `{key}` has unknown tokens {sorted(set(page) - PAGE_TOKENS)}" if set(page) - PAGE_TOKENS
+                 else f"{what}: `{key}` misses tokens {sorted(PAGE_TOKENS - set(page))}")
+        for k, v in page.items():
+            if not isinstance(v, str) or not COLOR_VALUE.match(v.strip()):
+                fail(f"{what}: {key}.{k} must be a colour (#hex, rgb(), hsl()), not {v!r}")
     for k in FONT_KEYS:
         if not isinstance(fonts.get(k), str) or not FONT_STACK.match(fonts[k]):
             fail(f"{what}: fonts.{k} must be a CSS font stack of family names")
@@ -202,7 +212,8 @@ def load_brand(ref, base_dir):
 
 
 def brand_css(brand):
-    """The page's font import and :root tokens: colours, font stacks and the CSS-drawn icons."""
+    """The page's font import and :root tokens: colours, font stacks and the CSS-drawn icons; the `dark` colours apply on
+    screen while the page script has set html[data-theme=dark] (print stays light)."""
     fonts = brand["fonts"]
     imp = ""
     if fonts.get("load"):
@@ -211,7 +222,9 @@ def brand_css(brand):
     tokens = [f"--{k}:{brand['page'][k].strip()}" for k in sorted(PAGE_TOKENS)]
     tokens += [f"--{'head' if k == 'heading' else k}:{fonts[k]}" for k in FONT_KEYS]
     tokens += [f"--ic-{n}:{icon_mask(n)}" for n in MASK_ICONS]
-    return imp + ":root{" + ";".join(tokens) + "}"
+    dark = [f"--{k}:{brand['dark'][k].strip()}" for k in sorted(PAGE_TOKENS)]
+    return (imp + ":root{color-scheme:light;" + ";".join(tokens) + "}\n"
+            "@media screen{:root[data-theme=dark]{color-scheme:dark;" + ";".join(dark) + "}}")
 
 
 def brand_logo(brand):
@@ -260,7 +273,7 @@ TXT = {
            "t_hint": "Klicken Sie auf ein Badge: Es schaltet den Wert ein oder aus.",
            "permalink": "Link zu diesem Abschnitt",
            "t_reset": "Zurücksetzen", "t_count": "sichtbar", "sources": "Quellen und Laufdetails",
-           "toc": "Inhalt", "skip": "Zum Inhalt springen", "bib": "Quellen", "depth": "Lesetiefe",
+           "toc": "Inhalt", "skip": "Zum Inhalt springen", "bib": "Quellen", "depth": "Lesetiefe", "dark": "Dunkles Design",
            "find_label": "Im Bericht suchen", "find_clear": "Suche zurücksetzen", "find_hit": "Treffer", "find_hits": "Treffer",
            "find_row": "Zeile", "find_rows": "Zeilen", "find_pos": "{i} von {n}", "chip": "Filter: {v} ({ctx})",
            "find_hidden": "+{n} in geschlossenen Teilen", "read": "gelesen", "for": "Für",
@@ -298,7 +311,7 @@ TXT = {
            "t_hint": "Click a badge to switch the value on or off.",
            "permalink": "Link to this section",
            "t_reset": "Reset", "t_count": "visible", "sources": "Sources and run details",
-           "toc": "Contents", "skip": "Skip to content", "bib": "Sources", "depth": "Reading depth",
+           "toc": "Contents", "skip": "Skip to content", "bib": "Sources", "depth": "Reading depth", "dark": "Dark mode",
            "find_label": "Search the report", "find_clear": "Clear search", "find_hit": "match", "find_hits": "matches",
            "find_row": "row", "find_rows": "rows", "find_pos": "{i} of {n}", "chip": "filter: {v} ({ctx})",
            "find_hidden": "+{n} in closed parts", "read": "read", "for": "For",
@@ -2973,13 +2986,15 @@ class Report:
                     f'<button type="button" class="fclr" hidden>{E(t["find_clear"])}</button>'  # shown while the box has text
                     '<span class="fcnt" role="status" aria-live="polite"></span></r-find>')
         skip = f'<a class="skip" href="#main">{E(t["skip"])}</a>'
+        theme = (f'<button type="button" class="thm" role="switch" aria-checked="false" aria-label="{E(t["dark"])}" '
+                 f'title="{E(t["dark"])}">{icon("moon")}{icon("sun")}</button>')  # top right; the page script sets html[data-theme]
         if wr:
             top = f'{hdr}{title}{prov}{prov_print}<div class="wrtools">{reader}{find}</div>{nav}</header>'
             main = f'<main id="main" class="wr" tabindex="-1" data-find-scope>{chr(10).join(content)}</main>'
         else:
             top = f'{hdr}{title}{prov}{prov_print}{reader}{find}{nav}</header>'
             main = f'<main id="main" tabindex="-1" data-find-scope>{chr(10).join(content)}</main>'
-        body = "\n".join([skip, top, main])
+        body = "\n".join([skip, theme, top, main])
         found = Counter(html.unescape(i) for i in re.findall(r'\sid="([^"]+)"', body))
         twice = sorted(i for i, k in found.items() if k > 1)
         if twice:

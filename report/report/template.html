@@ -10,7 +10,7 @@
 :root{--fs-xs:12px;--fs-s:14px;--fs-m:15px;--fs-b:17px;--fs-l:21px;--fs-xl:28px;--fs-xxl:36px}
 *{box-sizing:border-box}
 html{background:var(--paper);color:var(--ink);font:var(--fs-b)/1.65 var(--sans);-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
-::selection{background:var(--acc);color:#fff}
+::selection{background:var(--acc);color:var(--paper)}
 body{max-width:1360px;margin:0 auto;padding:56px 32px 96px}
 a{color:var(--acc);text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px}a:hover{text-decoration-color:currentColor}
 header{border-bottom:1px solid var(--ink);padding-bottom:20px;display:grid;grid-template-columns:1fr auto;gap:8px 32px;align-items:end}
@@ -20,6 +20,12 @@ header .brand{display:block;flex:none;height:var(--fs-xxl);width:auto;margin-top
 h1,h2,h3{font-family:var(--head)}
 h1{font-size:var(--fs-xxl);line-height:1.2;font-weight:700;letter-spacing:-.02em;margin:0}
 svg.ic{width:1em;height:1em;flex:none;vertical-align:-.125em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* theme switch: fixed top right, shows the moon in light mode and the sun in dark mode; needs the page script */
+.thm{position:fixed;top:12px;right:12px;z-index:26;display:grid;place-items:center;width:36px;height:36px;padding:0;font-size:18px;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:999px;cursor:pointer;box-shadow:0 2px 8px rgb(0 0 0/.08)}
+.thm:hover{background:var(--wash)}.thm:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.thm .ic{grid-area:1/1}.thm .ic:last-child,[data-theme=dark] .thm .ic:first-child{display:none}[data-theme=dark] .thm .ic:last-child{display:block}
+html:not(.js) .thm{display:none}@media print{.thm{display:none}}
+@media(max-width:800px){.thm{top:8px;right:8px}}
 /* sources and run details: the summary sits at the end of the title row; the open panel floats over the page below it, so opening it never moves the title */
 header .provenance{position:relative;justify-self:end;color:var(--mute);font-size:var(--fs-xs);text-align:right}
 header .provenance summary{display:inline-block;list-style:none;cursor:pointer;border-radius:3px}
@@ -132,6 +138,7 @@ html:not(.js) .zb{display:none}
 /* board: moodboard canvas (`board` block). The read layout is the default (no JS, print, narrow screens): canvases, lanes
    and gutters stack in page flow. .bo-cv (set by boardInit) is canvas mode: one canvas on a dot grid under a CSS camera. */
 .bo{--bo-paper:#f6f4ee;--bo-dot:#cfc9bb;--bo-move:#ffd54a;--bo-move-ink:#5a4300;--bo-new:#a6e9a0;--bo-new-ink:#14501a}
+@media screen{[data-theme=dark] .bo{--bo-paper:#1f1e1b;--bo-dot:#3d3a33;--bo-move:#6b5410;--bo-move-ink:#ffe08a;--bo-new:#1f4d24;--bo-new-ink:#b4f0ae}}
 .bov{border:1px solid var(--rule);border-radius:10px;background:var(--bo-paper);padding:12px}
 .bov:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .boc{background:var(--paper);border:1px solid var(--rule);border-radius:14px;padding:18px;margin:0 0 16px;scroll-margin-top:80px}.boc:last-child{margin-bottom:0}
@@ -166,7 +173,7 @@ html:not(.js) .zb{display:none}
 .bok.c-removed>.bok-t{text-decoration:line-through;text-decoration-color:var(--red)}
 .bot select{font:var(--fs-xs) var(--mono);max-width:min(100%,300px);padding:1px 4px;border:1px solid var(--rule);border-radius:6px;background:var(--paper);color:var(--ink)}
 .bot output{min-width:3.6em;text-align:center;font-variant-numeric:tabular-nums}
-.fg.bo .bot button[aria-pressed=true]{background:var(--ink);color:#fff}
+.fg.bo .bot button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
 .fg.bo:not(.bo-cv) .boz,.fg.bo:not(.bo-cv) .bohint{display:none}
 @media screen{
  .bo-cv .bov{position:relative;height:var(--bo-h,640px);overflow:hidden;padding:0;touch-action:none;cursor:grab;
@@ -330,7 +337,7 @@ code,.bg,.src,.id,.lvl,.cnt,.tn,.n,dl.stats dd,.rc-h,.co-k,pre{font-family:var(-
 a.src{color:var(--acc);text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:2px}a.src:hover{text-decoration-color:currentColor}
 .tree{font-size:var(--fs-m)}.ctl,dl.legend{font-size:var(--fs-s)}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-.skip{position:absolute;left:-9999px;top:8px}.skip:focus{left:12px;z-index:20;padding:10px 16px;background:var(--ink);color:#fff;border-radius:6px;text-decoration:none}
+.skip{position:absolute;left:-9999px;top:8px}.skip:focus{left:12px;z-index:20;padding:10px 16px;background:var(--ink);color:var(--paper);border-radius:6px;text-decoration:none}
 @media(pointer:coarse),(max-width:800px){
  .ctl button,.zb,.csv,.chgbar button,.mtb button,.zt button,.fclr,.seg button,summary,.datatable-wrapper .datatable-pagination a,.datatable-wrapper .datatable-pagination button,.lg .lk{min-height:44px;min-width:44px}
  .tl>[role=tab]{min-height:44px}.vch button{min-height:44px;padding:0 4px}.bot select{min-height:44px}
@@ -344,7 +351,7 @@ a.src{color:var(--acc);text-decoration:underline;text-decoration-color:var(--rul
 .seg{display:inline-flex;border:1px solid var(--ink);border-radius:6px}
 .seg button{font:600 var(--fs-s)/1.2 var(--sans);min-height:44px;padding:8px 16px;border:0;border-right:1px solid var(--rule);background:var(--paper);color:var(--ink);cursor:pointer}
 .seg button:first-child{border-radius:5px 0 0 5px}.seg button:last-child{border-right:0;border-radius:0 5px 5px 0}.seg button:hover{background:var(--wash)}
-.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
 .rdd{flex:1 1 240px;font-size:var(--fs-s);color:var(--mute)}html:not(.js) .rdc{display:none}
 .fclr{min-height:44px;font:var(--fs-s) var(--sans);padding:8px 14px;border:1px solid var(--rule);background:var(--paper);border-radius:6px;cursor:pointer;color:var(--ink);white-space:nowrap}.fclr:hover{background:var(--wash)}
 html:not(.js) r-find{display:none}.fclr[hidden]{display:none}
@@ -352,7 +359,7 @@ html:not(.js) .chg-full{display:none}
 #find::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;display:none}
 /* find: a faint tint on the matching block, the term itself in the highlight colour, the match stepped to in the accent */
 .fm{background:var(--wash);box-shadow:0 0 0 3px var(--wash);border-radius:2px}
-::highlight(find){background:var(--hl);color:inherit}::highlight(findc){background:var(--acc);color:#fff}
+::highlight(find){background:var(--hl);color:inherit}::highlight(findc){background:var(--acc);color:var(--paper)}
 nav.toc{grid-column:1/-1;font-size:var(--fs-m)}
 nav.toc summary{cursor:pointer;font-weight:600;min-height:44px;display:flex;align-items:center}
 nav.toc summary::after{content:"";width:7px;height:7px;margin-left:12px;border:solid currentColor;border-width:0 2px 2px 0;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
@@ -395,7 +402,7 @@ summary{min-height:24px}
 .gl-o{display:block;width:100%;max-height:420px;overflow:hidden;padding:0;margin:0;border:0;border-radius:0;background:var(--wash);cursor:zoom-in;font:inherit;color:inherit;text-align:left}
 .gl-o:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
 .gl-f{position:relative;display:block}.gl-f img{display:block;width:100%;height:auto}
-.gl-p{position:absolute;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:600 var(--fs-xs)/1 var(--mono);color:#fff;background:var(--acc);box-shadow:0 0 0 2px var(--paper);pointer-events:none}
+.gl-p{position:absolute;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:600 var(--fs-xs)/1 var(--mono);color:var(--paper);background:var(--acc);box-shadow:0 0 0 2px var(--paper);pointer-events:none}
 .gl-b{position:absolute;border:2px solid var(--acc);border-radius:3px;pointer-events:none}
 .gl-p[data-sev="1"],.gl-s[data-sev="1"]{background:var(--yellow)}.gl-p[data-sev="2"],.gl-s[data-sev="2"]{background:var(--orange)}
 .gl-p[data-sev="3"],.gl-p[data-sev="4"],.gl-s[data-sev="3"],.gl-s[data-sev="4"]{background:var(--red)}
@@ -403,7 +410,7 @@ summary{min-height:24px}
 .gl-i figcaption{padding:10px 12px;font-size:var(--fs-s);line-height:1.5;border-top:1px solid var(--hair);overflow-wrap:anywhere}
 .gl-cap{display:block;margin-top:4px}.gl-c{display:block;margin-top:4px;font-size:var(--fs-xs);color:var(--mute)}
 .gl-n{display:none;margin:0;padding:8px 12px 10px 2.4em;font-size:var(--fs-s);line-height:1.5;overflow-wrap:anywhere}.gl-n li{margin:2px 0;padding:2px 4px;border-radius:4px}
-.gl-s{font:600 var(--fs-xs)/1.4 var(--mono);padding:0 5px;border-radius:4px;color:#fff;background:var(--acc)}
+.gl-s{font:600 var(--fs-xs)/1.4 var(--mono);padding:0 5px;border-radius:4px;color:var(--paper);background:var(--acc)}
 @media print{.gl-n{display:block}.gl-o{max-height:none}.gl-i{break-inside:avoid}}
 .gld .bod-h button[hidden]{display:none}
 .gld-b{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,340px)}
@@ -544,6 +551,20 @@ customElements.define('r-tree',class extends HTMLElement{
   if(li&&this.v[li.dataset.id]===false){this.reset();el.scrollIntoView()}}});
 /* the page runs scripts: rules under .js hide what a script will open (closed tabs, the tab bar's no-JS fallback, …) */
 document.documentElement.classList.add('js');
+/* Theme: html[data-theme] is light or dark before the body paints. The reader's switch (.thm, top right) wins and stays in
+   localStorage for every report; without a choice the page follows the system and its changes. Each switch fires
+   `themechange` on document: charts and mermaid redraw in the new colours. */
+const TH_KEY='report:theme',thMq=matchMedia('(prefers-color-scheme: dark)');
+function thSaved(){try{const s=localStorage.getItem(TH_KEY);return s==='dark'||s==='light'?s:null}catch(_){return null}}
+function thApply(t){const r=document.documentElement,old=r.dataset.theme;r.dataset.theme=t;
+ const b=document.querySelector('.thm');if(b)b.setAttribute('aria-checked',String(t==='dark'));
+ if(old&&old!==t)document.dispatchEvent(new Event('themechange'))}
+thApply(thSaved()||(thMq.matches?'dark':'light'));
+thMq.addEventListener('change',e=>{if(!thSaved())thApply(e.matches?'dark':'light')});
+document.addEventListener('DOMContentLoaded',()=>{const b=document.querySelector('.thm');if(!b)return;
+ thApply(document.documentElement.dataset.theme);
+ b.addEventListener('click',()=>{const t=document.documentElement.dataset.theme==='dark'?'light':'dark';
+  try{localStorage.setItem(TH_KEY,t)}catch(_){}thApply(t)})});
 /* <r-tabs>: one open panel per tab block, light DOM over the markup build.py renders (.tl[role=tablist] of buttons
    [role=tab][aria-controls], then .tp[role=tabpanel] panels; .on marks the open one). Click or arrow/Home/End keys switch;
    the selected tab alone sits in the tab order. show(el) opens the panel holding el (reveal() calls it for links into a
@@ -1048,7 +1069,7 @@ const VG_CAT=['#56b4e9','#e69f00','#117733','#882255','#cc79a7','#999933','#aa44
    as the chart's width holds (one per 160px), so it wraps on phones; a spec's own config still wins (Vega-Lite merges it over this) */
 function vgConfig(el){const cs=getComputedStyle(document.documentElement),v=n=>cs.getPropertyValue('--'+n).trim();
  const mute=v('mute'),rule=v('rule'),hair=v('hair'),cols=Math.max(1,Math.floor((el&&el.clientWidth||innerWidth)/160));
- return{font:'JetBrains Mono, monospace',
+ return{font:'JetBrains Mono, monospace',background:'transparent',title:{color:v('ink')},text:{color:v('ink')},
   axis:{labelColor:mute,titleColor:mute,domainColor:rule,gridColor:hair,labelFontSize:12,titleFontSize:12},
   legend:{orient:'bottom',direction:'horizontal',columns:cols,labelColor:mute,titleColor:mute,labelFontSize:12,titleFontSize:12,labelLimit:140},
   range:{category:VG_CAT.filter(c=>c.toLowerCase()!==v('acc').toLowerCase())},
@@ -1059,10 +1080,13 @@ function vgInit(){document.querySelectorAll('.vg').forEach(el=>{if(el._view||el.
   if(typeof vegaEmbed==='undefined'||!sc){bad();return}
   let spec;try{spec=JSON.parse(sc.textContent)}catch(_){bad();return}
   el._rows=spec.data.values;
-  fig.addEventListener('treefilter',()=>vgFilter(fig,el));
+  if(!el._tf){el._tf=true;fig.addEventListener('treefilter',()=>vgFilter(fig,el))}
   vegaEmbed(el,spec,{actions:false,renderer:'svg',config:vgConfig(el)})
    .then(r=>{el._view=r.view;vgClear(el,spec);vgFilter(fig,el);vgLink()}).catch(bad)})}
 addEventListener('DOMContentLoaded',vgInit);
+/* a theme switch redraws each chart with the new tokens (its selection resets; table links reattach in vgLink) */
+document.addEventListener('themechange',()=>{for(const el of document.querySelectorAll('.vg')){if(!el._view)continue;
+ el._view.finalize();el._view=null;el._busy=false;el._lk=null;el.textContent=''}vgInit()});
 document.addEventListener('dt-init',vgLink);
 /* Reader depth (`readers` + block `reader`): the control sets html[data-depth]; CSS hides deeper blocks on screen, print shows all.
    The choice stays in sessionStorage per page (no cookie). A link into a hidden block raises the depth first.
