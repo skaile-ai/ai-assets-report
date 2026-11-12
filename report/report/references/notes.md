@@ -4,7 +4,17 @@ The reader talks back to the agent from the page: **comments** on any text and a
 
 ## The channel
 
-`report-serve.ts` (next to `build.py`, run with Bun) serves the report's folder on `127.0.0.1` and mounts the annotation inbox of `@skaile/forge-annotation-inbox` on `/__annotations`. The inbox lives in `<project>/.data/annotations`, the store that `annotations_list` / `annotations_resolve` read (omp extension, or the `annotation-inbox-mcp` server in Claude Code). The server accepts inbox requests only with the bearer token it printed in the URL (`#k=<token>`; the page moves it to `sessionStorage` and out of the address bar), only with its own `Host` (DNS rebinding) and only from its own `Origin`. The port is stable per project and folder (47000-47999), so the page's `localStorage` survives a restart.
+`report-serve.ts` (next to `build.py`, run with Bun) serves the report's folder on `127.0.0.1` and mounts the annotation inbox of `@skaile/forge-annotation-inbox` on `/__annotations`. The inbox lives in `<project>/.data/annotations`, the store that `annotations_list` / `annotations_resolve` read (omp extension, or the `annotation-inbox-mcp` server in Claude Code). The server accepts inbox requests only with the bearer token it printed in the URL (`#k=<token>`; the page moves it to `sessionStorage` and out of the address bar), only with its own `Host` (DNS rebinding) and only from its own `Origin`. The port is stable per project and folder (47000-47999).
+
+Comments and decision answers are stored **on the report**, in `<stem>.comments.json` next to `<stem>.html`. The page reads and changes it through `/__comments?page=<path>` (same token, Host and Origin checks); the server never serves the file itself. Every reader of the report sees the same comments, and all of them publish into one inbox session named after the report, so the agent's answer shows for everyone. The file travels with the report and can be committed; a new version (`-v<N+1>`) starts with no comments, and the old version keeps its own.
+
+```json
+{"report": "<stem>.html",
+ "comments": [{"id", "src": "sections/<i>/blocks/<j>", "sec", "quote", "before", "after", "anchor", "comment", "at", "edited"?}],
+ "decisions": {"<decision id>": {"opt", "text", "at"}}}
+```
+
+The file holds what readers said; whether the agent answered lives in the inbox (`annotations_list` with `status: "all"`).
 
 ```sh
 bun -i <skill-dir>/report-serve.ts <out>.html [--root <project>] [--port <n>]   # prints report: http://127.0.0.1:<port>/<file>#k=<token>
@@ -17,7 +27,7 @@ bun -i <skill-dir>/report-serve.ts wait [--root <project>]                      
 
 - **Comments.** Select text and press **Comment**, or press the pencil next to a section title (the lede has no pencil). The **Comments** button (German **Kommentare**; not "Notes", which names the citation list of a section) opens the panel: comments in page order, each with Edit and Delete and its state (`not sent yet`, `sent · waiting for the agent`, or the agent's answer); a click jumps to the text. **Send to agent** publishes them; **Clear** deletes them. On a phone the button is a 44 px circle that hides while the reader scrolls down; the page keeps 72 px free at its end.
 - **Decisions.** Pick an option, optionally write a comment, press **Send answer**. A changed answer says "Changed: send again". The agent's resolution shows under the form.
-- Every send publishes the whole page session: all comments and every sent decision. An edited comment or a changed answer becomes a new inbox item; one the reader deletes leaves the inbox while still open. Comments and answers stay in the browser per file (`localStorage`). Every section and block carries `data-src`, its JSON pointer into `report.json`, so each item names the node to edit.
+- Every save, edit and delete is written to `<stem>.comments.json` at once; every send publishes the whole report state, meaning all comments and every answered decision. A comment or answer reads `not sent yet` until the inbox holds that exact text: an edited comment or a changed answer becomes a new inbox item, and one a reader deletes leaves the inbox while still open. Open pages reload the stored comments every 10 s, so a second reader's comment shows up without a reload. Every section and block carries `data-src`, its JSON pointer into `report.json`, so each item names the node to edit.
 
 ## Environments
 
@@ -39,7 +49,8 @@ After building (workflow step 10):
    - `Path` is `<report.json>#/<pointer>`: `/sections/<i>/blocks/<j>[/tabs/<k>/blocks/<m>]`; `/sections/<i>` means the whole section; a trailing `entity <id>` names the entity in top-level `entities`. `Context` holds the section, the marked words and the sentences around them.
    - A comment: apply it under `skill://report-prose`. A note that needs data the dump lacks re-runs the dump.
    - A decision (`Decision <id>: <label> [<option id>]`, with the reader's comment on the next line): act on the choice; `Context` lists the question and all options.
-4. Write the next version `<topic>-<date>-v<N+1>` (workflow step 10: earlier versions stay untouched). Its choice file copies the previous one, including its `mode`. Build with step 8, verify with step 9.
+   - Everything readers left on this version, including what was never sent: `<stem>.comments.json` (format above).
+4. Write the next version `<topic>-<date>-v<N+1>` (workflow step 10: earlier versions stay untouched). Its choice file copies the previous one, including its `mode`. Build with step 8, verify with step 9. Comments stay on the version they were made on.
 5. Answer every item with `annotations_resolve` (`implemented`, or `rejected` with the reason), in the reader's language. The page shows the answer under the comment or decision within 10 s.
 6. Restart `wait` while the reader keeps working. A new version in the same folder needs no new server: run step 1 again for its file and open the URL it prints. Stop the service when the user is done.
 
@@ -49,7 +60,8 @@ Add to workflow step 9:
 
 - Opened as `file://`: no Comments button, no pencils; decision forms disabled with the report-serve line visible.
 - Opened through the printed URL: the address bar loses `#k=…`; the Comments button appears and decision forms are enabled.
-- Select words → `Comment` → save → the button counts 1, the words are highlighted, the panel says `not sent yet`; **Send to agent** → `sent · waiting for the agent`, and `report-serve.ts wait` exits with the item.
+- Select words → `Comment` → save → the button counts 1, the words are highlighted, `<stem>.comments.json` holds the comment, the panel says `not sent yet`; **Send to agent** → `sent · waiting for the agent`, and `report-serve.ts wait` exits with the item.
+- A second tab on the same URL shows the same comments and the stored decision answer; an edit in one tab shows in the other within 10 s.
 - A decision answer → **Send answer** → `wait` prints `Decision <id>: …`; after `annotations_resolve` the answer shows under the form.
 - Stopping the server turns the page back to the `file://` state within 10 s.
 - At 390 px the open panel keeps `scrollWidth == 390`.

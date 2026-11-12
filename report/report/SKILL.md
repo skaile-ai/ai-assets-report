@@ -3,7 +3,7 @@ name: report
 description: "Build one static HTML report read front to back: argued answer first, tables, trees, diagrams and charts as support. Use for 'report', 'overview page', 'data sheet', 'how does X work as a page'. Autopilot by default; 'report interactive: <question>' asks first; comments and decisions the reader sends from the served page revise it."
 license: MIT
 metadata:
-  version: 0.12.2
+  version: 0.13.0
   publisher: skaile-ai
   requires: "report-prose, report-table, report-flow, report-diagram, report-charts, report-video"
 ---
@@ -12,7 +12,7 @@ metadata:
 
 Answer `<question>` with one static HTML file a person reads front to back: each section argues its answer in prose, and tables, trees, diagrams and charts support it. Collect the data into `report.json` and render it with `build.py`; the template owns all styling. The extension skills (`report-prose`, `report-table`, `report-flow`, `report-diagram`, `report-charts`, `report-video`) sit beside this one at `<skill-dir>/../<name>`, where `<skill-dir>` holds this SKILL.md.
 
-All files of one report share a stem: `<stem>.json`, `<stem>.choice.json`, `<stem>.data/` (dump), `<stem>.build/` (detector output), `<stem>.media/`.
+All files of one report share a stem: `<stem>.json`, `<stem>.choice.json`, `<stem>.data/` (dump), `<stem>.build/` (detector output), `<stem>.media/`, `<stem>.comments.json` (what readers commented and answered on the served page; `references/notes.md`).
 
 ## Modes
 

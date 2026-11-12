@@ -10,6 +10,8 @@
  *     One server per folder: every report in it (all versions) is served, and all share the inbox. When a server for the
  *     folder already runs, the call prints the new report's URL on that server and exits. Port and token are kept in
  *     .data/annotations/.report-serve.json, so a restarted server takes them up again and open tabs reconnect.
+ *     Comments and decision answers are stored on the report: <stem>.comments.json next to <stem>.html, read and
+ *     written through /__comments?page=<path> (same token). Every reader of one report shares them and one inbox session.
  *
  *   bun -i report-serve.ts wait [--root <project>]
  *     Blocks until the inbox holds an open item no watcher has dispatched yet, marks it seen in
@@ -19,18 +21,126 @@
  * `-i` lets Bun fetch the pinned inbox package when no node_modules provides it.
  */
 import { existsSync } from 'node:fs'
-import { randomBytes, timingSafeEqual } from 'node:crypto'
-import { appendFile, chmod, mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import { appendFile, chmod, mkdir, readFile, realpath, rename, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { openFileInbox, renderMarkdown } from '@skaile/forge-annotation-inbox@2.2.0/inbox'
 import { handleInboxRequest } from '@skaile/forge-annotation-inbox@2.2.0/server'
 
 const BASE = '/__annotations'
+const COMMENTS = '/__comments'
 const SEEN = join('.data', 'annotations', '.watch-seen')
 const STATE = join('.data', 'annotations', '.report-serve.json')
 
 /** Per served folder: its port, token and the pid of the server that last held it. */
 type Served = Record<string, { port: number, token: string, pid: number }>
+
+/** One reader comment, as the page's anNew builds it: `src` is the JSON pointer of the commented block. */
+interface Comment { id: string, src: string, sec: string, quote: string, before: string, after: string, anchor: string, comment: string, at: string, edited?: string }
+/** A decision block's answer: the chosen option id and the optional comment. */
+interface Answer { opt: string, text: string, at: number }
+/** <stem>.comments.json: everything readers said on one report. */
+interface Sidecar { report: string, comments: Comment[], decisions: Record<string, Answer> }
+
+const str = (v: unknown, max: number): v is string => typeof v === 'string' && v.length <= max
+
+function asComment(v: unknown): Comment | null {
+  if (!v || typeof v !== 'object') return null
+  const c = v as Record<string, unknown>
+  if (!str(c.id, 40) || !/^[a-z0-9]{4,40}$/.test(c.id) || !str(c.src, 300) || !c.src.startsWith('sections/')) return null
+  if (!str(c.comment, 5000) || !c.comment.trim() || !str(c.at, 40)) return null
+  const out: Comment = { id: c.id, src: c.src, sec: '', quote: '', before: '', after: '', anchor: '', comment: c.comment.trim(), at: c.at }
+  for (const [k, max] of [['sec', 300], ['quote', 1000], ['before', 400], ['after', 400], ['anchor', 200]] as const) {
+    if (c[k] === undefined) continue
+    if (!str(c[k], max)) return null
+    out[k] = c[k]
+  }
+  if (str(c.edited, 40)) out.edited = c.edited
+  return out
+}
+
+function asAnswer(v: unknown): Answer | null {
+  if (!v || typeof v !== 'object') return null
+  const a = v as Record<string, unknown>
+  if (!str(a.opt, 64) || !/^[a-z0-9-]{1,32}$/.test(a.opt) || (a.text !== undefined && !str(a.text, 5000))) return null
+  return { opt: a.opt, text: typeof a.text === 'string' ? a.text.trim() : '', at: typeof a.at === 'number' ? a.at : Date.now() }
+}
+
+async function readSidecar(file: string, report: string): Promise<Sidecar> {
+  const out: Sidecar = { report, comments: [], decisions: {} }
+  let v: unknown
+  try {
+    v = JSON.parse(await readFile(file, 'utf8'))
+  }
+  catch (e) {
+    if (e instanceof Error && 'code' in e && e.code === 'ENOENT') return out
+    throw e
+  }
+  const s = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
+  if (Array.isArray(s.comments)) for (const c of s.comments) { const ok = asComment(c); if (ok) out.comments.push(ok) }
+  if (s.decisions && typeof s.decisions === 'object') {
+    for (const [id, a] of Object.entries(s.decisions)) { const ok = asAnswer(a); if (ok && /^[a-z0-9-]{1,32}$/.test(id)) out.decisions[id] = ok }
+  }
+  return out
+}
+
+/** Write via a temp file and rename, so a reader (agent or page) never sees half a file. */
+async function writeSidecar(file: string, s: Sidecar): Promise<void> {
+  const tmp = `${file}.${process.pid}.tmp`
+  await writeFile(tmp, JSON.stringify(s, null, 1) + '\n')
+  await rename(tmp, file)
+}
+
+/** One change to a sidecar at a time: two readers saving at once must not drop each other's comment. */
+let sidecarChain: Promise<unknown> = Promise.resolve()
+function serial<T>(f: () => Promise<T>): Promise<T> {
+  const p = sidecarChain.then(f)
+  sidecarChain = p.catch(() => {})
+  return p
+}
+
+/**
+ * GET answers the sidecar plus the inbox session all readers of this report publish into.
+ * POST applies one change and answers the same: {comment} adds or replaces by id, {delete: id}, {clear: true},
+ * {decision: id, answer: {opt, text}}.
+ */
+async function comments(req: Request, html: string, rel: string): Promise<Response> {
+  const file = html.replace(/\.html?$/i, '') + '.comments.json'
+  const session = 'r' + createHash('sha256').update(html).digest('hex').slice(0, 23)
+  const json = (s: Sidecar) => Response.json({ session, comments: s.comments, decisions: s.decisions }, { headers: { 'cache-control': 'no-store' } })
+  if (req.method === 'GET') return json(await readSidecar(file, rel))
+  if (req.method !== 'POST') return new Response('GET or POST', { status: 405 })
+  let body: Record<string, unknown>
+  try {
+    const v: unknown = await req.json()
+    if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('not an object')
+    body = v as Record<string, unknown>
+  }
+  catch {
+    return new Response('expected a JSON object', { status: 400 })
+  }
+  return serial(async () => {
+    const s = await readSidecar(file, rel)
+    if ('comment' in body) {
+      const c = asComment(body.comment)
+      if (!c) return new Response('comment: needs id, src, comment, at', { status: 400 })
+      const i = s.comments.findIndex(x => x.id === c.id)
+      if (i < 0) s.comments.push(c)
+      else s.comments[i] = { ...c, at: s.comments[i]!.at, edited: new Date().toISOString() }
+    }
+    else if (typeof body.delete === 'string') s.comments = s.comments.filter(x => x.id !== body.delete)
+    else if (body.clear === true) s.comments = []
+    else if (typeof body.decision === 'string' && /^[a-z0-9-]{1,32}$/.test(body.decision)) {
+      const a = asAnswer(body.answer)
+      if (!a) return new Response('answer: needs opt', { status: 400 })
+      s.decisions[body.decision] = { ...a, at: Date.now() }
+    }
+    else return new Response('expected comment, delete, clear or decision', { status: 400 })
+    await writeSidecar(file, s)
+    console.log(`${new Date().toISOString()} ${COMMENTS} ${rel}`)
+    return json(s)
+  })
+}
 
 async function readState(): Promise<Served> {
   let v: unknown
@@ -168,14 +278,35 @@ async function serve(file: string): Promise<void> {
     return got.length === want.length && timingSafeEqual(got, want)
   }
 
+  /** A URL path (percent-encoded) to a file inside the served folder, or null; `/` and `dir/` mean the report's own name. */
+  const inFolder = async (path: string): Promise<string | null> => {
+    let rel: string
+    try {
+      rel = decodeURIComponent(path)
+    }
+    catch {
+      return null
+    }
+    try {
+      const target = await realpath(resolve(dir, '.' + (rel.endsWith('/') ? rel + basename(page) : rel))) // a symlink must not lead out either
+      return target.startsWith(dir + sep) ? target : null
+    }
+    catch {
+      return null
+    }
+  }
+
   const handler = async (req: Request, port: number): Promise<Response> => {
     const url = new URL(req.url)
     // DNS rebinding: a foreign site resolving its name to 127.0.0.1 still sends its own Host
     const host = req.headers.get('host')
     if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) return new Response('bad host', { status: 421 })
-    if (url.pathname === BASE || url.pathname.startsWith(BASE + '/')) {
+    const isInbox = url.pathname === BASE || url.pathname.startsWith(BASE + '/')
+    if (isInbox || url.pathname === COMMENTS) {
       const origin = req.headers.get('origin')
       if (origin && origin !== `http://${host}`) return new Response('bad origin', { status: 403 })
+    }
+    if (isInbox) {
       const res = await handleInboxRequest(inbox, {
         method: req.method,
         url: url.pathname + url.search,
@@ -185,22 +316,16 @@ async function serve(file: string): Promise<void> {
       if (req.method === 'POST' && res.status < 300) console.log(`${new Date().toISOString()} ${url.pathname} ${res.status}`)
       return new Response(res.body || null, { status: res.status, headers: { ...res.headers, 'cache-control': 'no-store' } })
     }
+    if (url.pathname === COMMENTS) {
+      if (!authorised(req.headers.get('authorization'))) return new Response('unauthorized', { status: 401 })
+      const html = await inFolder(url.searchParams.get('page') ?? '')
+      if (!html || !/\.html?$/i.test(html)) return new Response('page: not a report in this folder', { status: 404 })
+      return comments(req, html, html.slice(dir.length + 1))
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('read only', { status: 405 })
-    let rel: string
-    try {
-      rel = decodeURIComponent(url.pathname)
-    }
-    catch {
-      return new Response('bad path', { status: 400 })
-    }
-    let target = resolve(dir, '.' + (rel.endsWith('/') ? rel + basename(page) : rel))
-    try {
-      target = await realpath(target) // a symlink must not lead out of the folder either
-    }
-    catch {
-      return new Response('not found', { status: 404 })
-    }
-    if (!target.startsWith(dir + sep)) return new Response('not found', { status: 404 })
+    const target = await inFolder(url.pathname)
+    // comments go out only through /__comments, behind the token
+    if (!target || target.endsWith('.comments.json')) return new Response('not found', { status: 404 })
     const f = Bun.file(target)
     if (!(await f.exists())) return new Response('not found', { status: 404 })
     return new Response(f, { headers: { 'cache-control': 'no-store' } })

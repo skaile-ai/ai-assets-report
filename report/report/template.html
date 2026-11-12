@@ -1152,20 +1152,21 @@ addEventListener('DOMContentLoaded',()=>{const nav=document.querySelector('nav.t
    Every section and block carries data-src, its JSON pointer into the report source (header[data-report]); a note keeps that
    pointer, the marked words and the sentences around them (taken at creation). The Comments panel lists the notes in page order,
    jumps to each and sends them, with the answered decisions, to the agent's inbox (agSend); the agent's resolution shows under
-   each note. Notes live in localStorage per page path (in memory only when storage throws); anPaint marks the words with the
-   CSS Custom Highlight API. All of it exists only while the agent channel answers (html.ag-on, see agTick).
+   each note. Notes are stored on the report: report-serve keeps them in <stem>.comments.json next to the page (cmPost), so
+   every reader and the agent see the same list. anPaint marks the words with the CSS Custom Highlight API. All of it exists
+   only while the agent channel answers (html.ag-on, see agTick).
    The UI says "Comments", not "Notes": "Notes" already names the citation list closing each section. */
 const AT={en:{notes:'Comments',comment:'Comment',secNote:'Comment on this section',placeholder:'What should change?',save:'Save',cancel:'Cancel',
-  del:'Delete',edit:'Edit',send:'Send to agent',clear:'Clear',clearQ:'Delete all comments on this page?',sent:'Sent to the agent',
-  sendFail:'Sending failed: is report-serve still running?',empty:'No comments yet. Select text and press Comment, or use ✎ next to a section title.',
+  del:'Delete',edit:'Edit',send:'Send to agent',clear:'Clear',clearQ:'Delete all comments on this report, for every reader?',sent:'Sent to the agent',
+  sendFail:'Sending failed: is report-serve still running?',saveFail:'Saving failed: is report-serve still running?',empty:'No comments yet. Select text and press Comment, or use ✎ next to a section title.',
   lost:'text no longer found',unsent:'not sent yet',open:'sent · waiting for the agent',done:'Agent:',no:'Agent declined:',
   dcSend:'Send answer',dcSent:'Sent · waiting for the agent',dcChanged:'Changed: send again'},
  de:{notes:'Kommentare',comment:'Kommentieren',secNote:'Abschnitt kommentieren',placeholder:'Was soll sich ändern?',save:'Speichern',cancel:'Abbrechen',
-  del:'Löschen',edit:'Bearbeiten',send:'An Agent senden',clear:'Leeren',clearQ:'Alle Kommentare dieser Seite löschen?',sent:'An den Agent gesendet',
-  sendFail:'Senden fehlgeschlagen: läuft report-serve noch?',empty:'Noch keine Kommentare. Text markieren und »Kommentieren« drücken, oder ✎ neben einem Abschnittstitel.',
+  del:'Löschen',edit:'Bearbeiten',send:'An Agent senden',clear:'Leeren',clearQ:'Alle Kommentare zu diesem Bericht löschen, für alle Leser?',sent:'An den Agent gesendet',
+  sendFail:'Senden fehlgeschlagen: läuft report-serve noch?',saveFail:'Speichern fehlgeschlagen: läuft report-serve noch?',empty:'Noch keine Kommentare. Text markieren und »Kommentieren« drücken, oder ✎ neben einem Abschnittstitel.',
   lost:'Text nicht mehr gefunden',unsent:'noch nicht gesendet',open:'gesendet · wartet auf den Agent',done:'Agent:',no:'Agent lehnt ab:',
   dcSend:'Antwort senden',dcSent:'Gesendet · wartet auf den Agent',dcChanged:'Geändert: erneut senden'}};
-const AN_KEY='report:notes:'+location.pathname,AN_CTX='p,li,td,th,dd,dt,figcaption,caption,blockquote,h2,h3,h4,summary';
+const AN_CTX='p,li,td,th,dd,dt,figcaption,caption,blockquote,h2,h3,h4,summary';
 /* anRanges: note id -> Range of its marked words; anLost: ids whose words or target are gone; anPend: the selection under Comment */
 let anNotes=[],anRanges=new Map(),anLost=new Set(),anPend=null,anCur=null,anT=AT.en,anDlg=null,anAdd=null,anPanelEl=null;
 const anFlat=s=>s.replace(/\s+/g,' ');
@@ -1173,7 +1174,6 @@ const anCut=(s,n)=>{s=anFlat(s).trim();return s.length>n?s.slice(0,n)+'…':s};
 const anElOf=n=>n&&(n.nodeType===1?n:n.parentElement);
 const anId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 function anMk(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;if(tag==='button')e.type='button';return e}
-function anStore(){try{if(anNotes.length)localStorage.setItem(AN_KEY,JSON.stringify(anNotes));else localStorage.removeItem(AN_KEY)}catch(_){}}
 function anTarget(n){return document.querySelector(`[data-src="${CSS.escape(n.src)}"]`)}
 /* the section title as the h2 shows it (number and title), without a change mark, the permalink or the ✎ button; the lede has no h2: the page title stands in */
 function anSecTitle(s){const h=s&&s.querySelector(':scope>h2');if(!h){const t=document.querySelector('h1');return t?t.textContent.trim():''}
@@ -1230,17 +1230,20 @@ function anMarkdown(){anPaint();const h=document.querySelector('header[data-repo
  return L.join('\n')+'\n'}
 function anEdit(n){anCur=n;anAdd.hidden=true;const ta=anDlg.querySelector('textarea');
  anDlg.querySelector('.an-tg').textContent=n.sec+(n.quote?' › '+anCut(n.quote,120):'');
- ta.value=n.comment||'';anDlg.querySelector('.an-del').hidden=!anNotes.includes(n);anDlg.showModal();ta.focus()}
-function anSave(){const ta=anDlg.querySelector('textarea'),c=ta.value.trim(),n=anCur;if(!c||!n){ta.focus();return}
- n.comment=c;if(!anNotes.includes(n)){n.at=new Date().toISOString();anNotes.push(n);getSelection().removeAllRanges()}
- anStore();anDlg.close();anRefresh()}
-function anDel(n){anNotes=anNotes.filter(x=>x!==n);anStore();anRefresh();if(n.sent)agSend().catch(()=>{})}
+ ta.value=n.comment||'';anDlg.querySelector('.an-del').hidden=!anNotes.some(x=>x.id===n.id);anDlg.showModal();ta.focus()}
+/* saved at once on the report (cmPost); the dialog stays open with the text when the server does not take it */
+async function anSave(){const ta=anDlg.querySelector('textarea'),c=ta.value.trim(),n=anCur;if(!c||!n){ta.focus();return}
+ const fresh=!anNotes.some(x=>x.id===n.id);
+ try{await cmPost({comment:{...n,comment:c,at:n.at||new Date().toISOString()}})}catch(_){anDlg.querySelector('.an-tg').textContent=anT.saveFail;return}
+ if(fresh)getSelection().removeAllRanges();anDlg.close()}
+/* a deleted note that the agent already holds leaves its inbox too: publish the session again */
+async function anDel(n){const was=AG.items.has(agNid(n));try{await cmPost({delete:n.id})}catch(_){return}if(was)agSend().catch(()=>{})}
 function anRefresh(){anPaint();anList()}
 function anList(){const P=anPanelEl;if(!P)return;const fn=document.querySelector('.an-fab .an-n');fn.textContent=anNotes.length;fn.hidden=!anNotes.length;
  const ol=P.querySelector('.an-ls'),ord=anOrder();ol.replaceChildren();
  for(const b of P.querySelectorAll('.an-ft button'))b.disabled=!ord.length;
- const st=n=>{const it=n.sent&&AG.items.get(n.sent);if(n.sent!==agNid(n))return[anMk('span','an-s',anT.unsent)];
-  if(!it||it.status==='open')return[anMk('span','an-s',anT.open)];
+ const st=n=>{const it=AG.items.get(agNid(n));if(!it)return[anMk('span','an-s',anT.unsent)];
+  if(it.status==='open')return[anMk('span','an-s',anT.open)];
   return[anMk('span','an-r',(it.status==='rejected'?anT.no:anT.done)+' '+(it.resolution||'✓'))]};
  if(!ord.length){ol.append(anMk('li','an-mt',anT.empty));return}
  ord.forEach((n,i)=>{const li=anMk('li','an-it'),go=anMk('button','an-go'),x=anMk('div','an-x'),ed=anMk('button','',anT.edit),dl=anMk('button','',anT.del);
@@ -1255,11 +1258,10 @@ function anPanel(on){const P=anPanelEl,fab=document.querySelector('.an-fab');P.h
  fab.setAttribute('aria-expanded',on);if(on){anRefresh();P.querySelector('.an-cl').focus()}else fab.focus({preventScroll:true})}
 async function anSend(){const st=anPanelEl.querySelector('.an-st');
  try{await agSend();st.textContent=anT.sent}catch(_){st.textContent=anT.sendFail}anList()}
-function anClear(){if(!confirm(anT.clearQ))return;const was=anNotes.some(n=>n.sent);anNotes=[];try{localStorage.removeItem(AN_KEY)}catch(_){}
- anPanelEl.querySelector('.an-st').textContent='';anRefresh();if(was)agSend().catch(()=>{})}
+async function anClear(){if(!confirm(anT.clearQ))return;const was=anNotes.some(n=>AG.items.has(agNid(n))),st=anPanelEl.querySelector('.an-st');
+ try{await cmPost({clear:true});st.textContent=''}catch(_){st.textContent=anT.saveFail;return}if(was)agSend().catch(()=>{})}
 function anInit(){const secs=document.querySelectorAll('section[data-src]');if(!secs.length)return;
  anT=AT[document.documentElement.lang.slice(0,2)]||AT.en;const close=(ZT[document.documentElement.lang.slice(0,2)]||ZT.en).close;
- try{const s=JSON.parse(localStorage.getItem(AN_KEY)||'[]');if(Array.isArray(s))anNotes=s}catch(_){}
  for(const s of secs){const h=s.querySelector(':scope>h2');if(!h)continue;const b=anMk('button','an-sec');b.title=anT.secNote;b.setAttribute('aria-label',anT.secNote);
   b.addEventListener('click',()=>anEdit({id:anId(),src:s.dataset.src,sec:anSecTitle(s),quote:'',before:'',after:'',anchor:'',comment:'',at:''}));
   h.insertBefore(b,h.querySelector(':scope>.ha'))}
@@ -1296,23 +1298,34 @@ addEventListener('DOMContentLoaded',anInit);
 /* Agent channel. report-serve.ts serves this page on 127.0.0.1 and prints its URL with #k=<token>; the token moves to
    sessionStorage and leaves the address bar. agTick asks GET /__annotations/access every 10 s: only {allowed:true} turns the
    channel on (html.ag-on: comments appear, decision forms enable); file://, no token, a stopped server or a refusal turn it off.
-   agSend publishes the whole session (every comment, every sent decision) as one annotation-inbox payload; the agent's
-   annotations_resolve answer comes back through the session listing (AG.items, keyed by annotation id). An edited comment or
-   a changed answer gets a new annotation id (text hash), so the agent is woken for it again. */
-const AG={tok:'',sid:'',on:false,items:new Map()},AG_SKEY='report:session:'+location.pathname,DC_KEY='report:decisions:'+location.pathname;
+   Each tick also reloads the comments and decision answers stored on the report (GET /__comments: <stem>.comments.json) and the
+   inbox session every reader of this report shares (the server names it). agSend publishes the whole state (every comment,
+   every answered decision) as one annotation-inbox payload; the agent's annotations_resolve answer comes back through the
+   session listing (AG.items, keyed by annotation id). An item counts as sent while the session holds its annotation id; an
+   edited comment or a changed answer gets a new id (text hash), so it reads "not sent yet" and wakes the agent again. */
+const AG={tok:'',sid:'',on:false,items:new Map()};
 const agHash=s=>{let h=5381;for(const c of s)h=Math.imul(h,33)^c.codePointAt(0);return(h>>>0).toString(36)};
 const agNid=n=>n.id+'-'+agHash(n.comment);
 const agHdr=json=>Object.assign({Authorization:'Bearer '+AG.tok},json?{'content-type':'application/json'}:{});
 const agSrc=()=>{const h=document.querySelector('header[data-report]');return h?h.dataset.report:'report.json'};
 let dcState={};
-function dcStore(){try{localStorage.setItem(DC_KEY,JSON.stringify(dcState))}catch(_){}}
 const dcAid=(id,d)=>'d-'+id+'-'+agHash(d.opt+'\n'+d.text);
 function dcDraft(f){const o=f.querySelector('input:checked'),t=f.querySelector('textarea');return{opt:o?o.value:'',text:t?t.value.trim():''}}
+const cmUrl=()=>'/__comments?page='+encodeURIComponent(location.pathname);
+/* take the report's stored state; a decision form takes its stored answer unless this reader is changing it
+   (the form no longer shows the answer stored before) */
+function cmApply(s){const prev=dcState;AG.sid=s.session;anNotes=s.comments;dcState=s.decisions;
+ for(const f of document.querySelectorAll('form.dc')){const id=f.dataset.decision,d=dcState[id],o=prev[id],dr=dcDraft(f);
+  if(!d||(o?o.opt!==dr.opt||o.text!==dr.text:dr.opt||dr.text))continue;
+  const i=f.querySelector(`input[value="${CSS.escape(d.opt)}"]`);if(i)i.checked=true;const t=f.querySelector('textarea');if(t)t.value=d.text||''}}
+/* one change to the stored comments or answers: {comment}, {delete:id}, {clear:true} or {decision:id,answer} */
+async function cmPost(body){const r=await fetch(cmUrl(),{method:'POST',headers:agHdr(true),cache:'no-store',body:JSON.stringify(body)});
+ if(!r.ok)throw new Error('comments '+r.status);cmApply(await r.json());if(anPanelEl)anRefresh();dcRefresh()}
 function agAnnots(){const src=agSrc(),url=location.href.split('#')[0],out=[];
  for(const n of anNotes){const ctx=n.quote?` · Marked: "${anFlat(n.quote).trim()}" · Context: "${n.before||''}**${anFlat(n.quote).trim()}**${n.after||''}"`:'';
   out.push({id:agNid(n),comment:n.comment,elementPath:`${src}#/${n.src}`+(n.anchor?` · ${n.anchor}`:''),url,timestamp:Date.parse(n.at)||Date.now(),
    nearbyText:`Section: ${n.sec}${ctx}`})}
- for(const f of document.querySelectorAll('form.dc')){const id=f.dataset.decision,d=dcState[id];if(!d||!d.sent)continue;
+ for(const f of document.querySelectorAll('form.dc')){const id=f.dataset.decision,d=dcState[id];if(!d)continue;
   const lab=o=>{const i=f.querySelector(`input[value="${CSS.escape(o)}"]`);return i?anFlat(i.closest('label').querySelector('b').textContent).trim():o};
   const opts=[...f.querySelectorAll('input[type=radio]')].map(i=>`${i.value} = ${lab(i.value)}`).join('; ');
   out.push({id:dcAid(id,d),comment:`Decision ${id}: ${lab(d.opt)} [${d.opt}]`+(d.text?`\n${d.text}`:''),
@@ -1323,21 +1336,23 @@ async function agSend(){const annotations=agAnnots();
  const r=await fetch('/__annotations',{method:'POST',headers:agHdr(true),cache:'no-store',
   body:JSON.stringify({sessionId:AG.sid,origin:location.origin,url:location.href.split('#')[0],annotations,markdown:anMarkdown()})});
  if(!r.ok)throw new Error('inbox '+r.status);
- for(const n of anNotes)n.sent=agNid(n);anStore();await agTick()}
+ await agTick()}
 function dcRefresh(){for(const f of document.querySelectorAll('form.dc')){const ft=f.querySelector('.dc-ft');if(!AG.on){ft.replaceChildren();continue}
- const id=f.dataset.decision,d=dcState[id],dr=dcDraft(f),it=d&&d.sent&&AG.items.get(dcAid(id,d));
+ const id=f.dataset.decision,d=dcState[id],dr=dcDraft(f),it=d&&AG.items.get(dcAid(id,d)),same=!!d&&d.opt===dr.opt&&d.text===dr.text;
  let b=ft.querySelector('button');if(!b){b=anMk('button','',anT.dcSend);b.addEventListener('click',()=>dcSend(f));ft.replaceChildren(b)}
- const changed=!d||!d.sent||d.opt!==dr.opt||d.text!==dr.text;b.disabled=!dr.opt||!changed;
+ b.disabled=!dr.opt||(same&&!!it);
  for(const x of ft.querySelectorAll('.dc-st,.dc-a'))x.remove();
- if(d&&d.sent&&changed)ft.append(anMk('span','dc-st',anT.dcChanged));
+ if(d&&!same)ft.append(anMk('span','dc-st',anT.dcChanged));
  else if(it&&it.status!=='open')ft.append(anMk('p','dc-a',(it.status==='rejected'?anT.no:anT.done)+' '+(it.resolution||'✓')));
- else if(d&&d.sent)ft.append(anMk('span','dc-st',anT.dcSent))}}
-async function dcSend(f){const id=f.dataset.decision,dr=dcDraft(f);if(!dr.opt)return;dcState[id]={...dr,sent:true,at:Date.now()};dcStore();
- try{await agSend()}catch(_){const ft=f.querySelector('.dc-ft');ft.querySelector('.dc-st')?.remove();ft.append(anMk('span','dc-st',anT.sendFail))}}
+ else if(it)ft.append(anMk('span','dc-st',anT.dcSent));
+ else if(d)ft.append(anMk('span','dc-st',anT.unsent))}}
+async function dcSend(f){const id=f.dataset.decision,dr=dcDraft(f);if(!dr.opt)return;
+ try{await cmPost({decision:id,answer:dr});await agSend()}catch(_){const ft=f.querySelector('.dc-ft');ft.querySelector('.dc-st')?.remove();ft.append(anMk('span','dc-st',anT.sendFail))}}
 async function agTick(){let on=false;
  if(AG.tok&&/^https?:$/.test(location.protocol))try{
   const r=await fetch('/__annotations/access',{headers:agHdr(),cache:'no-store'});on=r.ok&&(await r.json()).allowed===true;
-  if(on){const l=await fetch('/__annotations?status=all&session='+AG.sid,{headers:agHdr(),cache:'no-store'});
+  if(on){const c=await fetch(cmUrl(),{headers:agHdr(),cache:'no-store'});if(!c.ok)throw new Error('comments '+c.status);cmApply(await c.json());
+   const l=await fetch('/__annotations?status=all&session='+AG.sid,{headers:agHdr(),cache:'no-store'});
    if(l.ok)AG.items=new Map((await l.json()).items.map(i=>[i.id,i]))}}catch(_){on=false}
  if(on!==AG.on){AG.on=on;document.documentElement.classList.toggle('ag-on',on);
   for(const x of document.querySelectorAll('form.dc fieldset'))x.disabled=!on;
@@ -1348,12 +1363,7 @@ function agInit(){anT=AT[document.documentElement.lang.slice(0,2)]||AT.en;
  if(m){AG.tok=m[1];try{sessionStorage.setItem('report:k',AG.tok)}catch(_){}
   const rest=location.hash.replace(/(^#|&)k=[\w-]+/,'$1').replace(/^#&/,'#');history.replaceState(null,'',location.pathname+location.search+(rest==='#'?'':rest))}
  else try{AG.tok=sessionStorage.getItem('report:k')||''}catch(_){}
- try{AG.sid=localStorage.getItem(AG_SKEY)||''}catch(_){}
- if(!/^[a-z0-9]{6,32}$/.test(AG.sid)){AG.sid=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>(b%36).toString(36)).join('');try{localStorage.setItem(AG_SKEY,AG.sid)}catch(_){}}
- try{const s=JSON.parse(localStorage.getItem(DC_KEY)||'{}');if(s&&typeof s==='object')dcState=s}catch(_){}
- for(const f of document.querySelectorAll('form.dc')){const d=dcState[f.dataset.decision];
-  if(d){const i=f.querySelector(`input[value="${CSS.escape(d.opt)}"]`);if(i)i.checked=true;const t=f.querySelector('textarea');if(t)t.value=d.text||''}
-  f.addEventListener('input',dcRefresh);f.addEventListener('submit',e=>e.preventDefault())}
+ for(const f of document.querySelectorAll('form.dc')){f.addEventListener('input',dcRefresh);f.addEventListener('submit',e=>e.preventDefault())}
  agTick();setInterval(agTick,10000)}
 addEventListener('DOMContentLoaded',agInit);
 </script>
