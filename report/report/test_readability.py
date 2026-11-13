@@ -1777,6 +1777,42 @@ class TreeColumns(unittest.TestCase):
         self.assertIn('<div class="tree"><ul', out)
 
 
+class SummaryDecisionsDetails(unittest.TestCase):
+    """After the lede the page reads business summary, then decisions, then details."""
+    LEDE = section("Answer")
+    SUMMARY = {"title": "In short", "role": "summary", "blocks": [{"type": "p", "text": "We ship."}, {"type": "bullets", "items": ["Costs drop.", "Risk is low."]}]}
+    DEC = {"type": "decision", "id": "go", "question": "Ship now?", "options": [{"id": "yes", "label": "Yes"}, {"id": "no", "label": "No"}]}
+    DECISIONS = {"title": "Decide", "role": "decisions", "blocks": [{"type": "p", "text": "One choice."}, DEC]}
+
+    def test_summary_then_decisions_then_details_builds_clean(self):
+        rep = report(size="medium", sections=[self.LEDE, self.SUMMARY, self.DECISIONS, section("Detail")])
+        self.assertFalse([x for x in rep.lint() if x.startswith(("summary", "decisions"))])
+
+    def test_order_and_roles_fail(self):
+        cases = {
+            "comes right after the lede": [self.LEDE, section("Detail"), self.SUMMARY],
+            "decisions come right after the summary": [self.LEDE, self.SUMMARY, section("Detail"), self.DECISIONS],
+            "lede and takes no role": [dict(self.SUMMARY), section("Detail")],
+            "second summary": [self.LEDE, self.SUMMARY, dict(self.SUMMARY, title="Again")],
+            "role must be one of": [self.LEDE, dict(section("X"), role="intro")],
+            "not table": [self.LEDE, dict(self.SUMMARY, blocks=[{"type": "table", "columns": ["a"], "rows": [["1"]]}])],
+        }
+        for msg, secs in cases.items():
+            with self.subTest(msg):
+                self.assertIn(msg, fails(report, sections=secs))
+
+    def test_agent_build_lints_missing_summary_and_stray_decision(self):
+        lints = report(size="medium", sections=[self.LEDE, {"title": "Detail", "blocks": [{"type": "p", "text": "x."}, self.DEC]}]).lint()
+        self.assertTrue(any(x.startswith("summary: no") for x in lints))
+        self.assertTrue(any(x.startswith("decisions: decision go") for x in lints))
+
+    def test_summary_lints_too_many_points_and_code(self):
+        summ = dict(self.SUMMARY, blocks=[{"type": "bullets", "items": [f"Point {i}." for i in range(6)] + ["Uses `x`."]}])
+        lints = report(sections=[self.LEDE, summ]).lint()
+        self.assertTrue(any("7 points (max 5)" in x for x in lints))
+        self.assertTrue(any("code spans" in x for x in lints))
+
+
 class Catalog(unittest.TestCase):
     """catalog.json shows every block type `build.py` renders: one section per type with a use/avoid sentence,
     the live block and its JSON as source. A new `b_<type>` renderer without a catalog section fails here."""

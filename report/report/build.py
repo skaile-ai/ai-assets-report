@@ -29,6 +29,14 @@ Lint lines (printed as `lint: <line>`; advisory, errors under --strict). Format,
         shorten the opening paragraph to the size budget.
     size technical: section "{title}" has no [@...] citation and no at
         cite the source or give the block an `at`.
+    summary: section "{title}" has {n} points (max 5); keep the most important
+        cut the summary to the 5 things a business reader must know.
+    summary: section "{title}" uses code spans; write it for a business reader (outcome, impact, cost, risk, next step)
+        say what it means for the business; the code goes into the details.
+    summary: no `role: "summary"` section; put the business summary right after the lede   (with --check-choice)
+        add a second section with `role: "summary"`: p and bullets, the 3-5 most important things.
+    decisions: decision {id} sits in section "{title}"; move it to the `role: "decisions"` section after the summary   (with --check-choice)
+        gather every decision block in one `role: "decisions"` section right after the summary.
     badge {c}={val}: {n} of {len} entities ({pct} %): set "default": "{val}" so only the exceptions show
         add `"default": "{val}"` to the badge category; its chip is hidden on rows.
     badge {c}={val}: {n} of {len} entities ({pct} %)
@@ -84,6 +92,9 @@ SRC_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")  # a `sources` id: a safe U
 SRC_LIKE = re.compile(r"^[A-Za-z]{1,4}-?\d{1,4}$")  # a citation text that reads as a source id (S1, R12): unknown ones fail
 NOT_LOCAL = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:|//)")  # URL scheme or protocol-relative: not a local media path
 PROSE_TYPES = ("p", "bullets", "steps", "callout", "argument", "example", "compare")  # blocks whose inline text is prose
+# sections with a `role` open the page after the lede: the business summary, then the decisions; the details follow
+ROLE_BLOCKS = {"summary": {"p", "bullets", "callout"}, "decisions": {"p", "decision", "callout"}}
+SUMMARY_POINTS = 5  # max bullet points in the summary
 LINT_LINKS_BLOCK = 3  # max [[id]] links in one prose block
 LINT_LIST_MIN = 4  # list items in a section before the list-vs-prose balance is checked
 NARRATES = re.compile(r"^(The|This|These|Die|Das|Der|Diese)\s+(diagram|chart|table|figure|tree|bars|graph|Diagramm|Grafik|Tabelle|Abbildung|Baum|Balken)\s+(shows?|counts?|lists?|groups?|zeigt|zählt|listet|gruppiert)\b")  # prose that narrates its figure
@@ -491,6 +502,7 @@ class Report:
             fail(f"size must be one of {', '.join(SIZES)}, not {size}")
         self.require_at()
         self.check_reader()
+        self.check_roles()
 
     # -- sources, reader depth, media paths ------------------------------
     @staticmethod
@@ -583,6 +595,32 @@ class Report:
                         fail(f"{where}: the answer paragraph stays visible; remove `reader`")
                     if any(self.always_shown(x) for x in walk([b])):
                         fail(f"{where}: `reader` would hide a safety or action callout; those stay visible")
+
+    def check_roles(self):
+        """`role` sections stand right after the lede in this order: `summary` (sections[1]), then `decisions`; each once,
+        holding only its own block types. The question sections, the details, come after them."""
+        secs = self.d.get("sections", [])
+        at = {}
+        for n, sec in enumerate(secs):
+            r = sec.get("role")
+            if r is None:
+                continue
+            name = f'section "{sec.get("title", n + 1)}"'
+            if r not in ROLE_BLOCKS:
+                fail(f"{name}: role must be one of {', '.join(ROLE_BLOCKS)}, not {r}")
+            if n == 0:
+                fail(f"{name}: the first section is the lede and takes no role; put the {r} section after it")
+            if r in at:
+                fail(f'{name}: a second {r} section; merge it into "{secs[at[r]].get("title")}"')
+            at[r] = n
+            bad = sorted({str(b.get("type")) for b in sec.get("blocks", [])} - ROLE_BLOCKS[r])
+            if bad:
+                fail(f"{name}: a {r} section holds only {', '.join(sorted(ROLE_BLOCKS[r]))}, not {', '.join(bad)}; move the rest into the details")
+        if at.get("summary", 1) != 1:
+            fail(f'section "{secs[at["summary"]].get("title")}": the summary comes right after the lede (second section)')
+        if "decisions" in at and at["decisions"] != at.get("summary", 0) + 1:
+            fail(f'section "{secs[at["decisions"]].get("title")}": the decisions come right after the '
+                 + ("summary" if "summary" in at else "lede"))
 
     def media_path(self, where, rel):
         """Local file `rel` next to the output HTML, else next to report.json; the path as the HTML must write it.
@@ -2803,8 +2841,14 @@ class Report:
             all_b = list(walk(blocks))
             items = sum(len(b.get("items", [])) for b in all_b if b.get("type") in ("bullets", "steps"))
             sents = sum(sentences(b.get("text", "")) for b in all_b if b.get("type") == "p")
-            if items >= LINT_LIST_MIN and items > sents:
+            if items >= LINT_LIST_MIN and items > sents and sec.get("role") != "summary":  # the summary is points by design
                 out.append(f'lists: section "{title}" has {items} list items and {sents} sentences of prose')
+            if sec.get("role") == "summary":
+                npts = sum(len(b.get("items", [])) for b in blocks if b.get("type") == "bullets")
+                if npts > SUMMARY_POINTS:
+                    out.append(f'summary: section "{title}" has {npts} points (max {SUMMARY_POINTS}); keep the most important')
+                if any("`" in str(x) for b in blocks if b.get("type") in PROSE_TYPES for x in prose_text(b)):
+                    out.append(f'summary: section "{title}" uses code spans; write it for a business reader (outcome, impact, cost, risk, next step)')
             for b in all_b:
                 if b.get("type") == "p":
                     txt = re.sub(r"`[^`]*`", "", CITE.sub("", str(b.get("text", ""))))
@@ -2815,18 +2859,28 @@ class Report:
                 lastsent = re.split(r"(?<=[.!?])\s+", re.sub(r"`[^`]*`", "", CITE.sub("", str(last.get("text", "")))).strip())[-1]
                 if lastsent.startswith(("So ", "Also ", "Damit ")):
                     out.append(f'prose: section "{title}" ends on a "So …" recap of its figure')
-        blocks_text = []  # one joined string per prose block, whole report
+        blocks_text = []  # one joined string per prose block, whole report, with whether it sits in the summary
         for sec in secs:
             for b in walk(sec.get("blocks", [])):
                 if b.get("type") in PROSE_TYPES:
-                    blocks_text.append(" ".join(re.sub(r"\[\[[^\]|]*\|?([^\]]*)\]\]", r"\1", re.sub(r"`[^`]*`", "", CITE.sub("", str(x)))) for x in prose_text(b)))  # a link keeps its label, never its id
+                    blocks_text.append((" ".join(re.sub(r"\[\[[^\]|]*\|?([^\]]*)\]\]", r"\1", re.sub(r"`[^`]*`", "", CITE.sub("", str(x)))) for x in prose_text(b)),  # a link keeps its label, never its id
+                                        sec.get("role") == "summary"))
         seen = defaultdict(int)
-        for txt in blocks_text:
+        for txt, summ in blocks_text:
+            if summ:  # the summary restates the key numbers on purpose
+                continue
             for n in {x.replace(",", "") for x in NUMBER.findall(txt)}:
                 if int(n.split(".")[0] or 0) >= 10 and not (len(n) == 4 and n.isdigit() and 1900 <= int(n) <= 2099):
                     seen[n] += 1
         out += [f'numbers: "{n}" appears in {k} prose blocks (state it once, then refer to it)' for n, k in seen.items() if k > 2]
-        alltext = "\n".join(blocks_text)
+        if self.size and len(secs) > 1:  # an agent build (--check-choice): the page opens summary, decisions, details
+            if not any(sec.get("role") == "summary" for sec in secs):
+                out.append('summary: no `role: "summary"` section; put the business summary right after the lede')
+            for sec in secs:
+                if sec.get("role") != "decisions":
+                    out += [f'decisions: decision {b.get("id")} sits in section "{sec["title"]}"; move it to the `role: "decisions"` section after the summary'
+                            for b in walk(sec.get("blocks", [])) if b.get("type") == "decision"]
+        alltext = "\n".join(txt for txt, _ in blocks_text)
         for k, v in d.get("stats", []):
             val = self.stat(k, v, quiet=True)
             if not re.search(rf"(?<![\w.]){re.escape(val)}(?![\w.])", alltext):
@@ -2841,6 +2895,8 @@ class Report:
                         out.append(f'size {self.size}: section "{sec["title"]}" opens with {n} sentences (max {cap})')
             if self.size == "technical":
                 for sec in secs[1:]:
+                    if sec.get("role"):
+                        continue
                     s = json.dumps(sec, ensure_ascii=False)
                     if not CITE.search(s) and '"at":' not in s:
                         out.append(f'size technical: section "{sec["title"]}" has no [@…] citation and no at')
@@ -3132,7 +3188,7 @@ def check_choice(data, path):
     answered = defaultdict(list)
     for n, sec in enumerate(data.get("sections", [])):
         q = sec.get("question")
-        if q is None and n == 0:
+        if q is None and (n == 0 or sec.get("role")):  # the lede, the summary and the decisions answer no single question
             continue
         if q not in ids:
             fail(f'--check-choice: section "{sec.get("title")}" answers no chosen question; '
