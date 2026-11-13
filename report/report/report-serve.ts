@@ -12,15 +12,22 @@
  *     .data/annotations/.report-serve.json, so a restarted server takes them up again and open tabs reconnect.
  *     Comments and decision answers are stored on the report: <stem>.comments.json next to <stem>.html, read and
  *     written through /__comments?page=<path> (same token). Every reader of one report shares them and one inbox session.
+ *     GET /__events (same token) streams one `data: change` event whenever a sidecar or the inbox changes, so open pages
+ *     reload at once instead of on their 10 s tick.
+ *
+ *   bun -i report-serve.ts ask <report.html> <question.json | ->
+ *     Adds a question to the report while it is open: a decision object (`id`, `question`, 2-6 `options` [{id, label,
+ *     text?}], `recommended?`, `other?`) or an array of them, stored under `questions` in <stem>.comments.json through the
+ *     running server. Open pages show the form within a second, in the decisions section; the same `id` again replaces
+ *     the question. Answers arrive like any decision answer (`wait`).
  *
  *   bun -i report-serve.ts wait [--root <project>]
  *     Blocks until the inbox holds an open item no watcher has dispatched yet, marks it seen in
  *     .data/annotations/.watch-seen (shared with the omp extension's /annotations watch), prints the items as
- *     markdown and exits. Run it as a background job: its exit wakes the agent.
- *
- * `-i` lets Bun fetch the pinned inbox package when no node_modules provides it.
+ *     markdown and exits. Run it as a background job: its exit wakes the agent. It watches the inbox folder and
+ *     wakes within a fraction of a second of a send.
  */
-import { existsSync } from 'node:fs'
+import { existsSync, watch } from 'node:fs'
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { appendFile, chmod, mkdir, readFile, realpath, rename, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve, sep } from 'node:path'
@@ -29,6 +36,7 @@ import { handleInboxRequest } from '@skaile/forge-annotation-inbox@2.2.0/server'
 
 const BASE = '/__annotations'
 const COMMENTS = '/__comments'
+const EVENTS = '/__events'
 const SEEN = join('.data', 'annotations', '.watch-seen')
 const STATE = join('.data', 'annotations', '.report-serve.json')
 
@@ -39,8 +47,12 @@ type Served = Record<string, { port: number, token: string, pid: number }>
 interface Comment { id: string, src: string, sec: string, quote: string, before: string, after: string, anchor: string, comment: string, at: string, edited?: string }
 /** A decision block's answer: the chosen option id and the optional comment. */
 interface Answer { opt: string, text: string, at: number }
-/** <stem>.comments.json: everything readers said on one report. */
-interface Sidecar { report: string, comments: Comment[], decisions: Record<string, Answer> }
+/** A question the agent asked while the report was open (`ask`): the same shape as a `decision` block. */
+interface Question { id: string, question: string, options: { id: string, label: string, text?: string }[], recommended?: string, other: boolean, at: number }
+/** <stem>.comments.json: everything readers said on one report, and the questions the agent added to it. */
+interface Sidecar { report: string, comments: Comment[], decisions: Record<string, Answer>, questions: Question[] }
+
+const ID = /^[a-z0-9][a-z0-9-]{0,31}$/
 
 const str = (v: unknown, max: number): v is string => typeof v === 'string' && v.length <= max
 
@@ -66,8 +78,29 @@ function asAnswer(v: unknown): Answer | null {
   return { opt: a.opt, text: typeof a.text === 'string' ? a.text.trim() : '', at: typeof a.at === 'number' ? a.at : Date.now() }
 }
 
+/** A decision object for `ask`, or the reason it is not one (the build.py `decision` rules; option ids as answers store them). */
+function asQuestion(v: unknown): Question | string {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return 'a question is a JSON object'
+  const q = v as Record<string, unknown>
+  if (!str(q.id, 32) || !ID.test(q.id)) return '`id`: lowercase letters, digits and dashes, at most 32'
+  const where = `question ${q.id}`
+  if (!str(q.question, 1000) || !q.question.trim()) return `${where}: \`question\` is required`
+  if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 6) return `${where}: \`options\` needs 2 to 6 options`
+  const options: Question['options'] = []
+  for (const [n, o] of q.options.entries()) {
+    const r = (o ?? {}) as Record<string, unknown>
+    if (!str(r.id, 32) || !ID.test(r.id) || !str(r.label, 300) || !r.label.trim()) return `${where}: option ${n + 1} needs \`id\` (lowercase letters, digits, dashes) and \`label\``
+    if (options.some(x => x.id === r.id)) return `${where}: option id ${r.id} is used twice`
+    if (r.text !== undefined && !str(r.text, 1000)) return `${where}: option ${r.id}: \`text\` must be a string`
+    options.push({ id: r.id, label: r.label.trim(), ...(typeof r.text === 'string' && r.text.trim() ? { text: r.text.trim() } : {}) })
+  }
+  if (q.recommended !== undefined && !options.some(o => o.id === q.recommended)) return `${where}: \`recommended\` is not an option id`
+  return { id: q.id, question: q.question.trim(), options, ...(typeof q.recommended === 'string' ? { recommended: q.recommended } : {}),
+    other: q.other !== false, at: typeof q.at === 'number' ? q.at : Date.now() }
+}
+
 async function readSidecar(file: string, report: string): Promise<Sidecar> {
-  const out: Sidecar = { report, comments: [], decisions: {} }
+  const out: Sidecar = { report, comments: [], decisions: {}, questions: [] }
   let v: unknown
   try {
     v = JSON.parse(await readFile(file, 'utf8'))
@@ -81,6 +114,7 @@ async function readSidecar(file: string, report: string): Promise<Sidecar> {
   if (s.decisions && typeof s.decisions === 'object') {
     for (const [id, a] of Object.entries(s.decisions)) { const ok = asAnswer(a); if (ok && /^[a-z0-9-]{1,32}$/.test(id)) out.decisions[id] = ok }
   }
+  if (Array.isArray(s.questions)) for (const q of s.questions) { const ok = asQuestion(q); if (typeof ok !== 'string') out.questions.push(ok) }
   return out
 }
 
@@ -102,12 +136,12 @@ function serial<T>(f: () => Promise<T>): Promise<T> {
 /**
  * GET answers the sidecar plus the inbox session all readers of this report publish into.
  * POST applies one change and answers the same: {comment} adds or replaces by id, {delete: id}, {clear: true},
- * {decision: id, answer: {opt, text}}.
+ * {decision: id, answer: {opt, text}}, {question} (from `ask`) adds or replaces a question by id.
  */
 async function comments(req: Request, html: string, rel: string): Promise<Response> {
   const file = html.replace(/\.html?$/i, '') + '.comments.json'
   const session = 'r' + createHash('sha256').update(html).digest('hex').slice(0, 23)
-  const json = (s: Sidecar) => Response.json({ session, comments: s.comments, decisions: s.decisions }, { headers: { 'cache-control': 'no-store' } })
+  const json = (s: Sidecar) => Response.json({ session, comments: s.comments, decisions: s.decisions, questions: s.questions }, { headers: { 'cache-control': 'no-store' } })
   if (req.method === 'GET') return json(await readSidecar(file, rel))
   if (req.method !== 'POST') return new Response('GET or POST', { status: 405 })
   let body: Record<string, unknown>
@@ -135,7 +169,19 @@ async function comments(req: Request, html: string, rel: string): Promise<Respon
       if (!a) return new Response('answer: needs opt', { status: 400 })
       s.decisions[body.decision] = { ...a, at: Date.now() }
     }
-    else return new Response('expected comment, delete, clear or decision', { status: 400 })
+    else if ('question' in body) {
+      const q = asQuestion(body.question)
+      if (typeof q === 'string') return new Response(q, { status: 400 })
+      if ((await readFile(html, 'utf8')).includes(`data-decision="${q.id}"`)) {
+        return new Response(`question ${q.id}: the report already has a decision block with this id`, { status: 409 })
+      }
+      const i = s.questions.findIndex(x => x.id === q.id)
+      if (i < 0) s.questions.push(q)
+      else s.questions[i] = q
+      const a = s.decisions[q.id] // a replaced question keeps its answer only while the chosen option still exists
+      if (a && !q.options.some(o => o.id === a.opt)) delete s.decisions[q.id]
+    }
+    else return new Response('expected comment, delete, clear, decision or question', { status: 400 })
     await writeSidecar(file, s)
     console.log(`${new Date().toISOString()} ${COMMENTS} ${rel}`)
     return json(s)
@@ -201,15 +247,37 @@ async function readSeen(): Promise<Set<string>> {
   }
 }
 
+/**
+ * Calls `f`, coalesced over 100 ms, whenever something under one of `paths` changes. A path that cannot be watched is
+ * skipped: every caller keeps a slow poll beside it. Returns the stop function.
+ */
+function onChange(paths: string[], f: () => void): () => void {
+  let t: ReturnType<typeof setTimeout> | undefined
+  const kick = () => { clearTimeout(t); t = setTimeout(f, 100) }
+  const ws = paths.flatMap((p) => {
+    try {
+      return [watch(p, { recursive: true }, kick)]
+    }
+    catch {
+      return []
+    }
+  })
+  return () => { clearTimeout(t); for (const w of ws) w.close() }
+}
+
 async function wait(): Promise<void> {
+  const store = join(root, '.data', 'annotations')
+  await mkdir(store, { recursive: true })
+  let wake = () => {}
+  const stop = onChange([store], () => wake())
   for (;;) {
     const seen = await readSeen()
     let fresh = (await inbox.list({ status: 'open' })).filter(i => !seen.has(i.inboxId))
     if (fresh.length) {
-      await Bun.sleep(500) // a publish writes item by item: let it finish
+      await Bun.sleep(300) // a publish writes item by item: let it finish
       fresh = (await inbox.list({ status: 'open' })).filter(i => !seen.has(i.inboxId))
       if (fresh.length) {
-        await mkdir(dirname(join(root, SEEN)), { recursive: true })
+        stop()
         await appendFile(join(root, SEEN), fresh.map(i => i.inboxId).join('\n') + '\n')
         console.log(`New answers from the report reader (${fresh.length}). Act on each, then call annotations_resolve `
           + `with its inboxId (implemented, or rejected with a resolution); the page shows your resolution.\n`)
@@ -217,7 +285,42 @@ async function wait(): Promise<void> {
         return
       }
     }
-    await Bun.sleep(1000)
+    const { promise, resolve } = Promise.withResolvers<void>()
+    wake = resolve
+    setTimeout(resolve, 1000)
+    await promise
+  }
+}
+
+/** `ask`: post one question or an array of them to the running server of the report's folder. */
+async function ask(file: string, from: string | undefined): Promise<void> {
+  if (!from) die('usage: report-serve.ts ask <report.html> <question.json | ->')
+  const page = resolve(file)
+  if (!(await Bun.file(page).exists())) die(`no such file ${page}`)
+  let v: unknown
+  try {
+    v = JSON.parse(from === '-' ? await Bun.stdin.text() : await readFile(from, 'utf8'))
+  }
+  catch (e) {
+    die(`${from}: not JSON (${String(e)})`)
+  }
+  const qs = Array.isArray(v) ? v : [v]
+  for (const q of qs) {
+    const ok = asQuestion(q)
+    if (typeof ok === 'string') die(ok)
+  }
+  const dir = await realpath(dirname(page))
+  const srv = (await readState())[dir]
+  if (!srv || !(await alive(srv.port, srv.token))) die(`no report-serve runs for ${dir}: start it with \`report-serve.ts ${file}\` first`)
+  const rel = page.slice(dir.length + 1).split(sep).map(encodeURIComponent).join('/')
+  for (const q of qs) {
+    const r = await fetch(`http://127.0.0.1:${srv.port}${COMMENTS}?page=${encodeURIComponent('/' + rel)}`, {
+      method: 'POST',
+      headers: { 'authorization': `Bearer ${srv.token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ question: q }),
+    })
+    if (!r.ok) die(`${r.status} ${await r.text()}`)
+    console.log(`asked ${(q as Question).id} on http://127.0.0.1:${srv.port}/${rel}: open pages show it now; its answer arrives through \`wait\``)
   }
 }
 
@@ -302,7 +405,7 @@ async function serve(file: string): Promise<void> {
     const host = req.headers.get('host')
     if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) return new Response('bad host', { status: 421 })
     const isInbox = url.pathname === BASE || url.pathname.startsWith(BASE + '/')
-    if (isInbox || url.pathname === COMMENTS) {
+    if (isInbox || url.pathname === COMMENTS || url.pathname === EVENTS) {
       const origin = req.headers.get('origin')
       if (origin && origin !== `http://${host}`) return new Response('bad origin', { status: 403 })
     }
@@ -315,6 +418,14 @@ async function serve(file: string): Promise<void> {
       })
       if (req.method === 'POST' && res.status < 300) console.log(`${new Date().toISOString()} ${url.pathname} ${res.status}`)
       return new Response(res.body || null, { status: res.status, headers: { ...res.headers, 'cache-control': 'no-store' } })
+    }
+    if (url.pathname === EVENTS) {
+      if (!authorised(req.headers.get('authorization'))) return new Response('unauthorized', { status: 401 })
+      let self: ReadableStreamDefaultController<Uint8Array>
+      return new Response(new ReadableStream<Uint8Array>({
+        start(c) { self = c; streams.add(c); c.enqueue(enc.encode(': open\n\n')) },
+        cancel() { streams.delete(self) },
+      }), { headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-store' } })
     }
     if (url.pathname === COMMENTS) {
       if (!authorised(req.headers.get('authorization'))) return new Response('unauthorized', { status: 401 })
@@ -331,9 +442,28 @@ async function serve(file: string): Promise<void> {
     return new Response(f, { headers: { 'cache-control': 'no-store' } })
   }
 
+  // push: every open page holds GET /__events; a sidecar write (any reader, `ask`) or an inbox change (a send, the
+  // agent's annotations_resolve from another process) sends `data: change`, and the page reloads its state at once
+  const enc = new TextEncoder()
+  const streams = new Set<ReadableStreamDefaultController<Uint8Array>>()
+  const send = (s: string) => {
+    for (const c of streams) {
+      try {
+        c.enqueue(enc.encode(s))
+      }
+      catch {
+        streams.delete(c)
+      }
+    }
+  }
+  const store = join(root, '.data', 'annotations')
+  await mkdir(store, { recursive: true })
+  onChange([dir, store], () => send('data: change\n\n'))
+  setInterval(() => send(': hb\n\n'), 15000) // keeps the stream inside idleTimeout and lets a page notice a dead server
+
   const fixed = arg('--port')
   const start = (port: number) => {
-    const s = Bun.serve({ hostname: '127.0.0.1', port, fetch: req => handler(req, s.port) })
+    const s = Bun.serve({ hostname: '127.0.0.1', port, idleTimeout: 60, fetch: req => handler(req, s.port) })
     return s
   }
   let server
@@ -350,7 +480,8 @@ async function serve(file: string): Promise<void> {
   console.log(`inbox: ${join(root, '.data', 'annotations')}`)
 }
 
-const [cmd] = process.argv.slice(2).filter((a, i, all) => !a.startsWith('--') && !all[i - 1]?.startsWith('--'))
-if (!cmd) die('usage: report-serve.ts <report.html> [--root <project>] [--port <n>] [--env local|platform|container] | report-serve.ts wait [--root <project>]')
+const [cmd, ...rest] = process.argv.slice(2).filter((a, i, all) => !a.startsWith('--') && !all[i - 1]?.startsWith('--'))
+if (!cmd) die('usage: report-serve.ts <report.html> [--root <project>] [--port <n>] [--env local|platform|container] | report-serve.ts wait [--root <project>] | report-serve.ts ask <report.html> <question.json | ->')
 if (cmd === 'wait') await wait()
+else if (cmd === 'ask') await ask(rest[0] ?? '', rest[1])
 else await serve(cmd)

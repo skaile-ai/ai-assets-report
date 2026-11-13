@@ -1160,12 +1160,16 @@ const AT={en:{notes:'Comments',comment:'Comment',secNote:'Comment on this sectio
   del:'Delete',edit:'Edit',send:'Send to agent',clear:'Clear',clearQ:'Delete all comments on this report, for every reader?',sent:'Sent to the agent',
   sendFail:'Sending failed: is report-serve still running?',saveFail:'Saving failed: is report-serve still running?',empty:'No comments yet. Select text and press Comment, or use ✎ next to a section title.',
   lost:'text no longer found',unsent:'not sent yet',open:'sent · waiting for the agent',done:'Agent:',no:'Agent declined:',
-  dcSend:'Send answer',dcSent:'Sent · waiting for the agent',dcChanged:'Changed: send again'},
+  dcSend:'Send answer',dcSent:'Sent · waiting for the agent',dcChanged:'Changed: send again',
+  dcK:'Decision',dcRec:'recommended',dcOther:'Comment (optional)',dcNew:'Questions from the agent',
+  dcOff:'Answering works only while the agent channel is open.'},
  de:{notes:'Kommentare',comment:'Kommentieren',secNote:'Abschnitt kommentieren',placeholder:'Was soll sich ändern?',save:'Speichern',cancel:'Abbrechen',
   del:'Löschen',edit:'Bearbeiten',send:'An Agent senden',clear:'Leeren',clearQ:'Alle Kommentare zu diesem Bericht löschen, für alle Leser?',sent:'An den Agent gesendet',
   sendFail:'Senden fehlgeschlagen: läuft report-serve noch?',saveFail:'Speichern fehlgeschlagen: läuft report-serve noch?',empty:'Noch keine Kommentare. Text markieren und »Kommentieren« drücken, oder ✎ neben einem Abschnittstitel.',
   lost:'Text nicht mehr gefunden',unsent:'noch nicht gesendet',open:'gesendet · wartet auf den Agent',done:'Agent:',no:'Agent lehnt ab:',
-  dcSend:'Antwort senden',dcSent:'Gesendet · wartet auf den Agent',dcChanged:'Geändert: erneut senden'}};
+  dcSend:'Antwort senden',dcSent:'Gesendet · wartet auf den Agent',dcChanged:'Geändert: erneut senden',
+  dcK:'Entscheidung',dcRec:'empfohlen',dcOther:'Anmerkung (optional)',dcNew:'Fragen des Agenten',
+  dcOff:'Antworten geht nur, solange der Kanal zum Agenten offen ist.'}};
 const AN_CTX='p,li,td,th,dd,dt,figcaption,caption,blockquote,h2,h3,h4,summary';
 /* anRanges: note id -> Range of its marked words; anLost: ids whose words or target are gone; anPend: the selection under Comment */
 let anNotes=[],anRanges=new Map(),anLost=new Set(),anPend=null,anCur=null,anT=AT.en,anDlg=null,anAdd=null,anPanelEl=null;
@@ -1302,7 +1306,12 @@ addEventListener('DOMContentLoaded',anInit);
    inbox session every reader of this report shares (the server names it). agSend publishes the whole state (every comment,
    every answered decision) as one annotation-inbox payload; the agent's annotations_resolve answer comes back through the
    session listing (AG.items, keyed by annotation id). An item counts as sent while the session holds its annotation id; an
-   edited comment or a changed answer gets a new id (text hash), so it reads "not sent yet" and wakes the agent again. */
+   edited comment or a changed answer gets a new id (text hash), so it reads "not sent yet" and wakes the agent again.
+   Push: while the channel is on, agStream holds GET /__events open; each `data: change` (a reader saved, the agent asked a
+   question or resolved an item) runs agKick, so replies show within a second; the 10 s tick stays as the fallback.
+   Questions the agent adds with `report-serve.ts ask` come with the stored state (s.questions): dcLive draws each as a
+   decision form (data-live) at the end of the decisions section (section[data-role=decisions]), or in a section of its
+   own after the summary when the report has none; it answers like a built one. */
 const AG={tok:'',sid:'',on:false,items:new Map()};
 const agHash=s=>{let h=5381;for(const c of s)h=Math.imul(h,33)^c.codePointAt(0);return(h>>>0).toString(36)};
 const agNid=n=>n.id+'-'+agHash(n.comment);
@@ -1314,10 +1323,30 @@ function dcDraft(f){const o=f.querySelector('input:checked'),t=f.querySelector('
 const cmUrl=()=>'/__comments?page='+encodeURIComponent(location.pathname);
 /* take the report's stored state; a decision form takes its stored answer unless this reader is changing it
    (the form no longer shows the answer stored before) */
-function cmApply(s){const prev=dcState;AG.sid=s.session;anNotes=s.comments;dcState=s.decisions;
+function cmApply(s){const prev=dcState;AG.sid=s.session;anNotes=s.comments;dcState=s.decisions;dcLive(s.questions||[]);
  for(const f of document.querySelectorAll('form.dc')){const id=f.dataset.decision,d=dcState[id],o=prev[id],dr=dcDraft(f);
   if(!d||(o?o.opt!==dr.opt||o.text!==dr.text:dr.opt||dr.text))continue;
   const i=f.querySelector(`input[value="${CSS.escape(d.opt)}"]`);if(i)i.checked=true;const t=f.querySelector('textarea');if(t)t.value=d.text||''}}
+/* a live question as the same form build.py's b_decision writes; text only, so nothing the agent sends becomes markup */
+function dcForm(q){const f=anMk('form','dc'),fs=document.createElement('fieldset'),lg=anMk('legend','co-h'),h=anMk('strong','',q.question);
+ f.id='d-'+q.id;f.dataset.decision=q.id;f.dataset.live='1';h.id='dcq-'+q.id;f.setAttribute('aria-labelledby',h.id);fs.disabled=!AG.on;
+ lg.append(anMk('span','co-k',anT.dcK),' ',h);fs.append(lg);
+ for(const o of q.options){const l=anMk('label','dc-o'),i=document.createElement('input'),sp=document.createElement('span');
+  i.type='radio';i.name='dc-'+q.id;i.value=o.id;sp.append(anMk('b','',o.label));
+  if(o.id===q.recommended)sp.append(' ',anMk('span','dc-r',anT.dcRec));if(o.text)sp.append(anMk('span','dc-x',o.text));
+  l.append(i,' ',sp);fs.append(l)}
+ if(q.other!==false){const l=anMk('label','dc-f'),t=document.createElement('textarea');t.rows=2;l.append(anMk('span','blk-l',anT.dcOther),t);fs.append(l)}
+ fs.append(anMk('div','dc-ft'));f.append(fs,anMk('p','dc-off',anT.dcOff));
+ f.addEventListener('input',dcRefresh);f.addEventListener('submit',e=>e.preventDefault());return f}
+function dcHost(){const s=document.querySelector('section[data-role="decisions"]>.body');if(s)return s;
+ let x=document.querySelector('section.dc-live');if(!x){x=anMk('section','dc-live');x.dataset.role='decisions';x.setAttribute('aria-labelledby','dc-live-h');
+  const h=anMk('h2','',anT.dcNew);h.id='dc-live-h';x.append(h,anMk('div','body'));
+  const at=document.querySelector('section[data-role="summary"]')||document.querySelector('main section.lede');
+  if(at)at.after(x);else document.querySelector('main').prepend(x)}
+ return x.querySelector('.body')}
+/* a changed question replaces its form (the draft goes with it); an unchanged one stays as the reader left it */
+function dcLive(qs){for(const q of qs){const f=document.getElementById('d-'+q.id),sig=JSON.stringify([q.question,q.options,q.recommended,q.other]);
+ if(f&&(!f.dataset.live||f.dataset.sig===sig))continue;const n=dcForm(q);n.dataset.sig=sig;if(f)f.replaceWith(n);else dcHost().append(n)}}
 /* one change to the stored comments or answers: {comment}, {delete:id}, {clear:true} or {decision:id,answer} */
 async function cmPost(body){const r=await fetch(cmUrl(),{method:'POST',headers:agHdr(true),cache:'no-store',body:JSON.stringify(body)});
  if(!r.ok)throw new Error('comments '+r.status);cmApply(await r.json());if(anPanelEl)anRefresh();dcRefresh()}
@@ -1329,7 +1358,7 @@ function agAnnots(){const src=agSrc(),url=location.href.split('#')[0],out=[];
   const lab=o=>{const i=f.querySelector(`input[value="${CSS.escape(o)}"]`);return i?anFlat(i.closest('label').querySelector('b').textContent).trim():o};
   const opts=[...f.querySelectorAll('input[type=radio]')].map(i=>`${i.value} = ${lab(i.value)}`).join('; ');
   out.push({id:dcAid(id,d),comment:`Decision ${id}: ${lab(d.opt)} [${d.opt}]`+(d.text?`\n${d.text}`:''),
-   elementPath:`${src}#/${f.dataset.src||''}`,url,timestamp:d.at||Date.now(),
+   elementPath:f.dataset.live?`${decodeURIComponent(location.pathname.split('/').pop()).replace(/\.html?$/i,'')}.comments.json#/questions (id ${id}, asked live)`:`${src}#/${f.dataset.src||''}`,url,timestamp:d.at||Date.now(),
    nearbyText:`Question: ${anFlat(f.querySelector('legend strong').textContent).trim()} · Options: ${opts}`})}
  return out}
 async function agSend(){const annotations=agAnnots();
@@ -1357,14 +1386,27 @@ async function agTick(){let on=false;
  if(on!==AG.on){AG.on=on;document.documentElement.classList.toggle('ag-on',on);
   for(const x of document.querySelectorAll('form.dc fieldset'))x.disabled=!on;
   if(!on){if(anDlg&&anDlg.open)anDlg.close();if(anPanelEl&&!anPanelEl.hidden)anPanel(false)}}
+ if(on)agStream();
  if(anPanelEl)anRefresh();dcRefresh()}
+/* one agTick at a time; a kick during a tick runs one more after it */
+let agRun=null,agAgain=false;
+function agKick(){if(agRun){agAgain=true;return}agRun=agTick().catch(()=>{}).finally(()=>{agRun=null;if(agAgain){agAgain=false;agKick()}})}
+/* the push channel: read the event stream until it ends (server stopped, network), then let a tick decide; a stream that
+   fails within 5 s of its start waits for the next 10 s tick before reconnecting */
+async function agStream(){if(AG.es||Date.now()-(AG.esAt||0)<5000)return;AG.es=true;AG.esAt=Date.now();
+ try{const r=await fetch('/__events',{headers:agHdr(),cache:'no-store'});if(!r.ok||!r.body)throw new Error('events '+r.status);
+  const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
+  for(;;){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;
+   while((i=buf.indexOf('\n\n'))>=0){const ev=buf.slice(0,i);buf=buf.slice(i+2);if(/^data:/m.test(ev))agKick()}}}
+ catch(_){}
+ AG.es=false;agKick()}
 function agInit(){anT=AT[document.documentElement.lang.slice(0,2)]||AT.en;
  const m=/(?:^#|&)k=([\w-]+)/.exec(location.hash);
  if(m){AG.tok=m[1];try{sessionStorage.setItem('report:k',AG.tok)}catch(_){}
   const rest=location.hash.replace(/(^#|&)k=[\w-]+/,'$1').replace(/^#&/,'#');history.replaceState(null,'',location.pathname+location.search+(rest==='#'?'':rest))}
  else try{AG.tok=sessionStorage.getItem('report:k')||''}catch(_){}
  for(const f of document.querySelectorAll('form.dc')){f.addEventListener('input',dcRefresh);f.addEventListener('submit',e=>e.preventDefault())}
- agTick();setInterval(agTick,10000)}
+ agKick();setInterval(agKick,10000)}
 addEventListener('DOMContentLoaded',agInit);
 </script>
 {{HEAD}}

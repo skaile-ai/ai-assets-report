@@ -3035,7 +3035,8 @@ class Report:
             sn = f'<span class="sn">{n}</span>' if n else ""
             # the heading and its section are named by the title span alone: the permalink "#" (and the ✎ button the page
             # script adds) stay out of the accessible name, the h2 keeps its #<id>-h anchor
-            parts.append(f'{chap}<section id="{E(secid)}"{ccls}{rd} aria-labelledby="{E(secid)}-t" data-src="sections/{i - 1}">'
+            role = f' data-role="{E(sec["role"])}"' if sec.get("role") else ""
+            parts.append(f'{chap}<section id="{E(secid)}"{ccls}{rd}{role} aria-labelledby="{E(secid)}-t" data-src="sections/{i - 1}">'
                          f'<h2 id="{E(secid)}-h" aria-labelledby="{E(secid)}-t">{sn}{mk}<span id="{E(secid)}-t">{E(sec["title"])}</span>'
                          f'<a class="ha" href="#{E(secid)}" aria-label="{E(t["permalink"])}">#</a></h2>{inner_html}</section>')
             toc.append((sub, f'<li{rd}><a href="#{E(secid)}">{n}{E(sec["title"])}</a></li>'))
